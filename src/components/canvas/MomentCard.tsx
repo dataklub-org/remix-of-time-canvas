@@ -90,17 +90,18 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
 
   // Global mouse up handler for resize
   const handleGlobalMouseUp = useCallback(() => {
+    if (!isResizing) return;
     setIsResizing(false);
     resizeStartRef.current = null;
     document.body.style.cursor = '';
     dispatchResizeState(false);
     // Mark that we just finished resizing to prevent click from opening dialog
     justFinishedResizingRef.current = true;
-    // Reset the flag after a short delay
+    // Reset the flag after a longer delay to ensure click events are blocked
     setTimeout(() => {
       justFinishedResizingRef.current = false;
-    }, 100);
-  }, []);
+    }, 300);
+  }, [isResizing]);
 
   // Attach/detach global listeners when resizing
   useEffect(() => {

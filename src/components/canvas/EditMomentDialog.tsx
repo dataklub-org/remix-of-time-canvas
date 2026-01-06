@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,64 +31,13 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   const [endTimeInput, setEndTimeInput] = useState('');
   const [originalTimestamp, setOriginalTimestamp] = useState<number>(0);
   
-  // Reset form when moment changes
-  useEffect(() => {
-    if (moment) {
-      setDescription(moment.description || '');
-      // Parse people string to array
-      const peopleArray = moment.people 
-        ? moment.people.split(',').map(p => p.trim()).filter(Boolean)
-        : [];
-      setPeople(peopleArray);
-      setPersonInput('');
-      setLocation(moment.location || '');
-      setCategory(moment.category || 'personal');
-      setDateInput(format(new Date(moment.timestamp), 'yyyy-MM-dd'));
-      setTimeInput(format(new Date(moment.timestamp), 'HH:mm'));
-      setEndDateInput(moment.endTime ? format(new Date(moment.endTime), 'yyyy-MM-dd') : '');
-      setEndTimeInput(moment.endTime ? format(new Date(moment.endTime), 'HH:mm') : '');
-      setOriginalTimestamp(moment.timestamp);
-      
-      // Focus and select description field
-      setTimeout(() => {
-        if (descriptionRef.current) {
-          descriptionRef.current.focus();
-          descriptionRef.current.select();
-        }
-      }, 100);
-    }
-  }, [moment]);
-  
-  const addPerson = () => {
-    const trimmed = personInput.trim();
-    if (trimmed && !people.includes(trimmed)) {
-      setPeople([...people, trimmed]);
-      setPersonInput('');
-    }
-  };
-  
-  const removePerson = (person: string) => {
-    setPeople(people.filter(p => p !== person));
-  };
-  
-  const handlePersonKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      addPerson();
-    }
-  };
-  
-  const resetEndTime = () => {
-    setEndDateInput('');
-    setEndTimeInput('');
-  };
-
-  if (!moment) return null;
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Autosave function
+  const saveChanges = useCallback(() => {
+    if (!moment) return;
     
     // Parse timestamp from date and time inputs
+    if (!dateInput || !timeInput) return;
+    
     const [year, month, day] = dateInput.split('-').map(Number);
     const [hours, minutes] = timeInput.split(':').map(Number);
     const parsedTimestamp = new Date(year, month - 1, day, hours, minutes).getTime();
@@ -117,9 +66,70 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       category,
       endTime,
     });
-    
-    onClose();
+  }, [moment, dateInput, timeInput, description, people, location, category, endDateInput, endTimeInput, updateMoment]);
+
+  // Autosave on changes (debounced)
+  useEffect(() => {
+    if (!moment) return;
+    const timer = setTimeout(() => {
+      saveChanges();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [description, people, location, category, dateInput, timeInput, endDateInput, endTimeInput, saveChanges, moment]);
+  
+  // Reset form when moment changes
+  useEffect(() => {
+    if (moment) {
+      setDescription(moment.description || '');
+      // Parse people string to array
+      const peopleArray = moment.people 
+        ? moment.people.split(',').map(p => p.trim()).filter(Boolean)
+        : [];
+      setPeople(peopleArray);
+      setPersonInput('');
+      setLocation(moment.location || '');
+      setCategory(moment.category || 'personal');
+      setDateInput(format(new Date(moment.timestamp), 'yyyy-MM-dd'));
+      setTimeInput(format(new Date(moment.timestamp), 'HH:mm'));
+      setEndDateInput(moment.endTime ? format(new Date(moment.endTime), 'yyyy-MM-dd') : '');
+      setEndTimeInput(moment.endTime ? format(new Date(moment.endTime), 'HH:mm') : '');
+      setOriginalTimestamp(moment.timestamp);
+      
+      // Focus and select description field
+      setTimeout(() => {
+        if (descriptionRef.current) {
+          descriptionRef.current.focus();
+          descriptionRef.current.select();
+        }
+      }, 100);
+    }
+  }, [moment?.id]); // Only trigger on moment id change, not on updates
+  
+  const addPerson = () => {
+    const trimmed = personInput.trim();
+    if (trimmed && !people.includes(trimmed)) {
+      setPeople([...people, trimmed]);
+      setPersonInput('');
+    }
   };
+  
+  const removePerson = (person: string) => {
+    setPeople(people.filter(p => p !== person));
+  };
+  
+  const handlePersonKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addPerson();
+    }
+  };
+  
+  const resetEndTime = () => {
+    setEndDateInput('');
+    setEndTimeInput('');
+  };
+
+  if (!moment) return null;
 
   const handleDelete = () => {
     deleteMoment(moment.id);
@@ -133,7 +143,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
           <DialogTitle className="text-lg font-medium">Edit Moment</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4 mb-2">
+        <div className="space-y-4 mt-4 mb-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="edit-date">Date</Label>
@@ -278,16 +288,11 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
             >
               <Trash2 className="h-4 w-4" />
             </Button>
-            <div className="flex gap-2">
-              <Button type="button" variant="ghost" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                Save
-              </Button>
-            </div>
+            <Button variant="ghost" onClick={onClose}>
+              Close
+            </Button>
           </div>
-        </form>
+        </div>
       </DialogContent>
     </Dialog>
   );

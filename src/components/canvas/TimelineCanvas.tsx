@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Stage, Layer, Rect } from 'react-konva';
+import { Plus } from 'lucide-react';
 import { useCanvasSize } from '@/hooks/useCanvasSize';
 import { usePanZoom } from '@/hooks/usePanZoom';
 import { useMomentsStore } from '@/stores/useMomentsStore';
@@ -9,6 +10,7 @@ import { CreateMomentDialog } from './CreateMomentDialog';
 import { EditMomentDialog } from './EditMomentDialog';
 import { NavigationControls } from './NavigationControls';
 import { xToTime } from '@/utils/timeUtils';
+import { Button } from '@/components/ui/button';
 import type { Moment } from '@/types/moment';
 
 export function TimelineCanvas() {
@@ -39,6 +41,12 @@ export function TimelineCanvas() {
   const handleSelectMoment = useCallback((moment: Moment) => {
     setSelectedMoment(moment);
   }, []);
+
+  const handleAddMoment = useCallback(() => {
+    // Create at current center time and middle of canvas
+    setCreatePosition({ timestamp: canvasState.centerTime, y: height / 2 });
+    setCreateDialogOpen(true);
+  }, [canvasState.centerTime, height]);
 
   return (
     <div 
@@ -83,6 +91,16 @@ export function TimelineCanvas() {
       
       {/* Navigation controls */}
       <NavigationControls />
+      
+      {/* Add moment button */}
+      <Button
+        onClick={handleAddMoment}
+        className="absolute top-4 right-4 rounded-full shadow-lg"
+        size="sm"
+      >
+        <Plus className="h-4 w-4 mr-1.5" />
+        Add Moment
+      </Button>
       
       {/* Help text */}
       <div className="absolute top-4 left-4 text-xs text-muted-foreground">

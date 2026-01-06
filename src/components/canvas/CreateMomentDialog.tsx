@@ -33,13 +33,18 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   const [endTimeInput, setEndTimeInput] = useState('');
   const [originalTimestamp, setOriginalTimestamp] = useState<number>(0);
   
-  // Initialize date/time inputs when dialog opens
+  // Initialize date/time inputs when dialog opens (default duration: 15 minutes)
   useEffect(() => {
     if (open) {
       const date = new Date(timestamp);
       setDateInput(format(date, 'yyyy-MM-dd'));
       setTimeInput(format(date, 'HH:mm'));
       setOriginalTimestamp(timestamp);
+      
+      // Set default end time to 15 minutes after start
+      const endDate = new Date(timestamp + 15 * 60 * 1000);
+      setEndDateInput(format(endDate, 'yyyy-MM-dd'));
+      setEndTimeInput(format(endDate, 'HH:mm'));
     }
   }, [open, timestamp]);
   

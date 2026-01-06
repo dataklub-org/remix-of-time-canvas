@@ -12,18 +12,47 @@ interface MomentCardProps {
   timelineY: number;
 }
 
-const DEFAULT_CARD_WIDTH = 220;
-const DEFAULT_CARD_HEIGHT = 80;
+const MIN_CARD_WIDTH = 100;
+const MIN_CARD_HEIGHT = 36;
 const CARD_RADIUS = 12;
 const RESIZE_HANDLE_SIZE = 20;
 const TIMELINE_BUFFER = 10; // Minimum distance from timeline
+const PADDING_X = 16;
+const PADDING_Y = 8;
+const LINE_HEIGHT = 14;
+const SMALL_LINE_HEIGHT = 12;
+
+// Helper to measure text width (approximate)
+function measureTextWidth(text: string, fontSize: number): number {
+  return text.length * fontSize * 0.55;
+}
 
 export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timelineY }: MomentCardProps) {
   const { canvasState, updateMomentY, updateMomentSize, updateMoment } = useMomentsStore();
   const { centerTime, msPerPixel } = canvasState;
   
-  const cardWidth = moment.width || DEFAULT_CARD_WIDTH;
-  const cardHeight = moment.height || DEFAULT_CARD_HEIGHT;
+  // Calculate content-based dimensions
+  const descriptionText = moment.description || 'Untitled moment';
+  const hasDescription = !!moment.description;
+  const hasPeople = !!moment.people;
+  const hasLocation = !!moment.location;
+  
+  // Calculate minimum width based on content
+  const descWidth = measureTextWidth(descriptionText, 12) + PADDING_X * 2 + 24; // +24 for M badge
+  const peopleWidth = hasPeople ? measureTextWidth(moment.people!, 10) + PADDING_X * 2 : 0;
+  const locationWidth = hasLocation ? measureTextWidth(`📍 ${moment.location}`, 9) + PADDING_X * 2 : 0;
+  
+  const contentWidth = Math.max(MIN_CARD_WIDTH, descWidth, peopleWidth, locationWidth);
+  
+  // Calculate minimum height based on content
+  let contentHeight = PADDING_Y * 2 + LINE_HEIGHT; // Description always shown
+  if (hasPeople) contentHeight += SMALL_LINE_HEIGHT + 2;
+  if (hasLocation) contentHeight += SMALL_LINE_HEIGHT + 2;
+  contentHeight = Math.max(MIN_CARD_HEIGHT, contentHeight);
+  
+  // Use stored dimensions if larger than content, otherwise use content dimensions
+  const cardWidth = moment.width ? Math.max(moment.width, contentWidth) : contentWidth;
+  const cardHeight = moment.height ? Math.max(moment.height, contentHeight) : contentHeight;
   
   const startX = timeToX(moment.timestamp, centerTime, msPerPixel, canvasWidth);
   const endTime = moment.endTime || moment.timestamp;

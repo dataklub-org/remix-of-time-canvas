@@ -23,10 +23,9 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   const endTime = moment.endTime || moment.timestamp;
   const endX = timeToX(endTime, centerTime, msPerPixel, canvasWidth);
   
-  // Center the card between start and end
-  const cardCenterX = (startX + endX) / 2;
-  const cardLeft = cardCenterX - CARD_WIDTH / 2;
-  const cardRight = cardCenterX + CARD_WIDTH / 2;
+  // Card is positioned at start timestamp
+  const cardLeft = startX;
+  const cardRight = startX + CARD_WIDTH;
   const cardTop = moment.y;
   const cardBottom = moment.y + CARD_HEIGHT;
   
@@ -43,15 +42,15 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
     updateMomentY(moment.id, e.target.y());
   };
 
-  // Calculate bezier curve control points for smooth lines
+  // Calculate bezier curve control points for smooth lines going DOWN to timeline
   const isAboveTimeline = cardBottom < timelineY;
   const curveStrength = Math.abs(timelineY - (isAboveTimeline ? cardBottom : cardTop)) * 0.4;
 
-  // Left line: from card corner to start timestamp on timeline
+  // Left line: from bottom-left corner of card to start timestamp on timeline
   const leftLineStart = { x: cardLeft, y: isAboveTimeline ? cardBottom : cardTop };
   const leftLineEnd = { x: startX, y: timelineY };
   
-  // Right line: from card corner to end timestamp on timeline
+  // Right line: from bottom-right corner of card to end timestamp on timeline
   const rightLineStart = { x: cardRight, y: isAboveTimeline ? cardBottom : cardTop };
   const rightLineEnd = { x: endX, y: timelineY };
 
@@ -90,7 +89,7 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         y={moment.y}
         draggable
         dragBoundFunc={(pos) => ({
-          x: cardLeft, // Lock X position
+          x: cardLeft, // Lock X position to start timestamp
           y: pos.y,
         })}
         onDragEnd={handleDragEnd}

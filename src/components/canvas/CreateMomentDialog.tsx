@@ -115,11 +115,19 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-xl">
-        <DialogHeader className="pt-2">
+        <DialogHeader className="pt-2 flex flex-row items-center justify-between">
           <DialogTitle className="text-lg font-medium">New Moment</DialogTitle>
+          <div className="flex gap-2">
+            <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" size="sm" form="create-moment-form">
+              Create
+            </Button>
+          </div>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4 mb-2">
+        <form id="create-moment-form" onSubmit={handleSubmit} className="space-y-4 mt-4 mb-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="date">Date</Label>

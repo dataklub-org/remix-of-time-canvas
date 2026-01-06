@@ -3,12 +3,26 @@ import { Line, Text, Group, Rect } from 'react-konva';
 import { useMomentsStore } from '@/stores/useMomentsStore';
 import { timeToX, getTickInterval, getTimeUnit, ZOOM_LEVELS, getZoomLevelIndex } from '@/utils/timeUtils';
 import { formatTickLabel } from '@/utils/formatUtils';
-import { format, isWeekend, startOfMonth, eachDayOfInterval, startOfDay, endOfDay } from 'date-fns';
+import { format, isWeekend, startOfMonth, eachDayOfInterval, startOfDay, endOfDay, isSunday } from 'date-fns';
 
 interface TimeAxisProps {
   width: number;
   height: number;
   timelineY?: number;
+}
+
+// Minimum pixel distance between tick labels to prevent overlap
+const MIN_TICK_SPACING = 50;
+
+// Helper to get ordinal suffix
+function getOrdinalSuffix(day: number): string {
+  if (day > 3 && day < 21) return 'th';
+  switch (day % 10) {
+    case 1: return 'st';
+    case 2: return 'nd';
+    case 3: return 'rd';
+    default: return 'th';
+  }
 }
 
 export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
@@ -22,30 +36,184 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
   const currentLevel = ZOOM_LEVELS[zoomIndex];
   const timeUnit = currentLevel.unit;
   
-  // Check if we're at a sub-day level (anything less than full day)
+  // Check zoom levels
   const isSubDayLevel = ['5min', '10min', '30min', 'hour', '6hour'].includes(timeUnit);
+  const isDayLevel = timeUnit === 'day';
   const isWeekLevel = timeUnit === 'week';
-  
-  // Generate visible ticks - updates dynamically with msPerPixel
-  const ticks = useMemo(() => {
-    const interval = getTickInterval(msPerPixel);
+  const isMonthLevel = timeUnit === 'month';
+  const isYearLevel = timeUnit === 'year';
+  const isWeekOrHigher = ['week', 'month', 'year'].includes(timeUnit);
+
+  // Generate smart ticks based on zoom level with overlap prevention
+  const smartTicks = useMemo(() => {
     const visibleTimeRange = width * msPerPixel;
     const startTime = centerTime - visibleTimeRange / 2;
     const endTime = centerTime + visibleTimeRange / 2;
     
-    // Align to interval
-    const firstTick = Math.ceil(startTime / interval) * interval;
-    
-    const result: number[] = [];
-    for (let t = firstTick; t <= endTime; t += interval) {
-      result.push(t);
+    interface TickInfo {
+      timestamp: number;
+      label: string;
+      priority: number; // Higher = more important, won't be removed
+      isMonth?: boolean;
+      isSunday?: boolean;
     }
-    return result;
-  }, [centerTime, msPerPixel, width]);
+    
+    const allTicks: TickInfo[] = [];
+    
+    if (isYearLevel) {
+      // Year level: Show months, 10th and 20th
+      let currentDate = startOfMonth(new Date(startTime));
+      while (currentDate.getTime() <= endTime) {
+        const monthStart = startOfMonth(currentDate);
+        if (monthStart.getTime() >= startTime - visibleTimeRange * 0.1) {
+          // Add month label
+          allTicks.push({
+            timestamp: monthStart.getTime(),
+            label: format(monthStart, 'MMM'),
+            priority: 3,
+            isMonth: true,
+          });
+          
+          // Add 10th
+          const tenth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 10);
+          if (tenth.getTime() >= startTime && tenth.getTime() <= endTime) {
+            allTicks.push({
+              timestamp: tenth.getTime(),
+              label: `10${getOrdinalSuffix(10)}`,
+              priority: 1,
+            });
+          }
+          
+          // Add 20th
+          const twentieth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 20);
+          if (twentieth.getTime() >= startTime && twentieth.getTime() <= endTime) {
+            allTicks.push({
+              timestamp: twentieth.getTime(),
+              label: `20${getOrdinalSuffix(20)}`,
+              priority: 1,
+            });
+          }
+        }
+        currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+      }
+    } else if (isMonthLevel) {
+      // Month level: Show months and Sundays only
+      // Add month boundaries first (higher priority)
+      let currentDate = startOfMonth(new Date(startTime));
+      while (currentDate.getTime() <= endTime) {
+        const monthStart = startOfMonth(currentDate);
+        if (monthStart.getTime() >= startTime - visibleTimeRange * 0.1) {
+          allTicks.push({
+            timestamp: monthStart.getTime(),
+            label: format(monthStart, 'MMM yyyy'),
+            priority: 3,
+            isMonth: true,
+          });
+        }
+        currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+      }
+      
+      // Add Sundays
+      const startDate = new Date(startTime);
+      const endDate = new Date(endTime);
+      const days = eachDayOfInterval({ start: startDate, end: endDate });
+      days.filter(day => isSunday(day)).forEach(day => {
+        const dayNum = day.getDate();
+        allTicks.push({
+          timestamp: startOfDay(day).getTime(),
+          label: `Sun ${dayNum}${getOrdinalSuffix(dayNum)}`,
+          priority: 2,
+          isSunday: true,
+        });
+      });
+    } else if (isWeekLevel) {
+      // Week level: Show all days with Sundays always visible, plus month boundaries
+      // Add month boundaries (highest priority)
+      let currentDate = startOfMonth(new Date(startTime));
+      while (currentDate.getTime() <= endTime) {
+        const monthStart = startOfMonth(currentDate);
+        if (monthStart.getTime() >= startTime - visibleTimeRange * 0.1) {
+          allTicks.push({
+            timestamp: monthStart.getTime(),
+            label: format(monthStart, 'MMM yyyy'),
+            priority: 3,
+            isMonth: true,
+          });
+        }
+        currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
+      }
+      
+      // Add all days from the interval
+      const interval = getTickInterval(msPerPixel);
+      const firstTick = Math.ceil(startTime / interval) * interval;
+      for (let t = firstTick; t <= endTime; t += interval) {
+        const date = new Date(t);
+        const dayNum = date.getDate();
+        const isSun = isSunday(date);
+        allTicks.push({
+          timestamp: t,
+          label: isSun ? `Sun ${dayNum}${getOrdinalSuffix(dayNum)}` : `${dayNum}${getOrdinalSuffix(dayNum)}`,
+          priority: isSun ? 2 : 1,
+          isSunday: isSun,
+        });
+      }
+    } else if (isDayLevel) {
+      // Day level: regular ticks
+      const interval = getTickInterval(msPerPixel);
+      const firstTick = Math.ceil(startTime / interval) * interval;
+      for (let t = firstTick; t <= endTime; t += interval) {
+        allTicks.push({
+          timestamp: t,
+          label: formatTickLabel(t, msPerPixel),
+          priority: 1,
+        });
+      }
+    } else {
+      // Sub-day levels: regular ticks
+      const interval = getTickInterval(msPerPixel);
+      const firstTick = Math.ceil(startTime / interval) * interval;
+      for (let t = firstTick; t <= endTime; t += interval) {
+        allTicks.push({
+          timestamp: t,
+          label: formatTickLabel(t, msPerPixel),
+          priority: 1,
+        });
+      }
+    }
+    
+    // Sort by timestamp
+    allTicks.sort((a, b) => a.timestamp - b.timestamp);
+    
+    // Remove overlapping ticks, keeping higher priority ones
+    const filteredTicks: TickInfo[] = [];
+    for (const tick of allTicks) {
+      const x = timeToX(tick.timestamp, centerTime, msPerPixel, width);
+      
+      // Check if this tick overlaps with any already added tick
+      let overlaps = false;
+      let overlappingIndex = -1;
+      
+      for (let i = 0; i < filteredTicks.length; i++) {
+        const existingX = timeToX(filteredTicks[i].timestamp, centerTime, msPerPixel, width);
+        if (Math.abs(x - existingX) < MIN_TICK_SPACING) {
+          overlaps = true;
+          overlappingIndex = i;
+          break;
+        }
+      }
+      
+      if (!overlaps) {
+        filteredTicks.push(tick);
+      } else if (overlappingIndex >= 0 && tick.priority > filteredTicks[overlappingIndex].priority) {
+        // Replace lower priority tick with higher priority one
+        filteredTicks[overlappingIndex] = tick;
+      }
+    }
+    
+    return filteredTicks;
+  }, [centerTime, msPerPixel, width, timeUnit, isDayLevel, isWeekLevel, isMonthLevel, isYearLevel]);
 
-  // Generate weekend highlights for week view or higher (week, month, year)
-  const isWeekOrHigher = ['week', 'month', 'year'].includes(timeUnit);
-  
+  // Generate weekend highlights for week view or higher
   const weekendHighlights = useMemo(() => {
     if (!isWeekOrHigher) return [];
     
@@ -66,32 +234,6 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
       }));
   }, [centerTime, msPerPixel, width, isWeekOrHigher]);
 
-  // Generate month boundaries for week view or higher
-  const monthBoundaries = useMemo(() => {
-    if (!isWeekOrHigher) return [];
-    
-    const visibleTimeRange = width * msPerPixel;
-    const startTime = centerTime - visibleTimeRange / 2;
-    const endTime = centerTime + visibleTimeRange / 2;
-    
-    const boundaries: { timestamp: number; label: string }[] = [];
-    
-    let currentDate = startOfMonth(new Date(startTime));
-    while (currentDate.getTime() <= endTime) {
-      const monthStart = startOfMonth(currentDate);
-      if (monthStart.getTime() >= startTime && monthStart.getTime() <= endTime) {
-        boundaries.push({
-          timestamp: monthStart.getTime(),
-          label: format(monthStart, 'MMM yyyy'),
-        });
-      }
-      // Move to next month
-      currentDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1);
-    }
-    
-    return boundaries;
-  }, [centerTime, msPerPixel, width, isWeekOrHigher]);
-
   // Now indicator
   const nowX = timeToX(Date.now(), centerTime, msPerPixel, width);
   const nowVisible = nowX >= 0 && nowX <= width;
@@ -102,7 +244,7 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
 
   return (
     <Group>
-      {/* Weekend highlights for week view */}
+      {/* Weekend highlights */}
       {weekendHighlights.map((weekend) => {
         const startX = timeToX(weekend.start, centerTime, msPerPixel, width);
         const endX = timeToX(weekend.end, centerTime, msPerPixel, width);
@@ -121,31 +263,6 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
         );
       })}
       
-      {/* Month boundary indicators for week view */}
-      {monthBoundaries.map((boundary) => {
-        const x = timeToX(boundary.timestamp, centerTime, msPerPixel, width);
-        
-        return (
-          <Group key={boundary.timestamp} x={x}>
-            <Line
-              points={[0, axisY - 6, 0, axisY + 6]}
-              stroke="#b0b8c4"
-              strokeWidth={1}
-            />
-            <Text
-              text={boundary.label}
-              x={-40}
-              y={axisY + 12}
-              width={80}
-              align="center"
-              fontSize={11}
-              fill="#7a8494"
-              fontFamily="Inter, sans-serif"
-            />
-          </Group>
-        );
-      })}
-      
       {/* Main axis line */}
       <Line
         points={[0, axisY, width, axisY]}
@@ -153,29 +270,42 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
         strokeWidth={1}
       />
       
-      {/* Time ticks */}
-      {ticks.map((timestamp) => {
-        const x = timeToX(timestamp, centerTime, msPerPixel, width);
-        const date = new Date(timestamp);
-        const isWeekendDay = isWeekOrHigher && isWeekend(date);
+      {/* Smart ticks with overlap prevention */}
+      {smartTicks.map((tick) => {
+        const x = timeToX(tick.timestamp, centerTime, msPerPixel, width);
+        const isWeekendDay = tick.isSunday;
         
         return (
-          <Group key={timestamp} x={x}>
+          <Group key={tick.timestamp} x={x}>
             <Line
               points={[0, axisY - 6, 0, axisY + 6]}
               stroke={isWeekendDay ? '#E0D7D3' : '#b0b8c4'}
-              strokeWidth={1}
+              strokeWidth={tick.isMonth ? 2 : 1}
             />
             <Text
-              text={formatTickLabel(timestamp, msPerPixel)}
-              x={-30}
+              text={tick.label}
+              x={-35}
               y={axisY + 12}
-              width={60}
+              width={70}
               align="center"
-              fontSize={11}
-              fill="#7a8494"
+              fontSize={tick.isMonth ? 12 : 11}
+              fill={tick.isMonth ? '#5a6577' : '#7a8494'}
               fontFamily="Inter, sans-serif"
+              fontStyle={tick.isMonth ? 'bold' : 'normal'}
             />
+            {/* Year label under month for day level */}
+            {isDayLevel && tick.label.includes('\n') && (
+              <Text
+                text={format(new Date(tick.timestamp), 'yyyy')}
+                x={-25}
+                y={axisY + 38}
+                width={50}
+                align="center"
+                fontSize={9}
+                fill="#9aa3b2"
+                fontFamily="Inter, sans-serif"
+              />
+            )}
           </Group>
         );
       })}

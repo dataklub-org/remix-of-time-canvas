@@ -6,8 +6,11 @@ export function formatTickLabel(timestamp: number, msPerPixel: number): string {
   const unit = getTimeUnit(msPerPixel);
   
   switch (unit) {
-    case '15min':
+    case '5min':
+    case '10min':
+    case '30min':
     case 'hour':
+    case '6hour':
       return format(date, 'HH:mm');
     case 'day':
       if (isToday(date)) return 'Today';

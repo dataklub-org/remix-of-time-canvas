@@ -24,24 +24,41 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
     };
   }, []);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     // Don't start panning if resizing a moment
     if (isResizingMoment) return;
     
-    // Pan on left click drag
-    if (e.button === 0 || e.button === 1) {
-      setIsPanning(true);
-      panStartRef.current = {
-        x: e.clientX,
-        centerTime: canvasState.centerTime,
-      };
+    // Get client X from mouse or touch event
+    let clientX: number;
+    if ('touches' in e) {
+      if (e.touches.length !== 1) return; // Only single touch for panning
+      clientX = e.touches[0].clientX;
+    } else {
+      // Pan on left click drag
+      if (e.button !== 0 && e.button !== 1) return;
+      clientX = e.clientX;
     }
+    
+    setIsPanning(true);
+    panStartRef.current = {
+      x: clientX,
+      centerTime: canvasState.centerTime,
+    };
   }, [canvasState.centerTime, isResizingMoment]);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (!isPanning || !panStartRef.current || isResizingMoment) return;
     
-    const deltaX = e.clientX - panStartRef.current.x;
+    // Get client X from mouse or touch event
+    let clientX: number;
+    if ('touches' in e) {
+      if (e.touches.length !== 1) return;
+      clientX = e.touches[0].clientX;
+    } else {
+      clientX = e.clientX;
+    }
+    
+    const deltaX = clientX - panStartRef.current.x;
     const deltaTime = deltaX * canvasState.msPerPixel;
     setCenterTime(panStartRef.current.centerTime - deltaTime);
   }, [isPanning, canvasState.msPerPixel, setCenterTime, isResizingMoment]);

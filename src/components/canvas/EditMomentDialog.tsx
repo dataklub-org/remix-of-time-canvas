@@ -9,7 +9,7 @@ import { useMomentsStore } from '@/stores/useMomentsStore';
 import type { Moment, Category } from '@/types/moment';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Trash2, X, Camera, Image } from 'lucide-react';
+import { Trash2, X, Camera, Image, Focus } from 'lucide-react';
 
 interface EditMomentDialogProps {
   moment: Moment | null;
@@ -17,7 +17,7 @@ interface EditMomentDialogProps {
 }
 
 export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
-  const { updateMoment, deleteMoment } = useMomentsStore();
+  const { updateMoment, deleteMoment, setCenterTime, setMsPerPixel } = useMomentsStore();
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const photoInputRef = useRef<HTMLInputElement>(null);
   
@@ -215,8 +215,28 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
           }
         }}
       >
-        <DialogHeader className="pt-2 sticky top-0 bg-background z-10 pb-2">
+        <DialogHeader className="pt-2 sticky top-0 bg-background z-10 pb-2 flex flex-row items-center justify-between">
           <DialogTitle className="text-lg font-medium">Edit Moment</DialogTitle>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (moment) {
+                // Calculate center time (middle of moment if it has duration)
+                const centerTime = moment.endTime 
+                  ? moment.timestamp + (moment.endTime - moment.timestamp) / 2 
+                  : moment.timestamp;
+                setCenterTime(centerTime);
+                setMsPerPixel(36_000); // Hourly zoom level
+                onClose();
+              }
+            }}
+            className="flex items-center gap-1 text-xs"
+          >
+            <Focus className="h-3 w-3" />
+            Memento
+          </Button>
         </DialogHeader>
         
         <div className="space-y-3 mt-2 mb-2">

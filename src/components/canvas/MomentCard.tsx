@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Group, Rect, Text, Line } from 'react-konva';
+import { Group, Rect, Text, Line, Circle, Image as KonvaImage } from 'react-konva';
 import type { Moment } from '@/types/moment';
-import { timeToX } from '@/utils/timeUtils';
+import { timeToX, getZoomLevel } from '@/utils/timeUtils';
 import { useMomentsStore } from '@/stores/useMomentsStore';
 
 interface MomentCardProps {
@@ -16,11 +16,13 @@ const MIN_CARD_WIDTH = 100;
 const MIN_CARD_HEIGHT = 36;
 const CARD_RADIUS = 12;
 const RESIZE_HANDLE_SIZE = 20;
-const TIMELINE_BUFFER = 10; // Minimum distance from timeline
+const TIMELINE_BUFFER = 10;
 const PADDING_X = 16;
 const PADDING_Y = 8;
 const LINE_HEIGHT = 14;
 const SMALL_LINE_HEIGHT = 12;
+const BUBBLE_SIZE = 24;
+const BUBBLE_EXPANDED_SIZE = 80;
 
 // Helper to measure text width (approximate)
 function measureTextWidth(text: string, fontSize: number): number {
@@ -31,21 +33,40 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   const { canvasState, updateMomentY, updateMomentSize, updateMoment } = useMomentsStore();
   const { centerTime, msPerPixel } = canvasState;
   
+  // Check zoom level - show bubbles at day/month/year zoom
+  const zoomLevel = getZoomLevel(msPerPixel);
+  const isBubbleMode = zoomLevel === 'day' || zoomLevel === 'month' || zoomLevel === 'year';
+  
+  // Bubble hover state
+  const [isHovered, setIsHovered] = useState(false);
+  const [photoImage, setPhotoImage] = useState<HTMLImageElement | null>(null);
+  
+  // Load photo image for Konva
+  useEffect(() => {
+    if (moment.photo) {
+      const img = new window.Image();
+      img.onload = () => setPhotoImage(img);
+      img.src = moment.photo;
+    } else {
+      setPhotoImage(null);
+    }
+  }, [moment.photo]);
+  
   // Calculate content-based dimensions
   const descriptionText = moment.description || 'Untitled moment';
-  const hasDescription = !!moment.description;
+  const hasPhoto = !!moment.photo;
   const hasPeople = !!moment.people;
   const hasLocation = !!moment.location;
   
   // Calculate minimum width based on content
-  const descWidth = measureTextWidth(descriptionText, 12) + PADDING_X * 2 + 24; // +24 for M badge
+  const descWidth = measureTextWidth(descriptionText, 12) + PADDING_X * 2 + 24;
   const peopleWidth = hasPeople ? measureTextWidth(moment.people!, 10) + PADDING_X * 2 : 0;
   const locationWidth = hasLocation ? measureTextWidth(`📍 ${moment.location}`, 9) + PADDING_X * 2 : 0;
   
   const contentWidth = Math.max(MIN_CARD_WIDTH, descWidth, peopleWidth, locationWidth);
   
   // Calculate minimum height based on content
-  let contentHeight = PADDING_Y * 2 + LINE_HEIGHT; // Description always shown
+  let contentHeight = PADDING_Y * 2 + LINE_HEIGHT;
   if (hasPeople) contentHeight += SMALL_LINE_HEIGHT + 2;
   if (hasLocation) contentHeight += SMALL_LINE_HEIGHT + 2;
   contentHeight = Math.max(MIN_CARD_HEIGHT, contentHeight);
@@ -58,18 +79,25 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   const endTime = moment.endTime || moment.timestamp;
   const endX = timeToX(endTime, centerTime, msPerPixel, canvasWidth);
   
-  // Card is positioned at start timestamp
+  // Color based on category
+  const accentColor = moment.category === 'business' ? '#4a7dff' : '#f5a623';
+  const lineColor = moment.category === 'business' ? 'rgba(74, 125, 255, 0.4)' : 'rgba(245, 166, 35, 0.4)';
+  
+  // Bubble mode positioning
+  const bubbleX = (startX + endX) / 2;
+  const bubbleY = moment.y + (moment.y < timelineY ? cardHeight / 2 : cardHeight / 2);
+  const currentBubbleSize = isHovered ? BUBBLE_EXPANDED_SIZE : BUBBLE_SIZE;
+  
+  // Card mode positioning
   const cardLeft = startX;
   const cardRight = startX + cardWidth;
   const cardTop = moment.y;
   const cardBottom = moment.y + cardHeight;
   
-  // Color based on category
-  const accentColor = moment.category === 'business' ? '#4a7dff' : '#f5a623';
-  const lineColor = moment.category === 'business' ? 'rgba(74, 125, 255, 0.4)' : 'rgba(245, 166, 35, 0.4)';
-  
-  // Check if card is visible (with some buffer)
-  const isVisible = cardRight >= -50 && cardLeft <= canvasWidth + 50;
+  // Visibility check
+  const isVisible = isBubbleMode 
+    ? bubbleX >= -BUBBLE_EXPANDED_SIZE && bubbleX <= canvasWidth + BUBBLE_EXPANDED_SIZE
+    : cardRight >= -50 && cardLeft <= canvasWidth + 50;
   
   const [isResizing, setIsResizing] = useState(false);
   const [isHoveringResize, setIsHoveringResize] = useState(false);
@@ -81,19 +109,16 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   };
   
   const handleCardClick = useCallback(() => {
-    // Don't open dialog if we just finished resizing
     if (justFinishedResizingRef.current) {
       return;
     }
     onSelect(moment);
   }, [moment, onSelect]);
 
-  // Dispatch custom event to notify pan/zoom to stop
   const dispatchResizeState = (resizing: boolean) => {
     window.dispatchEvent(new CustomEvent('momentResizing', { detail: { resizing } }));
   };
 
-  // Global mouse move handler for resize
   const handleGlobalMouseMove = useCallback((e: MouseEvent) => {
     if (!resizeStartRef.current) return;
     
@@ -103,35 +128,27 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
     const newWidth = Math.max(20, resizeStartRef.current.width + deltaX);
     let newHeight = Math.max(20, resizeStartRef.current.height + deltaY);
     
-    // Prevent card from crossing the timeline
     const isAbove = moment.y < timelineY;
     if (isAbove) {
-      // Card is above timeline - limit height so bottom doesn't cross timeline
       const maxHeight = timelineY - moment.y - TIMELINE_BUFFER;
       newHeight = Math.min(newHeight, maxHeight);
-    } else {
-      // Card is below timeline - no height restriction needed
     }
     
     updateMomentSize(moment.id, newWidth, newHeight);
   }, [moment.id, moment.y, timelineY, updateMomentSize]);
 
-  // Global mouse up handler for resize
   const handleGlobalMouseUp = useCallback(() => {
     if (!isResizing) return;
     setIsResizing(false);
     resizeStartRef.current = null;
     document.body.style.cursor = '';
     dispatchResizeState(false);
-    // Mark that we just finished resizing to prevent click from opening dialog
     justFinishedResizingRef.current = true;
-    // Reset the flag after a longer delay to ensure click events are blocked
     setTimeout(() => {
       justFinishedResizingRef.current = false;
     }, 500);
   }, [isResizing]);
 
-  // Attach/detach global listeners when resizing
   useEffect(() => {
     if (isResizing) {
       window.addEventListener('mousemove', handleGlobalMouseMove);
@@ -178,15 +195,128 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   
   if (!isVisible) return null;
 
-  // Calculate bezier curve control points for smooth lines going DOWN to timeline
+  // ===== BUBBLE MODE =====
+  if (isBubbleMode) {
+    return (
+      <Group
+        x={bubbleX}
+        y={bubbleY}
+        onClick={handleCardClick}
+        onTap={handleCardClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        {/* Connecting line to timeline */}
+        <Line
+          points={[0, 0, 0, timelineY - bubbleY]}
+          stroke={lineColor}
+          strokeWidth={2}
+          listening={false}
+        />
+        
+        {/* Bubble background */}
+        <Circle
+          x={0}
+          y={0}
+          radius={currentBubbleSize / 2}
+          fill="#ffffff"
+          stroke={accentColor}
+          strokeWidth={2}
+          shadowColor="rgba(0,0,0,0.1)"
+          shadowBlur={isHovered ? 16 : 8}
+          shadowOffsetY={isHovered ? 6 : 2}
+        />
+        
+        {/* Photo or initial */}
+        {isHovered && photoImage ? (
+          <Group clipFunc={(ctx) => {
+            ctx.arc(0, 0, (currentBubbleSize / 2) - 2, 0, Math.PI * 2);
+          }}>
+            <KonvaImage
+              image={photoImage}
+              x={-(currentBubbleSize / 2) + 2}
+              y={-(currentBubbleSize / 2) + 2}
+              width={currentBubbleSize - 4}
+              height={currentBubbleSize - 4}
+            />
+          </Group>
+        ) : (
+          <>
+            {/* Category color dot when collapsed */}
+            <Circle
+              x={0}
+              y={0}
+              radius={isHovered ? (currentBubbleSize / 2) - 4 : 8}
+              fill={accentColor}
+            />
+            
+            {/* Memorable indicator */}
+            {moment.memorable && !isHovered && (
+              <Text
+                x={-4}
+                y={-5}
+                text="M"
+                fontSize={10}
+                fontFamily="Inter, sans-serif"
+                fontStyle="bold"
+                fill="#ffffff"
+              />
+            )}
+          </>
+        )}
+        
+        {/* Expanded content */}
+        {isHovered && (
+          <Group y={currentBubbleSize / 2 + 8}>
+            <Rect
+              x={-60}
+              y={0}
+              width={120}
+              height={40}
+              fill="#ffffff"
+              cornerRadius={8}
+              shadowColor="rgba(0,0,0,0.1)"
+              shadowBlur={8}
+              shadowOffsetY={2}
+            />
+            <Text
+              x={-54}
+              y={6}
+              width={108}
+              text={moment.description || 'Untitled'}
+              fontSize={10}
+              fontFamily="Inter, sans-serif"
+              fontStyle="500"
+              fill="#2a3142"
+              ellipsis
+              wrap="none"
+            />
+            {moment.people && (
+              <Text
+                x={-54}
+                y={20}
+                width={108}
+                text={moment.people}
+                fontSize={8}
+                fontFamily="Inter, sans-serif"
+                fill="#7a8494"
+                ellipsis
+                wrap="none"
+              />
+            )}
+          </Group>
+        )}
+      </Group>
+    );
+  }
+
+  // ===== CARD MODE =====
   const isAboveTimeline = cardBottom < timelineY;
   const curveStrength = Math.abs(timelineY - (isAboveTimeline ? cardBottom : cardTop)) * 0.4;
 
-  // Left line: from bottom-left corner of card to start timestamp on timeline
   const leftLineStart = { x: cardLeft, y: isAboveTimeline ? cardBottom : cardTop };
   const leftLineEnd = { x: startX, y: timelineY };
   
-  // Right line: from bottom-right corner of card to end timestamp on timeline
   const rightLineStart = { x: cardRight, y: isAboveTimeline ? cardBottom : cardTop };
   const rightLineEnd = { x: endX, y: timelineY };
 
@@ -225,7 +355,7 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         y={moment.y}
         draggable
         dragBoundFunc={(pos) => ({
-          x: cardLeft, // Lock X position to start timestamp
+          x: cardLeft,
           y: pos.y,
         })}
         onDragEnd={handleDragEnd}
@@ -253,11 +383,26 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           cornerRadius={[CARD_RADIUS, 0, 0, CARD_RADIUS]}
         />
         
+        {/* Photo thumbnail if exists */}
+        {photoImage && cardHeight >= 50 && (
+          <Group clipFunc={(ctx) => {
+            ctx.roundRect(cardWidth - 44, 8, 36, 36, 6);
+          }}>
+            <KonvaImage
+              image={photoImage}
+              x={cardWidth - 44}
+              y={8}
+              width={36}
+              height={36}
+            />
+          </Group>
+        )}
+        
         {/* Description - dynamic font size based on card height */}
         <Text
           x={16}
           y={cardHeight > 40 ? 10 : Math.max(4, cardHeight / 2 - 6)}
-          width={Math.max(10, cardWidth - 36)}
+          width={Math.max(10, cardWidth - (photoImage && cardHeight >= 50 ? 60 : 36))}
           text={moment.description || 'Untitled moment'}
           fontSize={cardHeight < 50 ? Math.max(8, Math.min(12, cardHeight / 5)) : 12}
           fontFamily="Inter, sans-serif"
@@ -272,7 +417,7 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           <Text
             x={16}
             y={cardHeight < 60 ? Math.max(22, cardHeight - 22) : 28}
-            width={Math.max(10, cardWidth - 36)}
+            width={Math.max(10, cardWidth - (photoImage && cardHeight >= 50 ? 60 : 36))}
             text={moment.people}
             fontSize={cardHeight < 60 ? Math.max(7, Math.min(10, cardHeight / 7)) : 10}
             fontFamily="Inter, sans-serif"
@@ -287,7 +432,7 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           <Text
             x={16}
             y={cardHeight < 80 ? Math.max(38, cardHeight - 18) : (moment.people ? 44 : 28)}
-            width={Math.max(10, cardWidth - 36)}
+            width={Math.max(10, cardWidth - (photoImage && cardHeight >= 50 ? 60 : 36))}
             text={`📍 ${moment.location}`}
             fontSize={cardHeight < 80 ? Math.max(7, Math.min(9, cardHeight / 9)) : 9}
             fontFamily="Inter, sans-serif"
@@ -299,7 +444,7 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         
         {/* Memorable indicator (M in top right corner) - always visible, clickable */}
         <Group
-          x={cardWidth - 24}
+          x={photoImage && cardHeight >= 50 ? cardWidth - 50 : cardWidth - 24}
           y={4}
           onClick={(e) => {
             e.cancelBubble = true;

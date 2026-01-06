@@ -12,6 +12,7 @@ export interface Moment {
   location: string;
   category: Category;
   memorable?: boolean; // Whether this is a Memorable Moment (shown on monthly/yearly view)
+  photo?: string; // Photo URL or base64 data
   createdAt: number;
   updatedAt: number;
 }

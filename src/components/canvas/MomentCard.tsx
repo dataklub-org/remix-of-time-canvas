@@ -376,29 +376,54 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           listening={false}
         />
         
-        {/* Bubble background */}
-        <Circle
-          x={0}
-          y={0}
-          radius={BUBBLE_SIZE / 2}
-          fill="#ffffff"
-          stroke={accentColor}
-          strokeWidth={2}
-          shadowColor="rgba(0,0,0,0.1)"
-          shadowBlur={8}
-          shadowOffsetY={2}
-        />
-        
-        {/* Category color dot */}
-        <Circle
-          x={0}
-          y={0}
-          radius={8}
-          fill={accentColor}
-        />
+        {/* Bubble background - show photo if available */}
+        {photoImage ? (
+          <>
+            <Group clipFunc={(ctx) => {
+              ctx.arc(0, 0, BUBBLE_SIZE / 2, 0, Math.PI * 2);
+            }}>
+              <KonvaImage
+                image={photoImage}
+                x={-BUBBLE_SIZE / 2}
+                y={-BUBBLE_SIZE / 2}
+                width={BUBBLE_SIZE}
+                height={BUBBLE_SIZE}
+              />
+            </Group>
+            <Circle
+              x={0}
+              y={0}
+              radius={BUBBLE_SIZE / 2}
+              stroke={accentColor}
+              strokeWidth={2}
+            />
+          </>
+        ) : (
+          <>
+            <Circle
+              x={0}
+              y={0}
+              radius={BUBBLE_SIZE / 2}
+              fill="#ffffff"
+              stroke={accentColor}
+              strokeWidth={2}
+              shadowColor="rgba(0,0,0,0.1)"
+              shadowBlur={8}
+              shadowOffsetY={2}
+            />
+            
+            {/* Category color dot */}
+            <Circle
+              x={0}
+              y={0}
+              radius={8}
+              fill={accentColor}
+            />
+          </>
+        )}
         
         {/* Memorable indicator */}
-        {moment.memorable && (
+        {moment.memorable && !photoImage && (
           <Text
             x={-4}
             y={-5}

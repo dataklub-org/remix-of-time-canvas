@@ -183,9 +183,19 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
           </div>
         </DialogHeader>
         
-        <form id="create-moment-form" onSubmit={handleSubmit} className="space-y-3 mt-2 mb-2">
+        <form 
+          id="create-moment-form" 
+          onSubmit={handleSubmit} 
+          className="space-y-3 mt-2 mb-2"
+          onScroll={() => {
+            // Blur active element to dismiss keyboard on scroll
+            if (document.activeElement instanceof HTMLElement) {
+              document.activeElement.blur();
+            }
+          }}
+        >
           <div className="space-y-1">
-            <Label htmlFor="description" className="text-sm">Description</Label>
+            <Label htmlFor="description" className="text-sm">Description <span className="text-destructive">*</span></Label>
             <Textarea
               id="description"
               placeholder="What happened?"
@@ -194,52 +204,55 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
               className="resize-none min-h-[60px]"
               rows={2}
               autoFocus
+              required
             />
           </div>
           
-          <div className="space-y-1">
-            <Label htmlFor="people" className="text-sm">People</Label>
-            <div className="flex gap-2">
-              <Input
-                id="people"
-                placeholder="Add person..."
-                value={personInput}
-                onChange={(e) => setPersonInput(e.target.value)}
-                onKeyDown={handlePersonKeyDown}
-                className="flex-1 h-9"
-              />
-              <Button type="button" variant="outline" size="sm" onClick={addPerson}>
-                Add
-              </Button>
-            </div>
-            {people.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1.5">
-                {people.map((person) => (
-                  <Badge key={person} variant="secondary" className="gap-1 pr-1 text-xs">
-                    {person}
-                    <button
-                      type="button"
-                      onClick={() => removePerson(person)}
-                      className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
+          {/* People and Location in one row */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="people" className="text-sm">People</Label>
+              <div className="flex gap-1">
+                <Input
+                  id="people"
+                  placeholder="Add person..."
+                  value={personInput}
+                  onChange={(e) => setPersonInput(e.target.value)}
+                  onKeyDown={handlePersonKeyDown}
+                  className="flex-1 h-9"
+                />
+                <Button type="button" variant="outline" size="sm" onClick={addPerson} className="px-2">
+                  +
+                </Button>
               </div>
-            )}
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="location" className="text-sm">Location</Label>
+              <Input
+                id="location"
+                placeholder="Where?"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                className="h-9"
+              />
+            </div>
           </div>
-          
-          <div className="space-y-1">
-            <Label htmlFor="location" className="text-sm">Location</Label>
-            <Input
-              id="location"
-              placeholder="Where was it?"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="h-9"
-            />
-          </div>
+          {people.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {people.map((person) => (
+                <Badge key={person} variant="secondary" className="gap-1 pr-1 text-xs">
+                  {person}
+                  <button
+                    type="button"
+                    onClick={() => removePerson(person)}
+                    className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
           
           {/* Date & Time - Start */}
           <div className="grid grid-cols-2 gap-2">

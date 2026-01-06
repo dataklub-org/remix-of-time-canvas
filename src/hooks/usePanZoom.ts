@@ -209,15 +209,32 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
     const isPinch = e.ctrlKey;
     
     if (isPinch) {
-      // Pinch-to-zoom is disabled - do nothing
-      return;
+      // Cancel any ongoing zoom animation
+      if (zoomAnimationRef.current) {
+        cancelAnimationFrame(zoomAnimationRef.current);
+        zoomAnimationRef.current = null;
+      }
+      
+      // Trackpad pinch: deltaY determines zoom direction
+      // Positive deltaY = zoom out, negative = zoom in
+      const zoomFactor = 1 + e.deltaY * 0.01;
+      const newMsPerPixel = canvasState.msPerPixel * zoomFactor;
+      
+      // Clamp to valid zoom range
+      const clampedMsPerPixel = Math.max(
+        ZOOM_LEVELS[0].msPerPixel,
+        Math.min(ZOOM_LEVELS[ZOOM_LEVELS.length - 1].msPerPixel, newMsPerPixel)
+      );
+      
+      setMsPerPixel(clampedMsPerPixel);
+      targetMsPerPixelRef.current = clampedMsPerPixel;
     } else {
       // Regular scroll: horizontal pan
       const panDelta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
       const timeDelta = panDelta * canvasState.msPerPixel * 0.5;
       setCenterTime(canvasState.centerTime + timeDelta);
     }
-  }, [canvasState, setCenterTime, isResizingMoment]);
+  }, [canvasState, setCenterTime, setMsPerPixel, isResizingMoment]);
 
   return {
     isPanning,

@@ -10,7 +10,7 @@ export function xToTime(x: number, centerTime: number, msPerPixel: number, canva
   return centerTime + (x - centerX) * msPerPixel;
 }
 
-// 8 discrete zoom levels with their msPerPixel values
+// 9 discrete zoom levels with their msPerPixel values
 export const ZOOM_LEVELS = [
   { msPerPixel: 3_000, unit: '5min', tickInterval: 300_000 },         // 5 minutes
   { msPerPixel: 6_000, unit: '10min', tickInterval: 600_000 },        // 10 minutes
@@ -18,6 +18,7 @@ export const ZOOM_LEVELS = [
   { msPerPixel: 36_000, unit: 'hour', tickInterval: 3_600_000 },      // 1 hour
   { msPerPixel: 216_000, unit: '6hour', tickInterval: 21_600_000 },   // 6 hours
   { msPerPixel: 864_000, unit: 'day', tickInterval: 86_400_000 },     // 1 day
+  { msPerPixel: 6_048_000, unit: 'week', tickInterval: 604_800_000 }, // 1 week
   { msPerPixel: 25_920_000, unit: 'month', tickInterval: 2_592_000_000 }, // 1 month (~30 days)
   { msPerPixel: 315_360_000, unit: 'year', tickInterval: 31_536_000_000 }, // 1 year
 ] as const;
@@ -40,16 +41,17 @@ export function clampZoom(msPerPixel: number): number {
 }
 
 // Get appropriate time unit for current zoom level
-export function getTimeUnit(msPerPixel: number): '5min' | '10min' | '30min' | 'hour' | '6hour' | 'day' | 'month' | 'year' {
+export function getTimeUnit(msPerPixel: number): '5min' | '10min' | '30min' | 'hour' | '6hour' | 'day' | 'week' | 'month' | 'year' {
   const index = getZoomLevelIndex(msPerPixel);
   return ZOOM_LEVELS[index].unit;
 }
 
 // Get zoom level category (for filtering moments)
-export function getZoomLevel(msPerPixel: number): 'minute' | 'hour' | 'day' | 'month' | 'year' {
+export function getZoomLevel(msPerPixel: number): 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year' {
   const unit = getTimeUnit(msPerPixel);
   if (unit === 'year') return 'year';
   if (unit === 'month') return 'month';
+  if (unit === 'week') return 'week';
   if (unit === 'day' || unit === '6hour') return 'day';
   if (unit === 'hour') return 'hour';
   return 'minute';

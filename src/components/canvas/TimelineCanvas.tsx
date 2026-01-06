@@ -9,6 +9,7 @@ import { MomentCard } from './MomentCard';
 import { CreateMomentDialog } from './CreateMomentDialog';
 import { EditMomentDialog } from './EditMomentDialog';
 import { NavigationControls } from './NavigationControls';
+import { FeedbackPopup } from './FeedbackPopup';
 import { xToTime, getZoomLevel } from '@/utils/timeUtils';
 import { Button } from '@/components/ui/button';
 import type { Moment } from '@/types/moment';
@@ -58,6 +59,7 @@ export function TimelineCanvas() {
   const [createPosition, setCreatePosition] = useState({ timestamp: Date.now(), y: 0 });
   const [selectedMoment, setSelectedMoment] = useState<Moment | null>(null);
   const [scrollY, setScrollY] = useState(0);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   // Register vertical scroll handler for touch panning
   useEffect(() => {
@@ -184,13 +186,16 @@ export function TimelineCanvas() {
       
       {/* Feedback button - higher on mobile to avoid overlap with Jump to Now */}
       <Button
-        onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSeGenbf-JwtWNWBdRaVyk-do8emzDvW1MNW91m5zGJSIiPpaw/viewform?usp=dialog', '_blank')}
-        className="absolute right-4 bottom-4 md:bottom-4 bottom-20 rounded-full shadow-lg bg-green-600 hover:bg-green-700 text-white"
+        onClick={() => setFeedbackOpen(true)}
+        className="absolute right-4 bottom-20 md:bottom-4 rounded-full shadow-lg bg-green-600 hover:bg-green-700 text-white"
         size="sm"
       >
         <MessageSquare className="h-4 w-4 mr-1.5" />
         Feedback
       </Button>
+      
+      {/* Feedback popup */}
+      <FeedbackPopup open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
       
       {/* Help text - different for mobile vs desktop */}
       <div className="absolute top-4 left-4 text-xs text-muted-foreground">

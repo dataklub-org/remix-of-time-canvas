@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,26 +23,42 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   const [people, setPeople] = useState('');
   const [location, setLocation] = useState('');
   const [category, setCategory] = useState<Category>('personal');
+  const [dateInput, setDateInput] = useState('');
+  const [timeInput, setTimeInput] = useState('');
   const [endTimeInput, setEndTimeInput] = useState('');
+  
+  // Initialize date/time inputs when dialog opens
+  useEffect(() => {
+    if (open) {
+      const date = new Date(timestamp);
+      setDateInput(format(date, 'yyyy-MM-dd'));
+      setTimeInput(format(date, 'HH:mm'));
+    }
+  }, [open, timestamp]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Parse timestamp from date and time inputs
+    const [year, month, day] = dateInput.split('-').map(Number);
+    const [hours, minutes] = timeInput.split(':').map(Number);
+    const parsedTimestamp = new Date(year, month - 1, day, hours, minutes).getTime();
+    
     // Parse endTime - if empty, it will be undefined (same as timestamp)
     let endTime: number | undefined;
     if (endTimeInput) {
-      const date = new Date(timestamp);
-      const [hours, minutes] = endTimeInput.split(':').map(Number);
-      date.setHours(hours, minutes, 0, 0);
+      const date = new Date(parsedTimestamp);
+      const [endHours, endMinutes] = endTimeInput.split(':').map(Number);
+      date.setHours(endHours, endMinutes, 0, 0);
       endTime = date.getTime();
       // If end time is before start time, assume next day
-      if (endTime < timestamp) {
+      if (endTime < parsedTimestamp) {
         endTime += 24 * 60 * 60 * 1000;
       }
     }
     
     addMoment({
-      timestamp,
+      timestamp: parsedTimestamp,
       endTime,
       y,
       description,
@@ -60,17 +76,35 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     onOpenChange(false);
   };
 
-  const formattedTime = format(new Date(timestamp), 'MMM d, yyyy · HH:mm');
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="text-lg font-medium">New Moment</DialogTitle>
-          <p className="text-sm text-muted-foreground">{formattedTime}</p>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="date">Date</Label>
+              <Input
+                id="date"
+                type="date"
+                value={dateInput}
+                onChange={(e) => setDateInput(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="time">Time</Label>
+              <Input
+                id="time"
+                type="time"
+                value={timeInput}
+                onChange={(e) => setTimeInput(e.target.value)}
+              />
+            </div>
+          </div>
+          
           <div className="space-y-2">
             <Label htmlFor="description">Description</Label>
             <Textarea

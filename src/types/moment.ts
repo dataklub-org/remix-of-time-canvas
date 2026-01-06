@@ -5,6 +5,8 @@ export interface Moment {
   timestamp: number; // Unix milliseconds - start time
   endTime?: number; // Unix milliseconds - end time (optional, defaults to timestamp)
   y: number; // Arbitrary vertical position
+  width?: number; // Card width (optional, defaults to 180)
+  height?: number; // Card height (optional, defaults to 70)
   description: string;
   people: string;
   location: string;

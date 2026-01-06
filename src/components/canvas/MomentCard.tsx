@@ -33,9 +33,9 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   const { canvasState, updateMomentY, updateMomentSize, updateMoment } = useMomentsStore();
   const { centerTime, msPerPixel } = canvasState;
   
-  // Check zoom level - show bubbles at day/month/year zoom
+  // Check zoom level - show bubbles at week/day/month/year zoom
   const zoomLevel = getZoomLevel(msPerPixel);
-  const isBubbleMode = zoomLevel === 'day' || zoomLevel === 'month' || zoomLevel === 'year';
+  const isBubbleMode = zoomLevel === 'week' || zoomLevel === 'day' || zoomLevel === 'month' || zoomLevel === 'year';
   
   // Bubble hover state
   const [isHovered, setIsHovered] = useState(false);

@@ -27,6 +27,7 @@ export function NavigationControls() {
     'hour': '1h',
     '6hour': '6h',
     'day': '1d',
+    'week': '1w',
     'month': '1mo',
     'year': '1y',
   };

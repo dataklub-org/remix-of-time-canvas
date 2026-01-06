@@ -12,6 +12,12 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
   const [isResizingMoment, setIsResizingMoment] = useState(false);
   const panStartRef = useRef<{ x: number; y: number; centerTime: number } | null>(null);
   const lastTouchRef = useRef<{ x: number; y: number; centerTime: number } | null>(null);
+  const verticalScrollRef = useRef<((deltaY: number) => void) | null>(null);
+
+  // Allow external registration of vertical scroll handler
+  const setVerticalScrollHandler = useCallback((handler: (deltaY: number) => void) => {
+    verticalScrollRef.current = handler;
+  }, []);
 
   // Listen for moment resize events to block panning
   useEffect(() => {
@@ -71,14 +77,25 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
     
     const { msPerPixel } = canvasState;
     
-    // For touch: use vertical drag for horizontal timeline panning
     if (isTouch && lastTouchRef.current) {
+      const deltaX = clientX - lastTouchRef.current.x;
       const deltaY = clientY - lastTouchRef.current.y;
-      // Vertical drag translates to horizontal timeline pan
-      const timeDelta = deltaY * msPerPixel * 2;
-      const newCenterTime = lastTouchRef.current.centerTime + timeDelta;
-      setCenterTime(newCenterTime);
-      lastTouchRef.current = { x: clientX, y: clientY, centerTime: newCenterTime };
+      
+      // Horizontal drag → timeline pan (left = future, right = past)
+      if (Math.abs(deltaX) > 0) {
+        const timeDelta = deltaX * msPerPixel;
+        const newCenterTime = lastTouchRef.current.centerTime - timeDelta;
+        setCenterTime(newCenterTime);
+        lastTouchRef.current.centerTime = newCenterTime;
+      }
+      
+      // Vertical drag → Y-axis scroll (down = scroll up, up = scroll down)
+      if (Math.abs(deltaY) > 0 && verticalScrollRef.current) {
+        verticalScrollRef.current(-deltaY);
+      }
+      
+      lastTouchRef.current.x = clientX;
+      lastTouchRef.current.y = clientY;
     } else {
       // Mouse: horizontal drag for horizontal pan
       const deltaX = clientX - panStartRef.current.x;
@@ -119,5 +136,6 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
     handleMouseMove,
     handleMouseUp,
     handleWheel,
+    setVerticalScrollHandler,
   };
 }

@@ -18,8 +18,8 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
   const axisY = timelineY ?? height / 2;
   const timeUnit = getTimeUnit(msPerPixel);
   
-  // Check if we're at a sub-day level (15min or hour)
-  const isSubDayLevel = timeUnit === '15min' || timeUnit === 'hour';
+  // Check if we're at a sub-day level (anything less than full day)
+  const isSubDayLevel = ['5min', '10min', '30min', 'hour', '6hour'].includes(timeUnit);
   
   // Generate visible ticks
   const ticks = useMemo(() => {

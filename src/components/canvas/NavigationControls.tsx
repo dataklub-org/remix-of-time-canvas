@@ -21,8 +21,11 @@ export function NavigationControls() {
   };
 
   const unitLabels: Record<string, string> = {
-    '15min': '15m',
+    '5min': '5m',
+    '10min': '10m',
+    '30min': '30m',
     'hour': '1h',
+    '6hour': '6h',
     'day': '1d',
     'month': '1mo',
     'year': '1y',

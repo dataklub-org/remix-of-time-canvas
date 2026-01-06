@@ -80,10 +80,11 @@ export function TimelineCanvas() {
   }, []);
 
   const handleAddMoment = useCallback(() => {
-    // Create at current center time and middle of canvas
-    setCreatePosition({ timestamp: canvasState.centerTime, y: viewportHeight / 2 });
+    // Capture timestamp at the moment user clicks "Add Moment"
+    const capturedTimestamp = Date.now();
+    setCreatePosition({ timestamp: capturedTimestamp, y: viewportHeight / 2 });
     setCreateDialogOpen(true);
-  }, [canvasState.centerTime, viewportHeight]);
+  }, [viewportHeight]);
 
   const handleVerticalScroll = useCallback((e: React.WheelEvent) => {
     if (e.shiftKey) {
@@ -99,11 +100,14 @@ export function TimelineCanvas() {
 
   return (
     <div 
-      className="w-full h-full bg-[hsl(var(--canvas-bg))] overflow-auto"
+      className="w-full h-full bg-[hsl(var(--canvas-bg))] overflow-auto touch-none"
       onMouseDown={handleMouseDown as any}
       onMouseMove={handleMouseMove as any}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onTouchStart={handleMouseDown as any}
+      onTouchMove={handleMouseMove as any}
+      onTouchEnd={handleMouseUp}
       onWheel={(e) => {
         if (e.shiftKey) {
           handleVerticalScroll(e);
@@ -149,20 +153,23 @@ export function TimelineCanvas() {
       {/* Navigation controls */}
       <NavigationControls />
       
-      {/* Add moment button */}
+      {/* Add moment button - pushed lower on mobile */}
       <Button
         onClick={handleAddMoment}
-        className="absolute top-4 right-4 rounded-full shadow-lg"
+        className="absolute right-4 top-14 md:top-4 rounded-full shadow-lg"
         size="sm"
       >
         <Plus className="h-4 w-4 mr-1.5" />
         Add Moment
       </Button>
       
-      {/* Help text */}
+      {/* Help text - different for mobile vs desktop */}
       <div className="absolute top-4 left-4 text-xs text-muted-foreground">
-        <span className="bg-card/80 backdrop-blur-sm px-2 py-1 rounded">
-          Double-click to add • Drag to pan • Scroll to zoom • Shift+scroll vertical
+        <span className="bg-card/80 backdrop-blur-sm px-2 py-1 rounded hidden md:inline">
+          Double-click to add • Drag to pan • Scroll horizontal • Shift+scroll vertical
+        </span>
+        <span className="bg-card/80 backdrop-blur-sm px-2 py-1 rounded md:hidden">
+          Tap + to add • Swipe to pan • Use zoom controls
         </span>
       </div>
       

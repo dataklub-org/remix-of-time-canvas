@@ -4,10 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { useMomentsStore } from '@/stores/useMomentsStore';
 import type { Category } from '@/types/moment';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
+import { X } from 'lucide-react';
 
 interface CreateMomentDialogProps {
   open: boolean;
@@ -20,13 +22,15 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   const { addMoment } = useMomentsStore();
   
   const [description, setDescription] = useState('');
-  const [people, setPeople] = useState('');
+  const [people, setPeople] = useState<string[]>([]);
+  const [personInput, setPersonInput] = useState('');
   const [location, setLocation] = useState('');
   const [category, setCategory] = useState<Category>('personal');
   const [dateInput, setDateInput] = useState('');
   const [timeInput, setTimeInput] = useState('');
   const [endDateInput, setEndDateInput] = useState('');
   const [endTimeInput, setEndTimeInput] = useState('');
+  const [originalTimestamp, setOriginalTimestamp] = useState<number>(0);
   
   // Initialize date/time inputs when dialog opens
   useEffect(() => {
@@ -34,8 +38,33 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       const date = new Date(timestamp);
       setDateInput(format(date, 'yyyy-MM-dd'));
       setTimeInput(format(date, 'HH:mm'));
+      setOriginalTimestamp(timestamp);
     }
   }, [open, timestamp]);
+  
+  const addPerson = () => {
+    const trimmed = personInput.trim();
+    if (trimmed && !people.includes(trimmed)) {
+      setPeople([...people, trimmed]);
+      setPersonInput('');
+    }
+  };
+  
+  const removePerson = (person: string) => {
+    setPeople(people.filter(p => p !== person));
+  };
+  
+  const handlePersonKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addPerson();
+    }
+  };
+  
+  const resetEndTime = () => {
+    setEndDateInput('');
+    setEndTimeInput('');
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,14 +96,15 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       endTime,
       y,
       description,
-      people,
+      people: people.join(', '),
       location,
       category,
     });
     
     // Reset form
     setDescription('');
-    setPeople('');
+    setPeople([]);
+    setPersonInput('');
     setLocation('');
     setCategory('personal');
     setEndDateInput('');
@@ -126,12 +156,35 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
           
           <div className="space-y-2">
             <Label htmlFor="people">People</Label>
-            <Input
-              id="people"
-              placeholder="Who was there?"
-              value={people}
-              onChange={(e) => setPeople(e.target.value)}
-            />
+            <div className="flex gap-2">
+              <Input
+                id="people"
+                placeholder="Add person..."
+                value={personInput}
+                onChange={(e) => setPersonInput(e.target.value)}
+                onKeyDown={handlePersonKeyDown}
+                className="flex-1"
+              />
+              <Button type="button" variant="outline" onClick={addPerson}>
+                Add
+              </Button>
+            </div>
+            {people.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {people.map((person) => (
+                  <Badge key={person} variant="secondary" className="gap-1 pr-1">
+                    {person}
+                    <button
+                      type="button"
+                      onClick={() => removePerson(person)}
+                      className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
           
           <div className="space-y-2">
@@ -146,7 +199,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
           
           <div className="space-y-2">
             <Label>End Date & Time (optional)</Label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <Input
                 id="endDate"
                 type="date"
@@ -159,7 +212,16 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
                 value={endTimeInput}
                 onChange={(e) => setEndTimeInput(e.target.value)}
               />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={resetEndTime}
+                className="text-sm"
+              >
+                Moment
+              </Button>
             </div>
+            <p className="text-xs text-muted-foreground">Click "Moment" to reset to start time</p>
           </div>
           
           <div className="space-y-2">

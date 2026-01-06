@@ -12,8 +12,8 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
   const panStartRef = useRef<{ x: number; centerTime: number } | null>(null);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    // Only pan on middle click or space+click (handled elsewhere)
-    if (e.button === 1 || e.shiftKey) {
+    // Pan on left click drag
+    if (e.button === 0 || e.button === 1) {
       setIsPanning(true);
       panStartRef.current = {
         x: e.clientX,

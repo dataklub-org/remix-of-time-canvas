@@ -108,7 +108,7 @@ export function TimelineCanvas() {
       {/* Help text */}
       <div className="absolute top-4 left-4 text-xs text-muted-foreground">
         <span className="bg-card/80 backdrop-blur-sm px-2 py-1 rounded">
-          Double-click to add • Shift+drag to pan • Scroll to zoom
+          Double-click to add • Drag to pan • Scroll to zoom
         </span>
       </div>
       

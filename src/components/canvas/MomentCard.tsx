@@ -195,9 +195,13 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   
   if (!isVisible) return null;
 
+  // Photo preview dimensions
+  const PHOTO_PREVIEW_WIDTH = 120;
+  const PHOTO_PREVIEW_HEIGHT = 90;
+
   // ===== BUBBLE MODE =====
   if (isBubbleMode) {
-    // When hovered, show full card; otherwise show bubble
+    // When hovered, show full card with photo preview below
     if (isHovered) {
       // Show the full card on hover
       const hoverCardWidth = cardWidth;
@@ -206,6 +210,10 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
       const hoverCardY = moment.y;
       const isAboveTimeline = hoverCardY + hoverCardHeight < timelineY;
       const curveStrength = Math.abs(timelineY - (isAboveTimeline ? hoverCardY + hoverCardHeight : hoverCardY)) * 0.4;
+      
+      // Photo preview position (below the card)
+      const photoPreviewY = hoverCardY + hoverCardHeight + 8;
+      const photoPreviewX = hoverCardX + (hoverCardWidth - PHOTO_PREVIEW_WIDTH) / 2;
 
       return (
         <Group
@@ -266,26 +274,11 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
               cornerRadius={[CARD_RADIUS, 0, 0, CARD_RADIUS]}
             />
             
-            {/* Photo thumbnail if exists */}
-            {photoImage && hoverCardHeight >= 50 && (
-              <Group clipFunc={(ctx) => {
-                ctx.roundRect(hoverCardWidth - 44, 8, 36, 36, 6);
-              }}>
-                <KonvaImage
-                  image={photoImage}
-                  x={hoverCardWidth - 44}
-                  y={8}
-                  width={36}
-                  height={36}
-                />
-              </Group>
-            )}
-            
             {/* Description */}
             <Text
               x={16}
               y={hoverCardHeight > 40 ? 10 : Math.max(4, hoverCardHeight / 2 - 6)}
-              width={Math.max(10, hoverCardWidth - (photoImage && hoverCardHeight >= 50 ? 60 : 36))}
+              width={Math.max(10, hoverCardWidth - 36)}
               text={moment.description || 'Untitled moment'}
               fontSize={hoverCardHeight < 50 ? Math.max(8, Math.min(12, hoverCardHeight / 5)) : 12}
               fontFamily="Inter, sans-serif"
@@ -300,7 +293,7 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
               <Text
                 x={16}
                 y={hoverCardHeight < 60 ? Math.max(22, hoverCardHeight - 22) : 28}
-                width={Math.max(10, hoverCardWidth - (photoImage && hoverCardHeight >= 50 ? 60 : 36))}
+                width={Math.max(10, hoverCardWidth - 36)}
                 text={moment.people}
                 fontSize={hoverCardHeight < 60 ? Math.max(7, Math.min(10, hoverCardHeight / 7)) : 10}
                 fontFamily="Inter, sans-serif"
@@ -315,7 +308,7 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
               <Text
                 x={16}
                 y={hoverCardHeight < 80 ? Math.max(38, hoverCardHeight - 18) : (moment.people ? 44 : 28)}
-                width={Math.max(10, hoverCardWidth - (photoImage && hoverCardHeight >= 50 ? 60 : 36))}
+                width={Math.max(10, hoverCardWidth - 36)}
                 text={`📍 ${moment.location}`}
                 fontSize={hoverCardHeight < 80 ? Math.max(7, Math.min(9, hoverCardHeight / 9)) : 9}
                 fontFamily="Inter, sans-serif"
@@ -327,7 +320,7 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
             
             {/* Memorable indicator */}
             <Group
-              x={photoImage && hoverCardHeight >= 50 ? hoverCardWidth - 50 : hoverCardWidth - 24}
+              x={hoverCardWidth - 24}
               y={4}
               onClick={(e) => {
                 e.cancelBubble = true;
@@ -355,6 +348,35 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
               />
             </Group>
           </Group>
+          
+          {/* Photo preview below the card */}
+          {photoImage && (
+            <Group
+              x={photoPreviewX}
+              y={photoPreviewY}
+            >
+              <Rect
+                width={PHOTO_PREVIEW_WIDTH}
+                height={PHOTO_PREVIEW_HEIGHT}
+                fill="#ffffff"
+                cornerRadius={8}
+                shadowColor="rgba(0,0,0,0.15)"
+                shadowBlur={12}
+                shadowOffsetY={4}
+              />
+              <Group clipFunc={(ctx) => {
+                ctx.roundRect(4, 4, PHOTO_PREVIEW_WIDTH - 8, PHOTO_PREVIEW_HEIGHT - 8, 6);
+              }}>
+                <KonvaImage
+                  image={photoImage}
+                  x={4}
+                  y={4}
+                  width={PHOTO_PREVIEW_WIDTH - 8}
+                  height={PHOTO_PREVIEW_HEIGHT - 8}
+                />
+              </Group>
+            </Group>
+          )}
         </Group>
       );
     }

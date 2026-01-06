@@ -1,0 +1,36 @@
+import { format, isToday, isYesterday, isTomorrow } from 'date-fns';
+import { getTimeUnit } from './timeUtils';
+
+export function formatTickLabel(timestamp: number, msPerPixel: number): string {
+  const date = new Date(timestamp);
+  const unit = getTimeUnit(msPerPixel);
+  
+  switch (unit) {
+    case 'second':
+    case 'minute':
+      return format(date, 'HH:mm');
+    case 'hour':
+      return format(date, 'HH:mm');
+    case 'day':
+      if (isToday(date)) return 'Today';
+      if (isYesterday(date)) return 'Yesterday';
+      if (isTomorrow(date)) return 'Tomorrow';
+      return format(date, 'MMM d');
+    case 'week':
+      return format(date, 'MMM d');
+  }
+}
+
+export function formatMomentTime(timestamp: number): string {
+  const date = new Date(timestamp);
+  if (isToday(date)) {
+    return `Today at ${format(date, 'HH:mm')}`;
+  }
+  if (isYesterday(date)) {
+    return `Yesterday at ${format(date, 'HH:mm')}`;
+  }
+  if (isTomorrow(date)) {
+    return `Tomorrow at ${format(date, 'HH:mm')}`;
+  }
+  return format(date, 'MMM d, yyyy · HH:mm');
+}

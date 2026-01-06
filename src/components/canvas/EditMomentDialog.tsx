@@ -9,7 +9,8 @@ import { useMomentsStore } from '@/stores/useMomentsStore';
 import type { Moment, Category } from '@/types/moment';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Trash2, X, Camera, Image, Focus } from 'lucide-react';
+import { Trash2, X, Camera, Image } from 'lucide-react';
+import mementoIcon from '@/assets/memento-icon.png';
 
 interface EditMomentDialogProps {
   moment: Moment | null;
@@ -234,7 +235,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
             }}
             className="flex items-center gap-1 text-xs"
           >
-            <Focus className="h-3 w-3" />
+            <img src={mementoIcon} alt="Memento" className="h-4 w-4" />
             Memento
           </Button>
         </DialogHeader>

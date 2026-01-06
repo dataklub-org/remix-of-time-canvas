@@ -184,6 +184,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
         </DialogHeader>
         
         <form id="create-moment-form" onSubmit={handleSubmit} className="space-y-3 mt-2 mb-2">
+          {/* Date & Time - Start */}
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label htmlFor="date" className="text-sm">Date</Label>
@@ -207,58 +208,34 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
             </div>
           </div>
           
-          {/* Photo upload */}
+          {/* End Date & Time */}
           <div className="space-y-1">
-            <Label className="text-sm">Photo</Label>
-            <input
-              ref={photoInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handlePhotoChange}
-              className="hidden"
-            />
-            {photo ? (
-              <div className="relative inline-block">
-                <img src={photo} alt="Moment" className="h-20 w-20 object-cover rounded-md" />
-                <button
-                  type="button"
-                  onClick={removePhoto}
-                  className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => photoInputRef.current?.click()}
-                  className="flex items-center gap-1"
-                >
-                  <Camera className="h-4 w-4" />
-                  <span className="hidden sm:inline">Camera</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    if (photoInputRef.current) {
-                      photoInputRef.current.removeAttribute('capture');
-                      photoInputRef.current.click();
-                      photoInputRef.current.setAttribute('capture', 'environment');
-                    }
-                  }}
-                  className="flex items-center gap-1"
-                >
-                  <Image className="h-4 w-4" />
-                  <span className="hidden sm:inline">Gallery</span>
-                </Button>
-              </div>
-            )}
+            <Label className="text-sm">End Date & Time (optional)</Label>
+            <div className="grid grid-cols-3 gap-2">
+              <Input
+                id="endDate"
+                type="date"
+                value={endDateInput}
+                onChange={(e) => setEndDateInput(e.target.value)}
+                className="h-9"
+              />
+              <Input
+                id="endTime"
+                type="time"
+                value={endTimeInput}
+                onChange={(e) => setEndTimeInput(e.target.value)}
+                className="h-9"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={resetEndTime}
+                className="text-xs h-9"
+              >
+                Moment
+              </Button>
+            </div>
           </div>
           
           <div className="space-y-1">
@@ -318,72 +295,42 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
             />
           </div>
           
-          <div className="space-y-1">
-            <Label className="text-sm">End Date & Time (optional)</Label>
-            <div className="grid grid-cols-3 gap-2">
-              <Input
-                id="endDate"
-                type="date"
-                value={endDateInput}
-                onChange={(e) => setEndDateInput(e.target.value)}
-                className="h-9"
-              />
-              <Input
-                id="endTime"
-                type="time"
-                value={endTimeInput}
-                onChange={(e) => setEndTimeInput(e.target.value)}
-                className="h-9"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={resetEndTime}
-                className="text-xs h-9"
-              >
-                Moment
-              </Button>
+          {/* Category + Memorable in same row */}
+          <div className="flex items-end gap-2">
+            <div className="flex-1 space-y-1">
+              <Label className="text-sm">Category</Label>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCategory('personal')}
+                  className={cn(
+                    "flex-1 py-1 px-2 rounded-md text-xs font-medium transition-colors",
+                    category === 'personal'
+                      ? "bg-orange-100 text-orange-700 border-2 border-orange-300"
+                      : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                  )}
+                >
+                  Personal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCategory('business')}
+                  className={cn(
+                    "flex-1 py-1 px-2 rounded-md text-xs font-medium transition-colors",
+                    category === 'business'
+                      ? "bg-blue-100 text-blue-700 border-2 border-blue-300"
+                      : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                  )}
+                >
+                  Business
+                </button>
+              </div>
             </div>
-          </div>
-          
-          <div className="space-y-1">
-            <Label className="text-sm">Category</Label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setCategory('personal')}
-                className={cn(
-                  "flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-colors",
-                  category === 'personal'
-                    ? "bg-orange-100 text-orange-700 border-2 border-orange-300"
-                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                )}
-              >
-                Personal
-              </button>
-              <button
-                type="button"
-                onClick={() => setCategory('business')}
-                className={cn(
-                  "flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-colors",
-                  category === 'business'
-                    ? "bg-blue-100 text-blue-700 border-2 border-blue-300"
-                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                )}
-              >
-                Business
-              </button>
-            </div>
-          </div>
-          
-          {/* Memorable toggle */}
-          <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => setMemorable(!memorable)}
               className={cn(
-                "flex items-center gap-0 px-3 py-1 rounded-full text-sm font-medium transition-colors",
+                "flex items-center gap-0 px-2 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap",
                 memorable
                   ? "bg-white text-black border border-black"
                   : "bg-black"
@@ -392,18 +339,60 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
               <span className={memorable ? "text-black font-bold" : "text-white font-bold"}>M</span>
               <span className={memorable ? "text-black" : "text-black"}>emorable</span>
             </button>
-            <span className="text-xs text-muted-foreground">
-              Shown on monthly & yearly views
-            </span>
           </div>
           
-          <div className="flex justify-end gap-2 pt-1 sticky bottom-0 bg-background pb-1">
-            <Button type="button" variant="ghost" size="sm" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" size="sm">
-              Create
-            </Button>
+          {/* Photo upload */}
+          <div className="space-y-1">
+            <Label className="text-sm">Photo</Label>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handlePhotoChange}
+              className="hidden"
+            />
+            {photo ? (
+              <div className="relative inline-block">
+                <img src={photo} alt="Moment" className="h-20 w-20 object-cover rounded-md" />
+                <button
+                  type="button"
+                  onClick={removePhoto}
+                  className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="flex items-center gap-1"
+                >
+                  <Camera className="h-4 w-4" />
+                  <span className="hidden sm:inline">Camera</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (photoInputRef.current) {
+                      photoInputRef.current.removeAttribute('capture');
+                      photoInputRef.current.click();
+                      photoInputRef.current.setAttribute('capture', 'environment');
+                    }
+                  }}
+                  className="flex items-center gap-1"
+                >
+                  <Image className="h-4 w-4" />
+                  <span className="hidden sm:inline">Gallery</span>
+                </Button>
+              </div>
+            )}
           </div>
         </form>
       </DialogContent>

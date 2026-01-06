@@ -77,6 +77,11 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
     if ('touches' in e) {
       // Two finger touch = pinch gesture
       if (e.touches.length === 2) {
+        // Cancel any ongoing zoom animation
+        if (zoomAnimationRef.current) {
+          cancelAnimationFrame(zoomAnimationRef.current);
+          zoomAnimationRef.current = null;
+        }
         setIsPinching(true);
         pinchStartRef.current = {
           distance: getTouchDistance(e.touches),
@@ -123,11 +128,14 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
         Math.min(ZOOM_LEVELS[ZOOM_LEVELS.length - 1].msPerPixel, newMsPerPixel)
       );
       
-      // Update target and animate slowly
-      if (Math.abs(clampedMsPerPixel - targetMsPerPixelRef.current) > 100) {
-        targetMsPerPixelRef.current = clampedMsPerPixel;
-        animateZoom(clampedMsPerPixel);
-      }
+      // Directly update msPerPixel during pinch for responsiveness
+      // Also update the pinch start reference so zooming out works correctly
+      setMsPerPixel(clampedMsPerPixel);
+      pinchStartRef.current = {
+        distance: currentDistance,
+        msPerPixel: clampedMsPerPixel,
+      };
+      targetMsPerPixelRef.current = clampedMsPerPixel;
       return;
     }
     

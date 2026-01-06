@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Stage, Layer, Rect } from 'react-konva';
 import { Plus } from 'lucide-react';
 import { useCanvasSize } from '@/hooks/useCanvasSize';
@@ -19,7 +19,7 @@ const PADDING = 100;
 export function TimelineCanvas() {
   const { width, height: viewportHeight } = useCanvasSize();
   const { moments, canvasState } = useMomentsStore();
-  const { isPanning, handleMouseDown, handleMouseMove, handleMouseUp, handleWheel } = usePanZoom({ canvasWidth: width });
+  const { isPanning, handleMouseDown, handleMouseMove, handleMouseUp, handleWheel, setVerticalScrollHandler } = usePanZoom({ canvasWidth: width });
   
   // Calculate dynamic canvas height based on moment positions
   const { canvasHeight, timelineY, scrollOffset } = useMemo(() => {
@@ -58,6 +58,17 @@ export function TimelineCanvas() {
   const [createPosition, setCreatePosition] = useState({ timestamp: Date.now(), y: 0 });
   const [selectedMoment, setSelectedMoment] = useState<Moment | null>(null);
   const [scrollY, setScrollY] = useState(0);
+
+  // Register vertical scroll handler for touch panning
+  useEffect(() => {
+    setVerticalScrollHandler((deltaY: number) => {
+      setScrollY(prev => {
+        const newScroll = prev + deltaY;
+        const maxScroll = Math.max(0, canvasHeight - viewportHeight);
+        return Math.max(0, Math.min(maxScroll, newScroll));
+      });
+    });
+  }, [setVerticalScrollHandler, canvasHeight, viewportHeight]);
 
   const handleCanvasClick = useCallback((e: any) => {
     // Only create on double-click to avoid accidental creation
@@ -169,7 +180,7 @@ export function TimelineCanvas() {
           Double-click to add • Drag to pan • Scroll horizontal • Shift+scroll vertical
         </span>
         <span className="bg-card/80 backdrop-blur-sm px-2 py-1 rounded md:hidden">
-          Tap + to add • Swipe to pan • Use zoom controls
+          Tap + to add • Swipe left/right for time • Swipe up/down to scroll
         </span>
       </div>
       

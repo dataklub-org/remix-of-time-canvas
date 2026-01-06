@@ -11,6 +11,7 @@ export interface Moment {
   people: string;
   location: string;
   category: Category;
+  memorable?: boolean; // Whether this is a Memorable Moment (shown on monthly/yearly view)
   createdAt: number;
   updatedAt: number;
 }

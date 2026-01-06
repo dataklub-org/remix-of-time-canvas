@@ -45,6 +45,16 @@ export function getTimeUnit(msPerPixel: number): '5min' | '10min' | '30min' | 'h
   return ZOOM_LEVELS[index].unit;
 }
 
+// Get zoom level category (for filtering moments)
+export function getZoomLevel(msPerPixel: number): 'minute' | 'hour' | 'day' | 'month' | 'year' {
+  const unit = getTimeUnit(msPerPixel);
+  if (unit === 'year') return 'year';
+  if (unit === 'month') return 'month';
+  if (unit === 'day' || unit === '6hour') return 'day';
+  if (unit === 'hour') return 'hour';
+  return 'minute';
+}
+
 // Generate tick intervals based on zoom level
 export function getTickInterval(msPerPixel: number): number {
   const index = getZoomLevelIndex(msPerPixel);

@@ -9,7 +9,7 @@ import { useMomentsStore } from '@/stores/useMomentsStore';
 import type { Moment, Category } from '@/types/moment';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Trash2, X } from 'lucide-react';
+import { Trash2, X, Camera, Image } from 'lucide-react';
 
 interface EditMomentDialogProps {
   moment: Moment | null;
@@ -19,6 +19,7 @@ interface EditMomentDialogProps {
 export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   const { updateMoment, deleteMoment } = useMomentsStore();
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   
   const [description, setDescription] = useState('');
   const [people, setPeople] = useState<string[]>([]);
@@ -30,6 +31,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   const [timeInput, setTimeInput] = useState('');
   const [endDateInput, setEndDateInput] = useState('');
   const [endTimeInput, setEndTimeInput] = useState('');
+  const [photo, setPhoto] = useState<string | null>(null);
   const [originalTimestamp, setOriginalTimestamp] = useState<number>(0);
   
   // Autosave function
@@ -67,8 +69,9 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       category,
       memorable,
       endTime,
+      photo: photo || undefined,
     });
-  }, [moment, dateInput, timeInput, description, people, location, category, memorable, endDateInput, endTimeInput, updateMoment]);
+  }, [moment, dateInput, timeInput, description, people, location, category, memorable, endDateInput, endTimeInput, photo, updateMoment]);
 
   // Autosave on changes (debounced)
   useEffect(() => {
@@ -77,7 +80,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       saveChanges();
     }, 300);
     return () => clearTimeout(timer);
-  }, [description, people, location, category, memorable, dateInput, timeInput, endDateInput, endTimeInput, saveChanges, moment]);
+  }, [description, people, location, category, memorable, dateInput, timeInput, endDateInput, endTimeInput, photo, saveChanges, moment]);
   
   // Reset form when moment changes
   useEffect(() => {
@@ -92,6 +95,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       setLocation(moment.location || '');
       setCategory(moment.category || 'personal');
       setMemorable(moment.memorable || false);
+      setPhoto(moment.photo || null);
       setDateInput(format(new Date(moment.timestamp), 'yyyy-MM-dd'));
       setTimeInput(format(new Date(moment.timestamp), 'HH:mm'));
       setEndDateInput(moment.endTime ? format(new Date(moment.endTime), 'yyyy-MM-dd') : '');
@@ -107,6 +111,46 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       }, 100);
     }
   }, [moment?.id]); // Only trigger on moment id change, not on updates
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const img = document.createElement('img');
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxSize = 400;
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > height && width > maxSize) {
+            height = (height * maxSize) / width;
+            width = maxSize;
+          } else if (height > maxSize) {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+          setPhoto(compressedBase64);
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removePhoto = () => {
+    setPhoto(null);
+    if (photoInputRef.current) {
+      photoInputRef.current.value = '';
+    }
+  };
   
   const addPerson = () => {
     const trimmed = personInput.trim();
@@ -197,7 +241,61 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
               <Button type="button" variant="outline" size="sm" onClick={addPerson}>
                 Add
               </Button>
-            </div>
+          </div>
+          
+          {/* Photo upload */}
+          <div className="space-y-1">
+            <Label className="text-sm">Photo</Label>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handlePhotoChange}
+              className="hidden"
+            />
+            {photo ? (
+              <div className="relative inline-block">
+                <img src={photo} alt="Moment" className="h-20 w-20 object-cover rounded-md" />
+                <button
+                  type="button"
+                  onClick={removePhoto}
+                  className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="flex items-center gap-1"
+                >
+                  <Camera className="h-4 w-4" />
+                  <span className="hidden sm:inline">Camera</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (photoInputRef.current) {
+                      photoInputRef.current.removeAttribute('capture');
+                      photoInputRef.current.click();
+                      photoInputRef.current.setAttribute('capture', 'environment');
+                    }
+                  }}
+                  className="flex items-center gap-1"
+                >
+                  <Image className="h-4 w-4" />
+                  <span className="hidden sm:inline">Gallery</span>
+                </Button>
+              </div>
+            )}
+          </div>
             {people.length > 0 && (
               <div className="flex flex-wrap gap-1 mt-1.5">
                 {people.map((person) => (

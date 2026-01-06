@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,7 +9,7 @@ import { useMomentsStore } from '@/stores/useMomentsStore';
 import type { Category } from '@/types/moment';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { X } from 'lucide-react';
+import { X, Camera, Image } from 'lucide-react';
 
 interface CreateMomentDialogProps {
   open: boolean;
@@ -18,8 +18,12 @@ interface CreateMomentDialogProps {
   y: number;
 }
 
+// Max 30 minutes for new moments
+const MAX_INITIAL_DURATION_MS = 30 * 60 * 1000;
+
 export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateMomentDialogProps) {
   const { addMoment } = useMomentsStore();
+  const photoInputRef = useRef<HTMLInputElement>(null);
   
   const [description, setDescription] = useState('');
   const [people, setPeople] = useState<string[]>([]);
@@ -31,6 +35,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   const [timeInput, setTimeInput] = useState('');
   const [endDateInput, setEndDateInput] = useState('');
   const [endTimeInput, setEndTimeInput] = useState('');
+  const [photo, setPhoto] = useState<string | null>(null);
   const [originalTimestamp, setOriginalTimestamp] = useState<number>(0);
   
   // Initialize date/time inputs when dialog opens
@@ -67,6 +72,47 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     setEndTimeInput('');
   };
 
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Compress and convert to base64
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const img = document.createElement('img');
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxSize = 400; // Max dimension for thumbnail
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > height && width > maxSize) {
+            height = (height * maxSize) / width;
+            width = maxSize;
+          } else if (height > maxSize) {
+            width = (width * maxSize) / height;
+            height = maxSize;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+          setPhoto(compressedBase64);
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const removePhoto = () => {
+    setPhoto(null);
+    if (photoInputRef.current) {
+      photoInputRef.current.value = '';
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -92,6 +138,11 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       }
     }
     
+    // Limit endTime to max 30 minutes from start
+    if (endTime && endTime - parsedTimestamp > MAX_INITIAL_DURATION_MS) {
+      endTime = parsedTimestamp + MAX_INITIAL_DURATION_MS;
+    }
+    
     addMoment({
       timestamp: parsedTimestamp,
       endTime,
@@ -101,6 +152,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       location,
       category,
       memorable,
+      photo: photo || undefined,
     });
     
     // Reset form
@@ -112,6 +164,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     setMemorable(false);
     setEndDateInput('');
     setEndTimeInput('');
+    setPhoto(null);
     onOpenChange(false);
   };
 
@@ -152,6 +205,60 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
                 className="h-9"
               />
             </div>
+          </div>
+          
+          {/* Photo upload */}
+          <div className="space-y-1">
+            <Label className="text-sm">Photo</Label>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handlePhotoChange}
+              className="hidden"
+            />
+            {photo ? (
+              <div className="relative inline-block">
+                <img src={photo} alt="Moment" className="h-20 w-20 object-cover rounded-md" />
+                <button
+                  type="button"
+                  onClick={removePhoto}
+                  className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => photoInputRef.current?.click()}
+                  className="flex items-center gap-1"
+                >
+                  <Camera className="h-4 w-4" />
+                  <span className="hidden sm:inline">Camera</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (photoInputRef.current) {
+                      photoInputRef.current.removeAttribute('capture');
+                      photoInputRef.current.click();
+                      photoInputRef.current.setAttribute('capture', 'environment');
+                    }
+                  }}
+                  className="flex items-center gap-1"
+                >
+                  <Image className="h-4 w-4" />
+                  <span className="hidden sm:inline">Gallery</span>
+                </Button>
+              </div>
+            )}
           </div>
           
           <div className="space-y-1">

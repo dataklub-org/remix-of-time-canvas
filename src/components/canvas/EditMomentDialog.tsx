@@ -29,8 +29,8 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   const [memorable, setMemorable] = useState(false);
   const [dateInput, setDateInput] = useState('');
   const [timeInput, setTimeInput] = useState('');
-  const [endDateInput, setEndDateInput] = useState('');
-  const [endTimeInput, setEndTimeInput] = useState('');
+  const [duration, setDuration] = useState<string>('');
+  const [period, setPeriod] = useState<'m' | 'h' | 'd' | 'M'>('h');
   const [photo, setPhoto] = useState<string | null>(null);
   const [originalTimestamp, setOriginalTimestamp] = useState<number>(0);
   
@@ -45,20 +45,18 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
     const [hours, minutes] = timeInput.split(':').map(Number);
     const parsedTimestamp = new Date(year, month - 1, day, hours, minutes).getTime();
     
-    // Parse endTime
+    // Calculate endTime from duration and period
     let endTime: number | undefined;
-    if (endDateInput && endTimeInput) {
-      const [endYear, endMonth, endDay] = endDateInput.split('-').map(Number);
-      const [endHours, endMinutes] = endTimeInput.split(':').map(Number);
-      endTime = new Date(endYear, endMonth - 1, endDay, endHours, endMinutes).getTime();
-    } else if (endTimeInput) {
-      const date = new Date(parsedTimestamp);
-      const [endHours, endMinutes] = endTimeInput.split(':').map(Number);
-      date.setHours(endHours, endMinutes, 0, 0);
-      endTime = date.getTime();
-      if (endTime < parsedTimestamp) {
-        endTime += 24 * 60 * 60 * 1000;
+    const durationNum = parseFloat(duration);
+    if (!isNaN(durationNum) && durationNum > 0) {
+      let durationMs = 0;
+      switch (period) {
+        case 'm': durationMs = durationNum * 60 * 1000; break;
+        case 'h': durationMs = durationNum * 60 * 60 * 1000; break;
+        case 'd': durationMs = durationNum * 24 * 60 * 60 * 1000; break;
+        case 'M': durationMs = durationNum * 30 * 24 * 60 * 60 * 1000; break;
       }
+      endTime = parsedTimestamp + durationMs;
     }
     
     updateMoment(moment.id, {
@@ -71,7 +69,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       endTime,
       photo: photo || undefined,
     });
-  }, [moment, dateInput, timeInput, description, people, location, category, memorable, endDateInput, endTimeInput, photo, updateMoment]);
+  }, [moment, dateInput, timeInput, description, people, location, category, memorable, duration, period, photo, updateMoment]);
 
   // Autosave on changes (debounced)
   useEffect(() => {
@@ -80,7 +78,8 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       saveChanges();
     }, 300);
     return () => clearTimeout(timer);
-  }, [description, people, location, category, memorable, dateInput, timeInput, endDateInput, endTimeInput, photo, saveChanges, moment]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [description, people, location, category, memorable, dateInput, timeInput, duration, period, photo, saveChanges, moment]);
   
   // Reset form when moment changes
   useEffect(() => {
@@ -98,8 +97,34 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       setPhoto(moment.photo || null);
       setDateInput(format(new Date(moment.timestamp), 'yyyy-MM-dd'));
       setTimeInput(format(new Date(moment.timestamp), 'HH:mm'));
-      setEndDateInput(moment.endTime ? format(new Date(moment.endTime), 'yyyy-MM-dd') : '');
-      setEndTimeInput(moment.endTime ? format(new Date(moment.endTime), 'HH:mm') : '');
+      
+      // Calculate duration and period from endTime
+      if (moment.endTime && moment.endTime > moment.timestamp) {
+        const diffMs = moment.endTime - moment.timestamp;
+        const diffMinutes = diffMs / (60 * 1000);
+        const diffHours = diffMs / (60 * 60 * 1000);
+        const diffDays = diffMs / (24 * 60 * 60 * 1000);
+        const diffMonths = diffMs / (30 * 24 * 60 * 60 * 1000);
+        
+        // Choose the most appropriate period
+        if (diffMonths >= 1 && diffMonths === Math.floor(diffMonths)) {
+          setDuration(diffMonths.toString());
+          setPeriod('M');
+        } else if (diffDays >= 1 && diffDays === Math.floor(diffDays)) {
+          setDuration(diffDays.toString());
+          setPeriod('d');
+        } else if (diffHours >= 1) {
+          setDuration(parseFloat(diffHours.toFixed(2)).toString());
+          setPeriod('h');
+        } else {
+          setDuration(parseFloat(diffMinutes.toFixed(1)).toString());
+          setPeriod('m');
+        }
+      } else {
+        setDuration('');
+        setPeriod('h');
+      }
+      
       setOriginalTimestamp(moment.timestamp);
       
       // Focus and select description field
@@ -277,41 +302,31 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
               </div>
             </div>
             
-            {/* End - collapsed by default, expands on focus */}
+            {/* Duration + Period */}
             <div className="space-y-1">
-              <Label className="text-sm text-muted-foreground">End</Label>
-              {(endDateInput || endTimeInput) ? (
-                <div className="flex gap-1">
-                  <Input
-                    id="edit-endDate"
-                    type="date"
-                    value={endDateInput}
-                    onChange={(e) => setEndDateInput(e.target.value)}
-                    className="h-9 w-[110px]"
-                  />
-                  <Input
-                    id="edit-endTime"
-                    type="time"
-                    value={endTimeInput}
-                    onChange={(e) => setEndTimeInput(e.target.value)}
-                    className="h-9 w-[72px]"
-                  />
-                </div>
-              ) : (
+              <Label className="text-sm text-muted-foreground">Duration</Label>
+              <div className="flex gap-1">
                 <Input
-                  id="edit-endTime"
-                  type="time"
-                  placeholder="--:--"
-                  value={endTimeInput}
-                  onChange={(e) => {
-                    setEndTimeInput(e.target.value);
-                    if (!endDateInput && e.target.value) {
-                      setEndDateInput(dateInput);
-                    }
-                  }}
-                  className="h-9 w-[72px]"
+                  id="edit-duration"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  placeholder="0"
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                  className="h-9 w-[60px]"
                 />
-              )}
+                <select
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value as 'm' | 'h' | 'd' | 'M')}
+                  className="h-9 w-[52px] rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="m">m</option>
+                  <option value="h">h</option>
+                  <option value="d">d</option>
+                  <option value="M">M</option>
+                </select>
+              </div>
             </div>
           </div>
           

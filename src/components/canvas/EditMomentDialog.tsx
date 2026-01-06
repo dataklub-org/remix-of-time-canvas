@@ -24,6 +24,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   const [category, setCategory] = useState<Category>('personal');
   const [dateInput, setDateInput] = useState('');
   const [timeInput, setTimeInput] = useState('');
+  const [endDateInput, setEndDateInput] = useState('');
   const [endTimeInput, setEndTimeInput] = useState('');
   
   // Reset form when moment changes
@@ -35,6 +36,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       setCategory(moment.category || 'personal');
       setDateInput(format(new Date(moment.timestamp), 'yyyy-MM-dd'));
       setTimeInput(format(new Date(moment.timestamp), 'HH:mm'));
+      setEndDateInput(moment.endTime ? format(new Date(moment.endTime), 'yyyy-MM-dd') : '');
       setEndTimeInput(moment.endTime ? format(new Date(moment.endTime), 'HH:mm') : '');
     }
   }, [moment]);
@@ -51,7 +53,11 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
     
     // Parse endTime
     let endTime: number | undefined;
-    if (endTimeInput) {
+    if (endDateInput && endTimeInput) {
+      const [endYear, endMonth, endDay] = endDateInput.split('-').map(Number);
+      const [endHours, endMinutes] = endTimeInput.split(':').map(Number);
+      endTime = new Date(endYear, endMonth - 1, endDay, endHours, endMinutes).getTime();
+    } else if (endTimeInput) {
       const date = new Date(parsedTimestamp);
       const [endHours, endMinutes] = endTimeInput.split(':').map(Number);
       date.setHours(endHours, endMinutes, 0, 0);
@@ -80,12 +86,12 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
 
   return (
     <Dialog open={!!moment} onOpenChange={() => onClose()}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader className="pt-2">
           <DialogTitle className="text-lg font-medium">Edit Moment</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4 mb-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="edit-date">Date</Label>
@@ -140,13 +146,21 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="edit-endTime">End Time (optional)</Label>
-            <Input
-              id="edit-endTime"
-              type="time"
-              value={endTimeInput}
-              onChange={(e) => setEndTimeInput(e.target.value)}
-            />
+            <Label>End Date & Time (optional)</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                id="edit-endDate"
+                type="date"
+                value={endDateInput}
+                onChange={(e) => setEndDateInput(e.target.value)}
+              />
+              <Input
+                id="edit-endTime"
+                type="time"
+                value={endTimeInput}
+                onChange={(e) => setEndTimeInput(e.target.value)}
+              />
+            </div>
             <p className="text-xs text-muted-foreground">Leave empty if same as start time</p>
           </div>
           

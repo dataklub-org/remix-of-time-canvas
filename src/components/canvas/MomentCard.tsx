@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Group, Rect, Text, Line } from 'react-konva';
 import type { Moment } from '@/types/moment';
 import { timeToX } from '@/utils/timeUtils';
@@ -41,8 +41,6 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   // Check if card is visible (with some buffer)
   const isVisible = cardRight >= -50 && cardLeft <= canvasWidth + 50;
   
-  if (!isVisible) return null;
-
   const [isResizing, setIsResizing] = useState(false);
   const [isHoveringResize, setIsHoveringResize] = useState(false);
   const resizeStartRef = useRef<{ width: number; height: number; x: number; y: number } | null>(null);
@@ -50,6 +48,38 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   const handleDragEnd = (e: any) => {
     updateMomentY(moment.id, e.target.y());
   };
+
+  // Global mouse move handler for resize
+  const handleGlobalMouseMove = useCallback((e: MouseEvent) => {
+    if (!resizeStartRef.current) return;
+    
+    const deltaX = e.clientX - resizeStartRef.current.x;
+    const deltaY = e.clientY - resizeStartRef.current.y;
+    
+    const newWidth = Math.max(20, resizeStartRef.current.width + deltaX);
+    const newHeight = Math.max(20, resizeStartRef.current.height + deltaY);
+    
+    updateMomentSize(moment.id, newWidth, newHeight);
+  }, [moment.id, updateMomentSize]);
+
+  // Global mouse up handler for resize
+  const handleGlobalMouseUp = useCallback(() => {
+    setIsResizing(false);
+    resizeStartRef.current = null;
+    document.body.style.cursor = '';
+  }, []);
+
+  // Attach/detach global listeners when resizing
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', handleGlobalMouseMove);
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleGlobalMouseMove);
+      window.removeEventListener('mouseup', handleGlobalMouseUp);
+    };
+  }, [isResizing, handleGlobalMouseMove, handleGlobalMouseUp]);
 
   const handleResizeStart = (e: any) => {
     e.cancelBubble = true;
@@ -60,29 +90,7 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
       x: e.evt.clientX,
       y: e.evt.clientY,
     };
-    // Set cursor on document body for better UX during drag
     document.body.style.cursor = 'nwse-resize';
-  };
-
-  const handleResizeMove = (e: any) => {
-    if (!isResizing || !resizeStartRef.current) return;
-    e.cancelBubble = true;
-    
-    const deltaX = e.evt.clientX - resizeStartRef.current.x;
-    const deltaY = e.evt.clientY - resizeStartRef.current.y;
-    
-    // No minimum size limits
-    const newWidth = Math.max(20, resizeStartRef.current.width + deltaX);
-    const newHeight = Math.max(20, resizeStartRef.current.height + deltaY);
-    
-    updateMomentSize(moment.id, newWidth, newHeight);
-  };
-
-  const handleResizeEnd = (e: any) => {
-    if (e) e.cancelBubble = true;
-    setIsResizing(false);
-    resizeStartRef.current = null;
-    document.body.style.cursor = '';
   };
 
   const handleResizeEnter = (e: any) => {
@@ -104,6 +112,8 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
       }
     }
   };
+  
+  if (!isVisible) return null;
 
   // Calculate bezier curve control points for smooth lines going DOWN to timeline
   const isAboveTimeline = cardBottom < timelineY;
@@ -229,8 +239,6 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           x={cardWidth - RESIZE_HANDLE_SIZE}
           y={cardHeight - RESIZE_HANDLE_SIZE}
           onMouseDown={handleResizeStart}
-          onMouseMove={handleResizeMove}
-          onMouseUp={handleResizeEnd}
           onMouseEnter={handleResizeEnter}
           onMouseLeave={handleResizeLeave}
         >

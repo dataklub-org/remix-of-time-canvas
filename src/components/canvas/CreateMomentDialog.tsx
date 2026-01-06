@@ -25,6 +25,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   const [category, setCategory] = useState<Category>('personal');
   const [dateInput, setDateInput] = useState('');
   const [timeInput, setTimeInput] = useState('');
+  const [endDateInput, setEndDateInput] = useState('');
   const [endTimeInput, setEndTimeInput] = useState('');
   
   // Initialize date/time inputs when dialog opens
@@ -46,12 +47,16 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     
     // Parse endTime - if empty, it will be undefined (same as timestamp)
     let endTime: number | undefined;
-    if (endTimeInput) {
+    if (endDateInput && endTimeInput) {
+      const [endYear, endMonth, endDay] = endDateInput.split('-').map(Number);
+      const [endHours, endMinutes] = endTimeInput.split(':').map(Number);
+      endTime = new Date(endYear, endMonth - 1, endDay, endHours, endMinutes).getTime();
+    } else if (endTimeInput) {
+      // Use same date as start if only time is provided
       const date = new Date(parsedTimestamp);
       const [endHours, endMinutes] = endTimeInput.split(':').map(Number);
       date.setHours(endHours, endMinutes, 0, 0);
       endTime = date.getTime();
-      // If end time is before start time, assume next day
       if (endTime < parsedTimestamp) {
         endTime += 24 * 60 * 60 * 1000;
       }
@@ -72,18 +77,19 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     setPeople('');
     setLocation('');
     setCategory('personal');
+    setEndDateInput('');
     setEndTimeInput('');
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader className="pt-2">
           <DialogTitle className="text-lg font-medium">New Moment</DialogTitle>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
+        <form onSubmit={handleSubmit} className="space-y-4 mt-4 mb-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
               <Label htmlFor="date">Date</Label>
@@ -139,14 +145,21 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="endTime">End Time (optional)</Label>
-            <Input
-              id="endTime"
-              type="time"
-              placeholder="HH:MM"
-              value={endTimeInput}
-              onChange={(e) => setEndTimeInput(e.target.value)}
-            />
+            <Label>End Date & Time (optional)</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                id="endDate"
+                type="date"
+                value={endDateInput}
+                onChange={(e) => setEndDateInput(e.target.value)}
+              />
+              <Input
+                id="endTime"
+                type="time"
+                value={endTimeInput}
+                onChange={(e) => setEndTimeInput(e.target.value)}
+              />
+            </div>
           </div>
           
           <div className="space-y-2">

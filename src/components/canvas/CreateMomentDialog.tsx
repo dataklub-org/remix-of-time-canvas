@@ -277,8 +277,8 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
                   : "bg-black"
               )}
             >
-              <span className={memorable ? "text-black font-bold" : "text-black font-bold"}>M</span>
-              <span className={memorable ? "text-black" : "text-white"}>emorable</span>
+              <span className={memorable ? "text-black font-bold" : "text-white font-bold"}>M</span>
+              <span className={memorable ? "text-black" : "text-black"}>emorable</span>
             </button>
             <span className="text-xs text-muted-foreground">
               Shown on monthly & yearly views

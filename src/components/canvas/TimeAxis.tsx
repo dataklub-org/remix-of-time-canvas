@@ -3,7 +3,7 @@ import { Line, Text, Group, Rect } from 'react-konva';
 import { useMomentsStore } from '@/stores/useMomentsStore';
 import { timeToX, getTickInterval, getTimeUnit, ZOOM_LEVELS, getZoomLevelIndex } from '@/utils/timeUtils';
 import { formatTickLabel } from '@/utils/formatUtils';
-import { format, isWeekend, startOfMonth, eachDayOfInterval, startOfDay, endOfDay, isSunday } from 'date-fns';
+import { format, isWeekend, startOfMonth, eachDayOfInterval, startOfDay, endOfDay } from 'date-fns';
 
 interface TimeAxisProps {
   width: number;
@@ -63,9 +63,6 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
       .map(day => ({
         start: startOfDay(day).getTime(),
         end: endOfDay(day).getTime(),
-        label: format(day, 'EEE'),
-        isSunday: isSunday(day),
-        dateLabel: format(day, 'MMM d'),
       }));
   }, [centerTime, msPerPixel, width, isWeekOrHigher]);
 
@@ -110,33 +107,17 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
         const startX = timeToX(weekend.start, centerTime, msPerPixel, width);
         const endX = timeToX(weekend.end, centerTime, msPerPixel, width);
         const rectWidth = endX - startX;
-        const centerX = startX + rectWidth / 2;
         
         return (
-          <Group key={weekend.start}>
-            <Rect
-              x={startX}
-              y={axisY - 40}
-              width={rectWidth}
-              height={80}
-              fill="rgba(147, 51, 234, 0.08)"
-              cornerRadius={4}
-            />
-            {/* Show Sunday label with date at week zoom or higher */}
-            {weekend.isSunday && isWeekOrHigher && (
-              <Text
-                text={`Sun\n${weekend.dateLabel}`}
-                x={centerX - 25}
-                y={axisY - 30}
-                width={50}
-                align="center"
-                fontSize={10}
-                fill="#9333ea"
-                fontFamily="Inter, sans-serif"
-                fontStyle="bold"
-              />
-            )}
-          </Group>
+          <Rect
+            key={weekend.start}
+            x={startX}
+            y={axisY - 40}
+            width={rectWidth}
+            height={80}
+            fill="rgba(224, 215, 211, 0.3)"
+            cornerRadius={4}
+          />
         );
       })}
       
@@ -147,19 +128,19 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
         return (
           <Group key={boundary.timestamp} x={x}>
             <Line
-              points={[0, axisY - 50, 0, axisY + 50]}
-              stroke="#9333ea"
-              strokeWidth={2}
-              dash={[4, 4]}
+              points={[0, axisY - 6, 0, axisY + 6]}
+              stroke="#b0b8c4"
+              strokeWidth={1}
             />
             <Text
               text={boundary.label}
-              x={5}
-              y={axisY - 55}
-              fontSize={12}
-              fill="#9333ea"
+              x={-40}
+              y={axisY + 12}
+              width={80}
+              align="center"
+              fontSize={11}
+              fill="#7a8494"
               fontFamily="Inter, sans-serif"
-              fontStyle="bold"
             />
           </Group>
         );
@@ -177,17 +158,13 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
         const x = timeToX(timestamp, centerTime, msPerPixel, width);
         const date = new Date(timestamp);
         const isWeekendDay = isWeekOrHigher && isWeekend(date);
-        const isSundayDay = isSunday(date);
-        
-        // Skip rendering tick for Sundays at week level since we show the label in weekend highlight
-        if (isWeekOrHigher && isSundayDay) return null;
         
         return (
           <Group key={timestamp} x={x}>
             <Line
               points={[0, axisY - 6, 0, axisY + 6]}
-              stroke={isWeekendDay ? '#9333ea' : '#b0b8c4'}
-              strokeWidth={isWeekendDay ? 2 : 1}
+              stroke={isWeekendDay ? '#E0D7D3' : '#b0b8c4'}
+              strokeWidth={1}
             />
             <Text
               text={formatTickLabel(timestamp, msPerPixel)}
@@ -196,9 +173,8 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
               width={60}
               align="center"
               fontSize={11}
-              fill={isWeekendDay ? '#9333ea' : '#7a8494'}
+              fill="#7a8494"
               fontFamily="Inter, sans-serif"
-              fontStyle={isWeekendDay ? 'bold' : 'normal'}
             />
           </Group>
         );

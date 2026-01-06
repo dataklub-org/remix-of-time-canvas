@@ -511,6 +511,8 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         onDragEnd={handleDragEnd}
         onClick={handleCardClick}
         onTap={handleCardClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
         {/* Card background */}
         <Rect
@@ -621,6 +623,35 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
             fill="#ffffff"
           />
         </Group>
+        
+        {/* Photo preview below card on hover */}
+        {isHovered && photoImage && (
+          <Group
+            x={(cardWidth - PHOTO_PREVIEW_WIDTH) / 2}
+            y={cardHeight + 8}
+          >
+            <Rect
+              width={PHOTO_PREVIEW_WIDTH}
+              height={PHOTO_PREVIEW_HEIGHT}
+              fill="#ffffff"
+              cornerRadius={8}
+              shadowColor="rgba(0,0,0,0.15)"
+              shadowBlur={12}
+              shadowOffsetY={4}
+            />
+            <Group clipFunc={(ctx) => {
+              ctx.roundRect(4, 4, PHOTO_PREVIEW_WIDTH - 8, PHOTO_PREVIEW_HEIGHT - 8, 6);
+            }}>
+              <KonvaImage
+                image={photoImage}
+                x={4}
+                y={4}
+                width={PHOTO_PREVIEW_WIDTH - 8}
+                height={PHOTO_PREVIEW_HEIGHT - 8}
+              />
+            </Group>
+          </Group>
+        )}
         
         {/* Resize handle (bottom-right corner) - larger hit area */}
         <Group

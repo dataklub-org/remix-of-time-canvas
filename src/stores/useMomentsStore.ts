@@ -20,7 +20,7 @@ interface MomentsStore {
   jumpToNow: () => void;
 }
 
-const DEFAULT_MS_PER_PIXEL = 60_000; // 1 minute per pixel
+const DEFAULT_MS_PER_PIXEL = 36_000; // 1 hour per pixel (hourly view)
 
 export const useMomentsStore = create<MomentsStore>()(
   persist(

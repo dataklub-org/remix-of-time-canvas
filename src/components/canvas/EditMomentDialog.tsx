@@ -191,6 +191,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
         </DialogHeader>
         
         <div className="space-y-3 mt-2 mb-2">
+          {/* Date & Time - Start */}
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <Label htmlFor="edit-date" className="text-sm">Date</Label>
@@ -211,6 +212,36 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
                 onChange={(e) => setTimeInput(e.target.value)}
                 className="h-9"
               />
+            </div>
+          </div>
+          
+          {/* End Date & Time */}
+          <div className="space-y-1">
+            <Label className="text-sm">End Date & Time (optional)</Label>
+            <div className="grid grid-cols-3 gap-2">
+              <Input
+                id="edit-endDate"
+                type="date"
+                value={endDateInput}
+                onChange={(e) => setEndDateInput(e.target.value)}
+                className="h-9"
+              />
+              <Input
+                id="edit-endTime"
+                type="time"
+                value={endTimeInput}
+                onChange={(e) => setEndTimeInput(e.target.value)}
+                className="h-9"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={resetEndTime}
+                className="text-xs h-9"
+              >
+                Moment
+              </Button>
             </div>
           </div>
           
@@ -241,6 +272,80 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
               <Button type="button" variant="outline" size="sm" onClick={addPerson}>
                 Add
               </Button>
+            </div>
+            {people.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1.5">
+                {people.map((person) => (
+                  <Badge key={person} variant="secondary" className="gap-1 pr-1 text-xs">
+                    {person}
+                    <button
+                      type="button"
+                      onClick={() => removePerson(person)}
+                      className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          <div className="space-y-1">
+            <Label htmlFor="edit-location" className="text-sm">Location</Label>
+            <Input
+              id="edit-location"
+              placeholder="Where was it?"
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              className="h-9"
+            />
+          </div>
+          
+          {/* Category + Memorable in same row */}
+          <div className="flex items-end gap-2">
+            <div className="flex-1 space-y-1">
+              <Label className="text-sm">Category</Label>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCategory('personal')}
+                  className={cn(
+                    "flex-1 py-1 px-2 rounded-md text-xs font-medium transition-colors",
+                    category === 'personal'
+                      ? "bg-orange-100 text-orange-700 border-2 border-orange-300"
+                      : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                  )}
+                >
+                  Personal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCategory('business')}
+                  className={cn(
+                    "flex-1 py-1 px-2 rounded-md text-xs font-medium transition-colors",
+                    category === 'business'
+                      ? "bg-blue-100 text-blue-700 border-2 border-blue-300"
+                      : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                  )}
+                >
+                  Business
+                </button>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setMemorable(!memorable)}
+              className={cn(
+                "flex items-center gap-0 px-2 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap",
+                memorable
+                  ? "bg-white text-black border border-black"
+                  : "bg-black"
+              )}
+            >
+              <span className={memorable ? "text-black font-bold" : "text-white font-bold"}>M</span>
+              <span className={memorable ? "text-black" : "text-black"}>emorable</span>
+            </button>
           </div>
           
           {/* Photo upload */}
@@ -295,113 +400,6 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
                 </Button>
               </div>
             )}
-          </div>
-            {people.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1.5">
-                {people.map((person) => (
-                  <Badge key={person} variant="secondary" className="gap-1 pr-1 text-xs">
-                    {person}
-                    <button
-                      type="button"
-                      onClick={() => removePerson(person)}
-                      className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </div>
-          
-          <div className="space-y-1">
-            <Label htmlFor="edit-location" className="text-sm">Location</Label>
-            <Input
-              id="edit-location"
-              placeholder="Where was it?"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="h-9"
-            />
-          </div>
-          
-          <div className="space-y-1">
-            <Label className="text-sm">End Date & Time (optional)</Label>
-            <div className="grid grid-cols-3 gap-2">
-              <Input
-                id="edit-endDate"
-                type="date"
-                value={endDateInput}
-                onChange={(e) => setEndDateInput(e.target.value)}
-                className="h-9"
-              />
-              <Input
-                id="edit-endTime"
-                type="time"
-                value={endTimeInput}
-                onChange={(e) => setEndTimeInput(e.target.value)}
-                className="h-9"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={resetEndTime}
-                className="text-xs h-9"
-              >
-                Moment
-              </Button>
-            </div>
-          </div>
-          
-          <div className="space-y-1">
-            <Label className="text-sm">Category</Label>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={() => setCategory('personal')}
-                className={cn(
-                  "flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-colors",
-                  category === 'personal'
-                    ? "bg-orange-100 text-orange-700 border-2 border-orange-300"
-                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                )}
-              >
-                Personal
-              </button>
-              <button
-                type="button"
-                onClick={() => setCategory('business')}
-                className={cn(
-                  "flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-colors",
-                  category === 'business'
-                    ? "bg-blue-100 text-blue-700 border-2 border-blue-300"
-                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-                )}
-              >
-                Business
-              </button>
-            </div>
-          </div>
-          
-          {/* Memorable toggle */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setMemorable(!memorable)}
-              className={cn(
-                "flex items-center gap-0 px-3 py-1 rounded-full text-sm font-medium transition-colors",
-                memorable
-                  ? "bg-white text-black border border-black"
-                  : "bg-black"
-              )}
-            >
-              <span className={memorable ? "text-black font-bold" : "text-white font-bold"}>M</span>
-              <span className={memorable ? "text-black" : "text-black"}>emorable</span>
-            </button>
-            <span className="text-xs text-muted-foreground">
-              Shown on monthly & yearly views
-            </span>
           </div>
           
           <div className="flex justify-between pt-1 sticky bottom-0 bg-background pb-1">

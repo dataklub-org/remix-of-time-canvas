@@ -82,7 +82,7 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
       if (monthStart.getTime() >= startTime && monthStart.getTime() <= endTime) {
         boundaries.push({
           timestamp: monthStart.getTime(),
-          label: format(monthStart, 'MMMM yyyy'),
+          label: format(monthStart, 'MMM yyyy'),
         });
       }
       // Move to next month

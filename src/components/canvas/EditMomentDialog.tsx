@@ -141,48 +141,50 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
 
   return (
     <Dialog open={!!moment} onOpenChange={() => onClose()}>
-      <DialogContent className="sm:max-w-xl">
-        <DialogHeader className="pt-2">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="pt-2 sticky top-0 bg-background z-10 pb-2">
           <DialogTitle className="text-lg font-medium">Edit Moment</DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-4 mt-4 mb-2">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label htmlFor="edit-date">Date</Label>
+        <div className="space-y-3 mt-2 mb-2">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="edit-date" className="text-sm">Date</Label>
               <Input
                 id="edit-date"
                 type="date"
                 value={dateInput}
                 onChange={(e) => setDateInput(e.target.value)}
+                className="h-9"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="edit-time">Time</Label>
+            <div className="space-y-1">
+              <Label htmlFor="edit-time" className="text-sm">Time</Label>
               <Input
                 id="edit-time"
                 type="time"
                 value={timeInput}
                 onChange={(e) => setTimeInput(e.target.value)}
+                className="h-9"
               />
             </div>
           </div>
           
-          <div className="space-y-2">
-            <Label htmlFor="edit-description">Description</Label>
+          <div className="space-y-1">
+            <Label htmlFor="edit-description" className="text-sm">Description</Label>
             <Textarea
               ref={descriptionRef}
               id="edit-description"
               placeholder="What happened?"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="resize-none"
+              className="resize-none min-h-[60px]"
               rows={2}
             />
           </div>
           
-          <div className="space-y-2">
-            <Label htmlFor="edit-people">People</Label>
+          <div className="space-y-1">
+            <Label htmlFor="edit-people" className="text-sm">People</Label>
             <div className="flex gap-2">
               <Input
                 id="edit-people"
@@ -190,21 +192,21 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
                 value={personInput}
                 onChange={(e) => setPersonInput(e.target.value)}
                 onKeyDown={handlePersonKeyDown}
-                className="flex-1"
+                className="flex-1 h-9"
               />
-              <Button type="button" variant="outline" onClick={addPerson}>
+              <Button type="button" variant="outline" size="sm" onClick={addPerson}>
                 Add
               </Button>
             </div>
             {people.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
+              <div className="flex flex-wrap gap-1 mt-1.5">
                 {people.map((person) => (
-                  <Badge key={person} variant="secondary" className="gap-1 pr-1">
+                  <Badge key={person} variant="secondary" className="gap-1 pr-1 text-xs">
                     {person}
                     <button
                       type="button"
                       onClick={() => removePerson(person)}
-                      className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                      className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
                     >
                       <X className="h-3 w-3" />
                     </button>
@@ -214,51 +216,54 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
             )}
           </div>
           
-          <div className="space-y-2">
-            <Label htmlFor="edit-location">Location</Label>
+          <div className="space-y-1">
+            <Label htmlFor="edit-location" className="text-sm">Location</Label>
             <Input
               id="edit-location"
               placeholder="Where was it?"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
+              className="h-9"
             />
           </div>
           
-          <div className="space-y-2">
-            <Label>End Date & Time (optional)</Label>
-            <div className="grid grid-cols-3 gap-3">
+          <div className="space-y-1">
+            <Label className="text-sm">End Date & Time (optional)</Label>
+            <div className="grid grid-cols-3 gap-2">
               <Input
                 id="edit-endDate"
                 type="date"
                 value={endDateInput}
                 onChange={(e) => setEndDateInput(e.target.value)}
+                className="h-9"
               />
               <Input
                 id="edit-endTime"
                 type="time"
                 value={endTimeInput}
                 onChange={(e) => setEndTimeInput(e.target.value)}
+                className="h-9"
               />
               <Button
                 type="button"
                 variant="outline"
+                size="sm"
                 onClick={resetEndTime}
-                className="text-sm"
+                className="text-xs h-9"
               >
                 Moment
               </Button>
             </div>
-            <p className="text-xs text-muted-foreground">Click "Moment" to reset to start time</p>
           </div>
           
-          <div className="space-y-2">
-            <Label>Category</Label>
+          <div className="space-y-1">
+            <Label className="text-sm">Category</Label>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setCategory('personal')}
                 className={cn(
-                  "flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors",
+                  "flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-colors",
                   category === 'personal'
                     ? "bg-orange-100 text-orange-700 border-2 border-orange-300"
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -270,7 +275,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
                 type="button"
                 onClick={() => setCategory('business')}
                 className={cn(
-                  "flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors",
+                  "flex-1 py-1.5 px-3 rounded-md text-sm font-medium transition-colors",
                   category === 'business'
                     ? "bg-blue-100 text-blue-700 border-2 border-blue-300"
                     : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -282,12 +287,12 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
           </div>
           
           {/* Memorable toggle */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={() => setMemorable(!memorable)}
               className={cn(
-                "flex items-center gap-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                "flex items-center gap-0 px-3 py-1 rounded-full text-sm font-medium transition-colors",
                 memorable
                   ? "bg-white text-black border border-black"
                   : "bg-black"
@@ -301,7 +306,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
             </span>
           </div>
           
-          <div className="flex justify-between pt-2">
+          <div className="flex justify-between pt-1 sticky bottom-0 bg-background pb-1">
             <Button 
               type="button" 
               variant="ghost" 
@@ -311,7 +316,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
             >
               <Trash2 className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" onClick={onClose}>
+            <Button variant="ghost" size="sm" onClick={onClose}>
               Close
             </Button>
           </div>

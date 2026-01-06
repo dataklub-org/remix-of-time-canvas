@@ -10,7 +10,8 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
   const { canvasState, setCenterTime, setMsPerPixel } = useMomentsStore();
   const [isPanning, setIsPanning] = useState(false);
   const [isResizingMoment, setIsResizingMoment] = useState(false);
-  const panStartRef = useRef<{ x: number; centerTime: number } | null>(null);
+  const panStartRef = useRef<{ x: number; y: number; centerTime: number } | null>(null);
+  const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
 
   // Listen for moment resize events to block panning
   useEffect(() => {
@@ -28,44 +29,65 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
     // Don't start panning if resizing a moment
     if (isResizingMoment) return;
     
-    // Get client X from mouse or touch event
+    // Get client X/Y from mouse or touch event
     let clientX: number;
+    let clientY: number;
     if ('touches' in e) {
       if (e.touches.length !== 1) return; // Only single touch for panning
       clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
     } else {
       // Pan on left click drag
       if (e.button !== 0 && e.button !== 1) return;
       clientX = e.clientX;
+      clientY = e.clientY;
     }
     
     setIsPanning(true);
     panStartRef.current = {
       x: clientX,
+      y: clientY,
       centerTime: canvasState.centerTime,
     };
+    lastTouchRef.current = { x: clientX, y: clientY };
   }, [canvasState.centerTime, isResizingMoment]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     if (!isPanning || !panStartRef.current || isResizingMoment) return;
     
-    // Get client X from mouse or touch event
+    // Get client X/Y from mouse or touch event
     let clientX: number;
-    if ('touches' in e) {
+    let clientY: number;
+    const isTouch = 'touches' in e;
+    
+    if (isTouch) {
       if (e.touches.length !== 1) return;
       clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
     } else {
       clientX = e.clientX;
+      clientY = e.clientY;
     }
     
-    const deltaX = clientX - panStartRef.current.x;
-    const deltaTime = deltaX * canvasState.msPerPixel;
-    setCenterTime(panStartRef.current.centerTime - deltaTime);
-  }, [isPanning, canvasState.msPerPixel, setCenterTime, isResizingMoment]);
+    // For touch: use vertical drag for horizontal timeline panning
+    if (isTouch && lastTouchRef.current) {
+      const deltaY = clientY - lastTouchRef.current.y;
+      // Vertical drag translates to horizontal timeline pan
+      const timeDelta = deltaY * canvasState.msPerPixel * 2;
+      setCenterTime(canvasState.centerTime + timeDelta);
+      lastTouchRef.current = { x: clientX, y: clientY };
+    } else {
+      // Mouse: horizontal drag for horizontal pan
+      const deltaX = clientX - panStartRef.current.x;
+      const deltaTime = deltaX * canvasState.msPerPixel;
+      setCenterTime(panStartRef.current.centerTime - deltaTime);
+    }
+  }, [isPanning, canvasState.msPerPixel, canvasState.centerTime, setCenterTime, isResizingMoment]);
 
   const handleMouseUp = useCallback(() => {
     setIsPanning(false);
     panStartRef.current = null;
+    lastTouchRef.current = null;
   }, []);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {

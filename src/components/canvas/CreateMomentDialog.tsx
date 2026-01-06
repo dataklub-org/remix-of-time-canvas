@@ -26,6 +26,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   const [personInput, setPersonInput] = useState('');
   const [location, setLocation] = useState('');
   const [category, setCategory] = useState<Category>('personal');
+  const [memorable, setMemorable] = useState(false);
   const [dateInput, setDateInput] = useState('');
   const [timeInput, setTimeInput] = useState('');
   const [endDateInput, setEndDateInput] = useState('');
@@ -99,6 +100,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       people: people.join(', '),
       location,
       category,
+      memorable,
     });
     
     // Reset form
@@ -107,6 +109,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     setPersonInput('');
     setLocation('');
     setCategory('personal');
+    setMemorable(false);
     setEndDateInput('');
     setEndTimeInput('');
     onOpenChange(false);
@@ -260,6 +263,26 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
                 Business
               </button>
             </div>
+          </div>
+          
+          {/* Memorable toggle */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMemorable(!memorable)}
+              className={cn(
+                "flex items-center gap-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                memorable
+                  ? "bg-black text-white"
+                  : "bg-secondary"
+              )}
+            >
+              <span className={memorable ? "text-white" : "text-white font-bold"}>M</span>
+              <span className={memorable ? "text-white" : "text-black"}>emorable</span>
+            </button>
+            <span className="text-xs text-muted-foreground">
+              Shown on monthly & yearly views
+            </span>
           </div>
           
           <div className="flex justify-end gap-2 pt-2">

@@ -25,6 +25,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   const [personInput, setPersonInput] = useState('');
   const [location, setLocation] = useState('');
   const [category, setCategory] = useState<Category>('personal');
+  const [memorable, setMemorable] = useState(false);
   const [dateInput, setDateInput] = useState('');
   const [timeInput, setTimeInput] = useState('');
   const [endDateInput, setEndDateInput] = useState('');
@@ -64,9 +65,10 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       people: people.join(', '),
       location,
       category,
+      memorable,
       endTime,
     });
-  }, [moment, dateInput, timeInput, description, people, location, category, endDateInput, endTimeInput, updateMoment]);
+  }, [moment, dateInput, timeInput, description, people, location, category, memorable, endDateInput, endTimeInput, updateMoment]);
 
   // Autosave on changes (debounced)
   useEffect(() => {
@@ -75,7 +77,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       saveChanges();
     }, 300);
     return () => clearTimeout(timer);
-  }, [description, people, location, category, dateInput, timeInput, endDateInput, endTimeInput, saveChanges, moment]);
+  }, [description, people, location, category, memorable, dateInput, timeInput, endDateInput, endTimeInput, saveChanges, moment]);
   
   // Reset form when moment changes
   useEffect(() => {
@@ -89,6 +91,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       setPersonInput('');
       setLocation(moment.location || '');
       setCategory(moment.category || 'personal');
+      setMemorable(moment.memorable || false);
       setDateInput(format(new Date(moment.timestamp), 'yyyy-MM-dd'));
       setTimeInput(format(new Date(moment.timestamp), 'HH:mm'));
       setEndDateInput(moment.endTime ? format(new Date(moment.endTime), 'yyyy-MM-dd') : '');
@@ -276,6 +279,26 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
                 Business
               </button>
             </div>
+          </div>
+          
+          {/* Memorable toggle */}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMemorable(!memorable)}
+              className={cn(
+                "flex items-center gap-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
+                memorable
+                  ? "bg-black text-white"
+                  : "bg-secondary"
+              )}
+            >
+              <span className={memorable ? "text-white" : "text-white font-bold"}>M</span>
+              <span className={memorable ? "text-white" : "text-black"}>emorable</span>
+            </button>
+            <span className="text-xs text-muted-foreground">
+              Shown on monthly & yearly views
+            </span>
           </div>
           
           <div className="flex justify-between pt-2">

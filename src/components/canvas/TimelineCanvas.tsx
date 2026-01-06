@@ -9,7 +9,7 @@ import { MomentCard } from './MomentCard';
 import { CreateMomentDialog } from './CreateMomentDialog';
 import { EditMomentDialog } from './EditMomentDialog';
 import { NavigationControls } from './NavigationControls';
-import { xToTime } from '@/utils/timeUtils';
+import { xToTime, getZoomLevel } from '@/utils/timeUtils';
 import { Button } from '@/components/ui/button';
 import type { Moment } from '@/types/moment';
 
@@ -147,17 +147,25 @@ export function TimelineCanvas() {
           {/* Time axis */}
           <TimeAxis width={width} height={canvasHeight} timelineY={timelineY + scrollOffset} />
           
-          {/* Moment cards */}
-          {moments.map((moment) => (
-            <MomentCard
-              key={moment.id}
-              moment={moment}
-              canvasWidth={width}
-              canvasHeight={canvasHeight}
-              onSelect={handleSelectMoment}
-              timelineY={timelineY + scrollOffset}
-            />
-          ))}
+          {/* Moment cards - filter by memorable on monthly/yearly views */}
+          {moments
+            .filter((moment) => {
+              const zoomLevel = getZoomLevel(canvasState.msPerPixel);
+              if (zoomLevel === 'month' || zoomLevel === 'year') {
+                return moment.memorable === true;
+              }
+              return true;
+            })
+            .map((moment) => (
+              <MomentCard
+                key={moment.id}
+                moment={moment}
+                canvasWidth={width}
+                canvasHeight={canvasHeight}
+                onSelect={handleSelectMoment}
+                timelineY={timelineY + scrollOffset}
+              />
+            ))}
         </Layer>
       </Stage>
       

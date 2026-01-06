@@ -269,6 +269,19 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           />
         )}
         
+        {/* Memorable indicator (M in top right corner) */}
+        {moment.memorable && (
+          <Text
+            x={cardWidth - 20}
+            y={6}
+            text="M"
+            fontSize={14}
+            fontFamily="Inter, sans-serif"
+            fontStyle="bold"
+            fill={accentColor}
+          />
+        )}
+        
         {/* Resize handle (bottom-right corner) - larger hit area */}
         <Group
           x={cardWidth - RESIZE_HANDLE_SIZE}

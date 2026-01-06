@@ -3,7 +3,7 @@ import { Line, Text, Group, Rect } from 'react-konva';
 import { useMomentsStore } from '@/stores/useMomentsStore';
 import { timeToX, getTickInterval, getTimeUnit, ZOOM_LEVELS, getZoomLevelIndex } from '@/utils/timeUtils';
 import { formatTickLabel } from '@/utils/formatUtils';
-import { format, isWeekend, startOfMonth, eachDayOfInterval, startOfDay, endOfDay, isSunday, isThursday, isSaturday } from 'date-fns';
+import { format, isWeekend, startOfMonth, eachDayOfInterval, startOfDay, endOfDay, isSunday, isThursday, isSaturday, startOfYear } from 'date-fns';
 
 interface TimeAxisProps {
   width: number;
@@ -57,9 +57,26 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
       isMonth?: boolean;
       isSunday?: boolean;
       isSaturday?: boolean;
+      isYear?: boolean;
     }
     
     const allTicks: TickInfo[] = [];
+    
+    // Add year boundaries for week level and higher
+    if (isWeekOrHigher) {
+      let yearDate = startOfYear(new Date(startTime));
+      while (yearDate.getTime() <= endTime) {
+        if (yearDate.getTime() >= startTime - visibleTimeRange * 0.1) {
+          allTicks.push({
+            timestamp: yearDate.getTime(),
+            label: format(yearDate, 'yyyy'),
+            priority: 4, // Highest priority
+            isYear: true,
+          });
+        }
+        yearDate = new Date(yearDate.getFullYear() + 1, 0, 1);
+      }
+    }
     
     if (isYearLevel) {
       // Year level: Show months, 10th and 20th
@@ -286,8 +303,8 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
         
         // Determine font style for day level Sat/Sun
         const isItalic = isDayLevel && (tick.isSaturday || tick.isSunday);
-        const fontStyle = tick.isMonth ? 'bold' : (isItalic ? 'italic' : 'normal');
-        const baseColor = tick.isMonth ? '#5a6577' : '#7a8494';
+        const fontStyle = tick.isYear ? 'bold' : (tick.isMonth ? 'bold' : (isItalic ? 'italic' : 'normal'));
+        const baseColor = tick.isYear ? '#3a4555' : (tick.isMonth ? '#5a6577' : '#7a8494');
         
         // For Sunday at day level, split "Sun" and the date
         const isSundayDayLevel = isDayLevel && tick.isSunday && tick.label.startsWith('Sun');
@@ -296,8 +313,8 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
           <Group key={tick.timestamp} x={x}>
             <Line
               points={[0, axisY - 6, 0, axisY + 6]}
-              stroke={isWeekendDay ? '#E0D7D3' : '#b0b8c4'}
-              strokeWidth={tick.isMonth ? 2 : 1}
+              stroke={tick.isYear ? '#3a4555' : (isWeekendDay ? '#E0D7D3' : '#b0b8c4')}
+              strokeWidth={tick.isYear ? 2 : (tick.isMonth ? 2 : 1)}
             />
             {isSundayDayLevel ? (
               <>
@@ -331,7 +348,7 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
                 y={axisY + 12}
                 width={70}
                 align="center"
-                fontSize={tick.isMonth ? 12 : 11}
+                fontSize={tick.isYear ? 13 : (tick.isMonth ? 12 : 11)}
                 fill={baseColor}
                 fontFamily="Inter, sans-serif"
                 fontStyle={fontStyle}

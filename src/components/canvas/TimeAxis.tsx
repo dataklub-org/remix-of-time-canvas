@@ -3,7 +3,7 @@ import { Line, Text, Group, Rect } from 'react-konva';
 import { useMomentsStore } from '@/stores/useMomentsStore';
 import { timeToX, getTickInterval, getTimeUnit, ZOOM_LEVELS, getZoomLevelIndex } from '@/utils/timeUtils';
 import { formatTickLabel } from '@/utils/formatUtils';
-import { format, isWeekend, startOfMonth, endOfMonth, eachDayOfInterval, startOfDay, endOfDay } from 'date-fns';
+import { format, isWeekend, startOfMonth, eachDayOfInterval, startOfDay, endOfDay, isSunday } from 'date-fns';
 
 interface TimeAxisProps {
   width: number;
@@ -43,9 +43,11 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
     return result;
   }, [centerTime, msPerPixel, width]);
 
-  // Generate weekend highlights for week view
+  // Generate weekend highlights for week view or higher (week, month, year)
+  const isWeekOrHigher = ['week', 'month', 'year'].includes(timeUnit);
+  
   const weekendHighlights = useMemo(() => {
-    if (!isWeekLevel) return [];
+    if (!isWeekOrHigher) return [];
     
     const visibleTimeRange = width * msPerPixel;
     const startTime = centerTime - visibleTimeRange / 2;
@@ -62,23 +64,22 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
         start: startOfDay(day).getTime(),
         end: endOfDay(day).getTime(),
         label: format(day, 'EEE'),
+        isSunday: isSunday(day),
+        dateLabel: format(day, 'MMM d'),
       }));
-  }, [centerTime, msPerPixel, width, isWeekLevel]);
+  }, [centerTime, msPerPixel, width, isWeekOrHigher]);
 
-  // Generate month boundaries for week view
+  // Generate month boundaries for week view or higher
   const monthBoundaries = useMemo(() => {
-    if (!isWeekLevel) return [];
+    if (!isWeekOrHigher) return [];
     
     const visibleTimeRange = width * msPerPixel;
     const startTime = centerTime - visibleTimeRange / 2;
     const endTime = centerTime + visibleTimeRange / 2;
     
-    const startDate = new Date(startTime);
-    const endDate = new Date(endTime);
-    
     const boundaries: { timestamp: number; label: string }[] = [];
     
-    let currentDate = startOfMonth(startDate);
+    let currentDate = startOfMonth(new Date(startTime));
     while (currentDate.getTime() <= endTime) {
       const monthStart = startOfMonth(currentDate);
       if (monthStart.getTime() >= startTime && monthStart.getTime() <= endTime) {
@@ -92,7 +93,7 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
     }
     
     return boundaries;
-  }, [centerTime, msPerPixel, width, isWeekLevel]);
+  }, [centerTime, msPerPixel, width, isWeekOrHigher]);
 
   // Now indicator
   const nowX = timeToX(Date.now(), centerTime, msPerPixel, width);
@@ -109,17 +110,33 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
         const startX = timeToX(weekend.start, centerTime, msPerPixel, width);
         const endX = timeToX(weekend.end, centerTime, msPerPixel, width);
         const rectWidth = endX - startX;
+        const centerX = startX + rectWidth / 2;
         
         return (
-          <Rect
-            key={weekend.start}
-            x={startX}
-            y={axisY - 40}
-            width={rectWidth}
-            height={80}
-            fill="rgba(147, 51, 234, 0.08)"
-            cornerRadius={4}
-          />
+          <Group key={weekend.start}>
+            <Rect
+              x={startX}
+              y={axisY - 40}
+              width={rectWidth}
+              height={80}
+              fill="rgba(147, 51, 234, 0.08)"
+              cornerRadius={4}
+            />
+            {/* Show Sunday label with date at week zoom or higher */}
+            {weekend.isSunday && isWeekOrHigher && (
+              <Text
+                text={`Sun\n${weekend.dateLabel}`}
+                x={centerX - 25}
+                y={axisY - 30}
+                width={50}
+                align="center"
+                fontSize={10}
+                fill="#9333ea"
+                fontFamily="Inter, sans-serif"
+                fontStyle="bold"
+              />
+            )}
+          </Group>
         );
       })}
       
@@ -159,7 +176,11 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
       {ticks.map((timestamp) => {
         const x = timeToX(timestamp, centerTime, msPerPixel, width);
         const date = new Date(timestamp);
-        const isWeekendDay = isWeekLevel && isWeekend(date);
+        const isWeekendDay = isWeekOrHigher && isWeekend(date);
+        const isSundayDay = isSunday(date);
+        
+        // Skip rendering tick for Sundays at week level since we show the label in weekend highlight
+        if (isWeekOrHigher && isSundayDay) return null;
         
         return (
           <Group key={timestamp} x={x}>

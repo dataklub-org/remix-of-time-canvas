@@ -10,38 +10,40 @@ export function xToTime(x: number, centerTime: number, msPerPixel: number, canva
   return centerTime + (x - centerX) * msPerPixel;
 }
 
-// Zoom level presets
-export const ZOOM_LEVELS = {
-  minutes: 60_000,      // 1 min/px - very zoomed in
-  hours: 3_600_000,     // 1 hour/px
-  days: 86_400_000,     // 1 day/px
-  weeks: 604_800_000,   // 1 week/px
-} as const;
+// 5 discrete zoom levels with their msPerPixel values
+export const ZOOM_LEVELS = [
+  { msPerPixel: 9_000, unit: '15min', tickInterval: 900_000 },        // 15 minutes
+  { msPerPixel: 36_000, unit: 'hour', tickInterval: 3_600_000 },      // 1 hour
+  { msPerPixel: 864_000, unit: 'day', tickInterval: 86_400_000 },     // 1 day
+  { msPerPixel: 25_920_000, unit: 'month', tickInterval: 2_592_000_000 }, // 1 month (~30 days)
+  { msPerPixel: 315_360_000, unit: 'year', tickInterval: 31_536_000_000 }, // 1 year
+] as const;
 
-export const MIN_MS_PER_PIXEL = 1_000;        // 1 second/px (max zoom in)
-export const MAX_MS_PER_PIXEL = 604_800_000;  // 1 week/px (max zoom out)
+export const MIN_MS_PER_PIXEL = ZOOM_LEVELS[0].msPerPixel;
+export const MAX_MS_PER_PIXEL = ZOOM_LEVELS[ZOOM_LEVELS.length - 1].msPerPixel;
 
+// Get the current zoom level index (0-4)
+export function getZoomLevelIndex(msPerPixel: number): number {
+  for (let i = 0; i < ZOOM_LEVELS.length; i++) {
+    if (msPerPixel <= ZOOM_LEVELS[i].msPerPixel) return i;
+  }
+  return ZOOM_LEVELS.length - 1;
+}
+
+// Snap to nearest zoom level
 export function clampZoom(msPerPixel: number): number {
-  return Math.max(MIN_MS_PER_PIXEL, Math.min(MAX_MS_PER_PIXEL, msPerPixel));
+  const index = getZoomLevelIndex(msPerPixel);
+  return ZOOM_LEVELS[index].msPerPixel;
 }
 
 // Get appropriate time unit for current zoom level
-export function getTimeUnit(msPerPixel: number): 'second' | 'minute' | 'hour' | 'day' | 'week' {
-  if (msPerPixel < 10_000) return 'second';
-  if (msPerPixel < 600_000) return 'minute';
-  if (msPerPixel < 36_000_000) return 'hour';
-  if (msPerPixel < 302_400_000) return 'day';
-  return 'week';
+export function getTimeUnit(msPerPixel: number): '15min' | 'hour' | 'day' | 'month' | 'year' {
+  const index = getZoomLevelIndex(msPerPixel);
+  return ZOOM_LEVELS[index].unit;
 }
 
-// Generate tick intervals based on zoom level - spaced out for cleaner look
+// Generate tick intervals based on zoom level
 export function getTickInterval(msPerPixel: number): number {
-  const unit = getTimeUnit(msPerPixel);
-  switch (unit) {
-    case 'second': return 30_000; // 30 seconds
-    case 'minute': return 900_000; // 15 minutes
-    case 'hour': return 7_200_000; // 2 hours
-    case 'day': return 172_800_000; // 2 days
-    case 'week': return 604_800_000; // 1 week
-  }
+  const index = getZoomLevelIndex(msPerPixel);
+  return ZOOM_LEVELS[index].tickInterval;
 }

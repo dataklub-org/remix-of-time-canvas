@@ -6,9 +6,7 @@ export function formatTickLabel(timestamp: number, msPerPixel: number): string {
   const unit = getTimeUnit(msPerPixel);
   
   switch (unit) {
-    case 'second':
-    case 'minute':
-      return format(date, 'HH:mm');
+    case '15min':
     case 'hour':
       return format(date, 'HH:mm');
     case 'day':
@@ -16,8 +14,10 @@ export function formatTickLabel(timestamp: number, msPerPixel: number): string {
       if (isYesterday(date)) return 'Yesterday';
       if (isTomorrow(date)) return 'Tomorrow';
       return format(date, 'MMM d');
-    case 'week':
-      return format(date, 'MMM d');
+    case 'month':
+      return format(date, 'MMM yyyy');
+    case 'year':
+      return format(date, 'yyyy');
   }
 }
 

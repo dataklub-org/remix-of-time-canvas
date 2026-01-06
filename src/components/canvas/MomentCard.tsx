@@ -19,7 +19,7 @@ const RESIZE_HANDLE_SIZE = 20;
 const TIMELINE_BUFFER = 10; // Minimum distance from timeline
 
 export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timelineY }: MomentCardProps) {
-  const { canvasState, updateMomentY, updateMomentSize } = useMomentsStore();
+  const { canvasState, updateMomentY, updateMomentSize, updateMoment } = useMomentsStore();
   const { centerTime, msPerPixel } = canvasState;
   
   const cardWidth = moment.width || DEFAULT_CARD_WIDTH;
@@ -269,18 +269,35 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           />
         )}
         
-        {/* Memorable indicator (M in top right corner) */}
-        {moment.memorable && (
+        {/* Memorable indicator (M in top right corner) - always visible, clickable */}
+        <Group
+          x={cardWidth - 24}
+          y={4}
+          onClick={(e) => {
+            e.cancelBubble = true;
+            updateMoment(moment.id, { memorable: !moment.memorable });
+          }}
+          onTap={(e) => {
+            e.cancelBubble = true;
+            updateMoment(moment.id, { memorable: !moment.memorable });
+          }}
+        >
+          <Rect
+            width={18}
+            height={18}
+            fill={moment.memorable ? accentColor : '#9ca3af'}
+            cornerRadius={4}
+          />
           <Text
-            x={cardWidth - 20}
-            y={6}
+            x={4}
+            y={2}
             text="M"
-            fontSize={14}
+            fontSize={12}
             fontFamily="Inter, sans-serif"
             fontStyle="bold"
-            fill={accentColor}
+            fill="#ffffff"
           />
-        )}
+        </Group>
         
         {/* Resize handle (bottom-right corner) - larger hit area */}
         <Group

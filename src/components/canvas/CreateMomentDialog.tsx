@@ -67,10 +67,6 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     }
   };
   
-  const resetEndTime = () => {
-    setEndDateInput('');
-    setEndTimeInput('');
-  };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -254,57 +250,48 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
             </div>
           )}
           
-          {/* Date & Time - Start */}
-          <div className="grid grid-cols-2 gap-2">
+          {/* Date & Time in two halves */}
+          <div className="grid grid-cols-2 gap-4">
+            {/* Start Date & Time */}
             <div className="space-y-1">
-              <Label htmlFor="date" className="text-sm">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={dateInput}
-                onChange={(e) => setDateInput(e.target.value)}
-                className="h-9"
-              />
+              <Label className="text-sm">Date & Time</Label>
+              <div className="flex gap-1">
+                <Input
+                  id="date"
+                  type="date"
+                  value={dateInput}
+                  onChange={(e) => setDateInput(e.target.value)}
+                  className="h-9 flex-1"
+                />
+                <Input
+                  id="time"
+                  type="time"
+                  value={timeInput}
+                  onChange={(e) => setTimeInput(e.target.value)}
+                  className="h-9 w-24"
+                />
+              </div>
             </div>
+            
+            {/* End Date & Time */}
             <div className="space-y-1">
-              <Label htmlFor="time" className="text-sm">Time</Label>
-              <Input
-                id="time"
-                type="time"
-                value={timeInput}
-                onChange={(e) => setTimeInput(e.target.value)}
-                className="h-9"
-              />
-            </div>
-          </div>
-          
-          {/* End Date & Time */}
-          <div className="space-y-1">
-            <Label className="text-sm">End Date & Time (optional)</Label>
-            <div className="grid grid-cols-3 gap-2">
-              <Input
-                id="endDate"
-                type="date"
-                value={endDateInput}
-                onChange={(e) => setEndDateInput(e.target.value)}
-                className="h-9"
-              />
-              <Input
-                id="endTime"
-                type="time"
-                value={endTimeInput}
-                onChange={(e) => setEndTimeInput(e.target.value)}
-                className="h-9"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={resetEndTime}
-                className="text-xs h-9"
-              >
-                Moment
-              </Button>
+              <Label className="text-sm">End (optional)</Label>
+              <div className="flex gap-1">
+                <Input
+                  id="endDate"
+                  type="date"
+                  value={endDateInput}
+                  onChange={(e) => setEndDateInput(e.target.value)}
+                  className="h-9 flex-1"
+                />
+                <Input
+                  id="endTime"
+                  type="time"
+                  value={endTimeInput}
+                  onChange={(e) => setEndTimeInput(e.target.value)}
+                  className="h-9 w-24"
+                />
+              </div>
             </div>
           </div>
           

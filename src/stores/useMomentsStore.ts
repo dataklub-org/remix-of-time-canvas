@@ -89,8 +89,8 @@ export const useMomentsStore = create<MomentsStore>()(
       },
 
       jumpToNow: () => {
-        set((state) => ({
-          canvasState: { ...state.canvasState, centerTime: Date.now() },
+        set(() => ({
+          canvasState: { centerTime: Date.now(), msPerPixel: 36_000 }, // Reset to hourly view
         }));
       },
     }),

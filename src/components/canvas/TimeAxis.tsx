@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { Line, Text, Group } from 'react-konva';
 import { useMomentsStore } from '@/stores/useMomentsStore';
-import { timeToX, getTickInterval } from '@/utils/timeUtils';
+import { timeToX, getTickInterval, getTimeUnit } from '@/utils/timeUtils';
 import { formatTickLabel } from '@/utils/formatUtils';
+import { format } from 'date-fns';
 
 interface TimeAxisProps {
   width: number;
@@ -15,6 +16,10 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
   const { centerTime, msPerPixel } = canvasState;
   
   const axisY = timelineY ?? height / 2;
+  const timeUnit = getTimeUnit(msPerPixel);
+  
+  // Check if we're at a sub-day level (15min or hour)
+  const isSubDayLevel = timeUnit === '15min' || timeUnit === 'hour';
   
   // Generate visible ticks
   const ticks = useMemo(() => {
@@ -36,6 +41,10 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
   // Now indicator
   const nowX = timeToX(Date.now(), centerTime, msPerPixel, width);
   const nowVisible = nowX >= 0 && nowX <= width;
+  
+  // Date indicator for center of timeline (for sub-day views)
+  const centerDate = new Date(centerTime);
+  const dateLabel = format(centerDate, 'EEEE, MMM d, yyyy');
 
   return (
     <Group>
@@ -69,6 +78,21 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
           </Group>
         );
       })}
+      
+      {/* Date indicator for sub-day views */}
+      {isSubDayLevel && (
+        <Text
+          text={dateLabel}
+          x={width / 2 - 100}
+          y={axisY + 32}
+          width={200}
+          align="center"
+          fontSize={12}
+          fill="#5a6577"
+          fontFamily="Inter, sans-serif"
+          fontStyle="500"
+        />
+      )}
       
       {/* Now indicator */}
       {nowVisible && (

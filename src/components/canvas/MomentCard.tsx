@@ -45,9 +45,19 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   const [isResizing, setIsResizing] = useState(false);
   const [isHoveringResize, setIsHoveringResize] = useState(false);
   const resizeStartRef = useRef<{ width: number; height: number; x: number; y: number } | null>(null);
+  const justFinishedResizingRef = useRef(false);
 
   const handleDragEnd = (e: any) => {
     updateMomentY(moment.id, e.target.y());
+  };
+  
+  const handleCardClick = () => {
+    // Don't open dialog if we just finished resizing
+    if (justFinishedResizingRef.current) {
+      justFinishedResizingRef.current = false;
+      return;
+    }
+    onSelect(moment);
   };
 
   // Dispatch custom event to notify pan/zoom to stop
@@ -84,6 +94,12 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
     resizeStartRef.current = null;
     document.body.style.cursor = '';
     dispatchResizeState(false);
+    // Mark that we just finished resizing to prevent click from opening dialog
+    justFinishedResizingRef.current = true;
+    // Reset the flag after a short delay
+    setTimeout(() => {
+      justFinishedResizingRef.current = false;
+    }, 100);
   }, []);
 
   // Attach/detach global listeners when resizing
@@ -184,8 +200,8 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           y: pos.y,
         })}
         onDragEnd={handleDragEnd}
-        onClick={() => onSelect(moment)}
-        onTap={() => onSelect(moment)}
+        onClick={handleCardClick}
+        onTap={handleCardClick}
       >
         {/* Card background */}
         <Rect

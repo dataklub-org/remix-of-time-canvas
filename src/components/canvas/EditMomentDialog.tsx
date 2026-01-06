@@ -254,48 +254,64 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
             </div>
           )}
           
-          {/* Date & Time in two halves */}
-          <div className="grid grid-cols-2 gap-4">
+          {/* Date & End in one row */}
+          <div className="flex gap-2 items-end">
             {/* Start Date & Time */}
-            <div className="space-y-1">
-              <Label className="text-sm">Date & Time</Label>
+            <div className="space-y-1 flex-1">
+              <Label className="text-sm">Date</Label>
               <div className="flex gap-1">
                 <Input
                   id="edit-date"
                   type="date"
                   value={dateInput}
                   onChange={(e) => setDateInput(e.target.value)}
-                  className="h-9 flex-1"
+                  className="h-9 flex-1 min-w-0"
                 />
                 <Input
                   id="edit-time"
                   type="time"
                   value={timeInput}
                   onChange={(e) => setTimeInput(e.target.value)}
-                  className="h-9 w-24"
+                  className="h-9 w-[72px]"
                 />
               </div>
             </div>
             
-            {/* End Date & Time */}
+            {/* End - collapsed by default, expands on focus */}
             <div className="space-y-1">
-              <Label className="text-sm">End (optional)</Label>
-              <div className="flex gap-1">
-                <Input
-                  id="edit-endDate"
-                  type="date"
-                  value={endDateInput}
-                  onChange={(e) => setEndDateInput(e.target.value)}
-                  className="h-9 flex-1"
-                />
+              <Label className="text-sm text-muted-foreground">End</Label>
+              {(endDateInput || endTimeInput) ? (
+                <div className="flex gap-1">
+                  <Input
+                    id="edit-endDate"
+                    type="date"
+                    value={endDateInput}
+                    onChange={(e) => setEndDateInput(e.target.value)}
+                    className="h-9 w-[110px]"
+                  />
+                  <Input
+                    id="edit-endTime"
+                    type="time"
+                    value={endTimeInput}
+                    onChange={(e) => setEndTimeInput(e.target.value)}
+                    className="h-9 w-[72px]"
+                  />
+                </div>
+              ) : (
                 <Input
                   id="edit-endTime"
                   type="time"
+                  placeholder="--:--"
                   value={endTimeInput}
-                  onChange={(e) => setEndTimeInput(e.target.value)}
-                  className="h-9 w-24"
+                  onChange={(e) => {
+                    setEndTimeInput(e.target.value);
+                    if (!endDateInput && e.target.value) {
+                      setEndDateInput(dateInput);
+                    }
+                  }}
+                  className="h-9 w-[72px]"
                 />
-              </div>
+              )}
             </div>
           </div>
           

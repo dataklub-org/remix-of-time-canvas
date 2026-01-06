@@ -1,4 +1,5 @@
-import { Group, Rect, Text, Line } from 'react-konva';
+import { useState, useRef } from 'react';
+import { Group, Rect, Text, Line, Circle } from 'react-konva';
 import type { Moment } from '@/types/moment';
 import { timeToX } from '@/utils/timeUtils';
 import { useMomentsStore } from '@/stores/useMomentsStore';
@@ -11,13 +12,19 @@ interface MomentCardProps {
   timelineY: number;
 }
 
-const CARD_WIDTH = 180;
-const CARD_HEIGHT = 70;
-const CARD_RADIUS = 8;
+const DEFAULT_CARD_WIDTH = 180;
+const DEFAULT_CARD_HEIGHT = 70;
+const CARD_RADIUS = 16;
+const MIN_WIDTH = 120;
+const MIN_HEIGHT = 50;
+const RESIZE_HANDLE_SIZE = 12;
 
 export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timelineY }: MomentCardProps) {
-  const { canvasState, updateMomentY } = useMomentsStore();
+  const { canvasState, updateMomentY, updateMomentSize } = useMomentsStore();
   const { centerTime, msPerPixel } = canvasState;
+  
+  const cardWidth = moment.width || DEFAULT_CARD_WIDTH;
+  const cardHeight = moment.height || DEFAULT_CARD_HEIGHT;
   
   const startX = timeToX(moment.timestamp, centerTime, msPerPixel, canvasWidth);
   const endTime = moment.endTime || moment.timestamp;
@@ -25,9 +32,9 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   
   // Card is positioned at start timestamp
   const cardLeft = startX;
-  const cardRight = startX + CARD_WIDTH;
+  const cardRight = startX + cardWidth;
   const cardTop = moment.y;
-  const cardBottom = moment.y + CARD_HEIGHT;
+  const cardBottom = moment.y + cardHeight;
   
   // Color based on category
   const accentColor = moment.category === 'business' ? '#4a7dff' : '#f5a623';
@@ -38,8 +45,41 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   
   if (!isVisible) return null;
 
+  const [isResizing, setIsResizing] = useState(false);
+  const resizeStartRef = useRef<{ width: number; height: number; x: number; y: number } | null>(null);
+
   const handleDragEnd = (e: any) => {
     updateMomentY(moment.id, e.target.y());
+  };
+
+  const handleResizeStart = (e: any) => {
+    e.cancelBubble = true;
+    setIsResizing(true);
+    resizeStartRef.current = {
+      width: cardWidth,
+      height: cardHeight,
+      x: e.evt.clientX,
+      y: e.evt.clientY,
+    };
+  };
+
+  const handleResizeMove = (e: any) => {
+    if (!isResizing || !resizeStartRef.current) return;
+    e.cancelBubble = true;
+    
+    const deltaX = e.evt.clientX - resizeStartRef.current.x;
+    const deltaY = e.evt.clientY - resizeStartRef.current.y;
+    
+    const newWidth = Math.max(MIN_WIDTH, resizeStartRef.current.width + deltaX);
+    const newHeight = Math.max(MIN_HEIGHT, resizeStartRef.current.height + deltaY);
+    
+    updateMomentSize(moment.id, newWidth, newHeight);
+  };
+
+  const handleResizeEnd = (e: any) => {
+    e.cancelBubble = true;
+    setIsResizing(false);
+    resizeStartRef.current = null;
   };
 
   // Calculate bezier curve control points for smooth lines going DOWN to timeline
@@ -98,8 +138,8 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
       >
         {/* Card background */}
         <Rect
-          width={CARD_WIDTH}
-          height={CARD_HEIGHT}
+          width={cardWidth}
+          height={cardHeight}
           fill="#ffffff"
           cornerRadius={CARD_RADIUS}
           shadowColor="rgba(0,0,0,0.08)"
@@ -111,17 +151,17 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         <Rect
           x={0}
           y={0}
-          width={4}
-          height={CARD_HEIGHT}
+          width={6}
+          height={cardHeight}
           fill={accentColor}
           cornerRadius={[CARD_RADIUS, 0, 0, CARD_RADIUS]}
         />
         
         {/* Description */}
         <Text
-          x={14}
+          x={16}
           y={12}
-          width={CARD_WIDTH - 24}
+          width={cardWidth - 28}
           text={moment.description || 'Untitled moment'}
           fontSize={13}
           fontFamily="Inter, sans-serif"
@@ -134,9 +174,9 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         {/* People */}
         {moment.people && (
           <Text
-            x={14}
+            x={16}
             y={32}
-            width={CARD_WIDTH - 24}
+            width={cardWidth - 28}
             text={moment.people}
             fontSize={11}
             fontFamily="Inter, sans-serif"
@@ -149,9 +189,9 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         {/* Location */}
         {moment.location && (
           <Text
-            x={14}
+            x={16}
             y={48}
-            width={CARD_WIDTH - 24}
+            width={cardWidth - 28}
             text={`📍 ${moment.location}`}
             fontSize={10}
             fontFamily="Inter, sans-serif"
@@ -160,6 +200,36 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
             wrap="none"
           />
         )}
+        
+        {/* Resize handle (bottom-right corner) */}
+        <Group
+          x={cardWidth - RESIZE_HANDLE_SIZE}
+          y={cardHeight - RESIZE_HANDLE_SIZE}
+          onMouseDown={handleResizeStart}
+          onMouseMove={handleResizeMove}
+          onMouseUp={handleResizeEnd}
+          onMouseLeave={handleResizeEnd}
+        >
+          <Rect
+            width={RESIZE_HANDLE_SIZE}
+            height={RESIZE_HANDLE_SIZE}
+            fill="transparent"
+            cornerRadius={[0, 0, CARD_RADIUS, 0]}
+          />
+          {/* Resize indicator lines */}
+          <Line
+            points={[RESIZE_HANDLE_SIZE - 3, RESIZE_HANDLE_SIZE - 8, RESIZE_HANDLE_SIZE - 3, RESIZE_HANDLE_SIZE - 3, RESIZE_HANDLE_SIZE - 8, RESIZE_HANDLE_SIZE - 3]}
+            stroke="#c4c9d4"
+            strokeWidth={1.5}
+            lineCap="round"
+          />
+          <Line
+            points={[RESIZE_HANDLE_SIZE - 3, RESIZE_HANDLE_SIZE - 5, RESIZE_HANDLE_SIZE - 5, RESIZE_HANDLE_SIZE - 3]}
+            stroke="#c4c9d4"
+            strokeWidth={1.5}
+            lineCap="round"
+          />
+        </Group>
       </Group>
     </>
   );

@@ -12,6 +12,7 @@ interface MomentsStore {
   updateMoment: (id: string, updates: Partial<Omit<Moment, 'id' | 'createdAt'>>) => void;
   deleteMoment: (id: string) => void;
   updateMomentY: (id: string, y: number) => void;
+  updateMomentSize: (id: string, width: number, height: number) => void;
   
   // Canvas actions
   setCenterTime: (time: number) => void;
@@ -63,6 +64,14 @@ export const useMomentsStore = create<MomentsStore>()(
         set((state) => ({
           moments: state.moments.map((m) =>
             m.id === id ? { ...m, y, updatedAt: Date.now() } : m
+          ),
+        }));
+      },
+
+      updateMomentSize: (id, width, height) => {
+        set((state) => ({
+          moments: state.moments.map((m) =>
+            m.id === id ? { ...m, width, height, updatedAt: Date.now() } : m
           ),
         }));
       },

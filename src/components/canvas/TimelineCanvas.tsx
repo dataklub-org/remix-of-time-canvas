@@ -18,6 +18,8 @@ export function TimelineCanvas() {
   const { moments, canvasState } = useMomentsStore();
   const { isPanning, handleMouseDown, handleMouseMove, handleMouseUp, handleWheel } = usePanZoom({ canvasWidth: width });
   
+  const timelineY = height / 2;
+  
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createPosition, setCreatePosition] = useState({ timestamp: Date.now(), y: 0 });
   const [selectedMoment, setSelectedMoment] = useState<Moment | null>(null);
@@ -84,6 +86,7 @@ export function TimelineCanvas() {
               canvasWidth={width}
               canvasHeight={height}
               onSelect={handleSelectMoment}
+              timelineY={timelineY}
             />
           ))}
         </Layer>

@@ -2,7 +2,8 @@ export type Category = 'business' | 'personal';
 
 export interface Moment {
   id: string;
-  timestamp: number; // Unix milliseconds
+  timestamp: number; // Unix milliseconds - start time
+  endTime?: number; // Unix milliseconds - end time (optional, defaults to timestamp)
   y: number; // Arbitrary vertical position
   description: string;
   people: string;

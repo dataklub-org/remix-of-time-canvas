@@ -50,13 +50,13 @@ export function NavigationControls() {
       <div className="w-px h-5 bg-border mx-1" />
       
       <Button
-        variant="ghost"
+        variant="default"
         size="sm"
         onClick={jumpToNow}
-        className="h-8 px-3 rounded-full text-xs font-medium"
+        className="h-8 px-4 rounded-full text-xs font-medium"
       >
         <Focus className="h-3.5 w-3.5 mr-1.5" />
-        Now
+        Jump to Now
       </Button>
     </div>
   );

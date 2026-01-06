@@ -34,14 +34,14 @@ export function getTimeUnit(msPerPixel: number): 'second' | 'minute' | 'hour' | 
   return 'week';
 }
 
-// Generate tick intervals based on zoom level
+// Generate tick intervals based on zoom level - spaced out for cleaner look
 export function getTickInterval(msPerPixel: number): number {
   const unit = getTimeUnit(msPerPixel);
   switch (unit) {
-    case 'second': return 10_000; // 10 seconds
-    case 'minute': return 300_000; // 5 minutes
-    case 'hour': return 3_600_000; // 1 hour
-    case 'day': return 86_400_000; // 1 day
+    case 'second': return 30_000; // 30 seconds
+    case 'minute': return 900_000; // 15 minutes
+    case 'hour': return 7_200_000; // 2 hours
+    case 'day': return 172_800_000; // 2 days
     case 'week': return 604_800_000; // 1 week
   }
 }

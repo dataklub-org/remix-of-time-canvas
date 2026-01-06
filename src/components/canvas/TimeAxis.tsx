@@ -284,10 +284,13 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
         const x = timeToX(tick.timestamp, centerTime, msPerPixel, width);
         const isWeekendDay = tick.isSunday || tick.isSaturday;
         
-        // Determine font style and color for day level Sat/Sun
+        // Determine font style for day level Sat/Sun
         const isItalic = isDayLevel && (tick.isSaturday || tick.isSunday);
-        const textColor = isDayLevel && tick.isSunday ? '#dc2626' : (tick.isMonth ? '#5a6577' : '#7a8494');
         const fontStyle = tick.isMonth ? 'bold' : (isItalic ? 'italic' : 'normal');
+        const baseColor = tick.isMonth ? '#5a6577' : '#7a8494';
+        
+        // For Sunday at day level, split "Sun" and the date
+        const isSundayDayLevel = isDayLevel && tick.isSunday && tick.label.startsWith('Sun');
         
         return (
           <Group key={tick.timestamp} x={x}>
@@ -296,17 +299,44 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
               stroke={isWeekendDay ? '#E0D7D3' : '#b0b8c4'}
               strokeWidth={tick.isMonth ? 2 : 1}
             />
-            <Text
-              text={tick.label}
-              x={-35}
-              y={axisY + 12}
-              width={70}
-              align="center"
-              fontSize={tick.isMonth ? 12 : 11}
-              fill={textColor}
-              fontFamily="Inter, sans-serif"
-              fontStyle={fontStyle}
-            />
+            {isSundayDayLevel ? (
+              <>
+                <Text
+                  text="Sun"
+                  x={-35}
+                  y={axisY + 12}
+                  width={70}
+                  align="center"
+                  fontSize={11}
+                  fill="#dc2626"
+                  fontFamily="Inter, sans-serif"
+                  fontStyle="italic"
+                />
+                <Text
+                  text={tick.label.replace('Sun ', '')}
+                  x={-35}
+                  y={axisY + 24}
+                  width={70}
+                  align="center"
+                  fontSize={11}
+                  fill={baseColor}
+                  fontFamily="Inter, sans-serif"
+                  fontStyle="italic"
+                />
+              </>
+            ) : (
+              <Text
+                text={tick.label}
+                x={-35}
+                y={axisY + 12}
+                width={70}
+                align="center"
+                fontSize={tick.isMonth ? 12 : 11}
+                fill={baseColor}
+                fontFamily="Inter, sans-serif"
+                fontStyle={fontStyle}
+              />
+            )}
           </Group>
         );
       })}

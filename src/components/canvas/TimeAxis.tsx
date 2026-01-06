@@ -7,13 +7,14 @@ import { formatTickLabel } from '@/utils/formatUtils';
 interface TimeAxisProps {
   width: number;
   height: number;
+  timelineY?: number;
 }
 
-export function TimeAxis({ width, height }: TimeAxisProps) {
+export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
   const { canvasState } = useMomentsStore();
   const { centerTime, msPerPixel } = canvasState;
   
-  const axisY = height / 2;
+  const axisY = timelineY ?? height / 2;
   
   // Generate visible ticks
   const ticks = useMemo(() => {

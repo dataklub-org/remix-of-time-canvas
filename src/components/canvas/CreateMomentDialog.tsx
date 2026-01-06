@@ -257,14 +257,14 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
                   type="date"
                   value={dateInput}
                   onChange={(e) => setDateInput(e.target.value)}
-                  className="h-9 w-[120px] min-w-0 text-sm"
+                  className="h-8 w-[105px] min-w-0 text-xs px-1.5"
                 />
                 <Input
                   id="time"
                   type="time"
                   value={timeInput}
                   onChange={(e) => setTimeInput(e.target.value)}
-                  className="h-9 w-[68px] text-sm"
+                  className="h-8 w-[60px] text-xs px-1.5"
                 />
               </div>
             </div>

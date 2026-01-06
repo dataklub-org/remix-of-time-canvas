@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { useMomentsStore } from '@/stores/useMomentsStore';
 import type { Moment, Category } from '@/types/moment';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
-import { Trash2 } from 'lucide-react';
+import { Trash2, X } from 'lucide-react';
 
 interface EditMomentDialogProps {
   moment: Moment | null;
@@ -17,29 +18,70 @@ interface EditMomentDialogProps {
 
 export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   const { updateMoment, deleteMoment } = useMomentsStore();
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
   
   const [description, setDescription] = useState('');
-  const [people, setPeople] = useState('');
+  const [people, setPeople] = useState<string[]>([]);
+  const [personInput, setPersonInput] = useState('');
   const [location, setLocation] = useState('');
   const [category, setCategory] = useState<Category>('personal');
   const [dateInput, setDateInput] = useState('');
   const [timeInput, setTimeInput] = useState('');
   const [endDateInput, setEndDateInput] = useState('');
   const [endTimeInput, setEndTimeInput] = useState('');
+  const [originalTimestamp, setOriginalTimestamp] = useState<number>(0);
   
   // Reset form when moment changes
   useEffect(() => {
     if (moment) {
       setDescription(moment.description || '');
-      setPeople(moment.people || '');
+      // Parse people string to array
+      const peopleArray = moment.people 
+        ? moment.people.split(',').map(p => p.trim()).filter(Boolean)
+        : [];
+      setPeople(peopleArray);
+      setPersonInput('');
       setLocation(moment.location || '');
       setCategory(moment.category || 'personal');
       setDateInput(format(new Date(moment.timestamp), 'yyyy-MM-dd'));
       setTimeInput(format(new Date(moment.timestamp), 'HH:mm'));
       setEndDateInput(moment.endTime ? format(new Date(moment.endTime), 'yyyy-MM-dd') : '');
       setEndTimeInput(moment.endTime ? format(new Date(moment.endTime), 'HH:mm') : '');
+      setOriginalTimestamp(moment.timestamp);
+      
+      // Focus and select description field
+      setTimeout(() => {
+        if (descriptionRef.current) {
+          descriptionRef.current.focus();
+          descriptionRef.current.select();
+        }
+      }, 100);
     }
   }, [moment]);
+  
+  const addPerson = () => {
+    const trimmed = personInput.trim();
+    if (trimmed && !people.includes(trimmed)) {
+      setPeople([...people, trimmed]);
+      setPersonInput('');
+    }
+  };
+  
+  const removePerson = (person: string) => {
+    setPeople(people.filter(p => p !== person));
+  };
+  
+  const handlePersonKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addPerson();
+    }
+  };
+  
+  const resetEndTime = () => {
+    setEndDateInput('');
+    setEndTimeInput('');
+  };
 
   if (!moment) return null;
 
@@ -70,7 +112,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
     updateMoment(moment.id, {
       timestamp: parsedTimestamp,
       description,
-      people,
+      people: people.join(', '),
       location,
       category,
       endTime,
@@ -116,6 +158,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
           <div className="space-y-2">
             <Label htmlFor="edit-description">Description</Label>
             <Textarea
+              ref={descriptionRef}
               id="edit-description"
               placeholder="What happened?"
               value={description}
@@ -127,12 +170,35 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
           
           <div className="space-y-2">
             <Label htmlFor="edit-people">People</Label>
-            <Input
-              id="edit-people"
-              placeholder="Who was there?"
-              value={people}
-              onChange={(e) => setPeople(e.target.value)}
-            />
+            <div className="flex gap-2">
+              <Input
+                id="edit-people"
+                placeholder="Add person..."
+                value={personInput}
+                onChange={(e) => setPersonInput(e.target.value)}
+                onKeyDown={handlePersonKeyDown}
+                className="flex-1"
+              />
+              <Button type="button" variant="outline" onClick={addPerson}>
+                Add
+              </Button>
+            </div>
+            {people.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {people.map((person) => (
+                  <Badge key={person} variant="secondary" className="gap-1 pr-1">
+                    {person}
+                    <button
+                      type="button"
+                      onClick={() => removePerson(person)}
+                      className="ml-1 rounded-full hover:bg-muted-foreground/20 p-0.5"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+            )}
           </div>
           
           <div className="space-y-2">
@@ -147,7 +213,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
           
           <div className="space-y-2">
             <Label>End Date & Time (optional)</Label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <Input
                 id="edit-endDate"
                 type="date"
@@ -160,8 +226,16 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
                 value={endTimeInput}
                 onChange={(e) => setEndTimeInput(e.target.value)}
               />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={resetEndTime}
+                className="text-sm"
+              >
+                Moment
+              </Button>
             </div>
-            <p className="text-xs text-muted-foreground">Leave empty if same as start time</p>
+            <p className="text-xs text-muted-foreground">Click "Moment" to reset to start time</p>
           </div>
           
           <div className="space-y-2">

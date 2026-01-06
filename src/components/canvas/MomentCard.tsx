@@ -50,6 +50,11 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
     updateMomentY(moment.id, e.target.y());
   };
 
+  // Dispatch custom event to notify pan/zoom to stop
+  const dispatchResizeState = (resizing: boolean) => {
+    window.dispatchEvent(new CustomEvent('momentResizing', { detail: { resizing } }));
+  };
+
   // Global mouse move handler for resize
   const handleGlobalMouseMove = useCallback((e: MouseEvent) => {
     if (!resizeStartRef.current) return;
@@ -78,6 +83,7 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
     setIsResizing(false);
     resizeStartRef.current = null;
     document.body.style.cursor = '';
+    dispatchResizeState(false);
   }, []);
 
   // Attach/detach global listeners when resizing
@@ -95,6 +101,7 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   const handleResizeStart = (e: any) => {
     e.cancelBubble = true;
     setIsResizing(true);
+    dispatchResizeState(true);
     resizeStartRef.current = {
       width: cardWidth,
       height: cardHeight,

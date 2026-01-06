@@ -197,6 +197,169 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
 
   // ===== BUBBLE MODE =====
   if (isBubbleMode) {
+    // When hovered, show full card; otherwise show bubble
+    if (isHovered) {
+      // Show the full card on hover
+      const hoverCardWidth = cardWidth;
+      const hoverCardHeight = cardHeight;
+      const hoverCardX = bubbleX - hoverCardWidth / 2;
+      const hoverCardY = moment.y;
+      const isAboveTimeline = hoverCardY + hoverCardHeight < timelineY;
+      const curveStrength = Math.abs(timelineY - (isAboveTimeline ? hoverCardY + hoverCardHeight : hoverCardY)) * 0.4;
+
+      return (
+        <Group
+          onMouseLeave={() => setIsHovered(false)}
+        >
+          {/* Left connecting line (bezier curve) */}
+          <Line
+            points={[
+              hoverCardX, isAboveTimeline ? hoverCardY + hoverCardHeight : hoverCardY,
+              hoverCardX, (isAboveTimeline ? hoverCardY + hoverCardHeight : hoverCardY) + (isAboveTimeline ? curveStrength : -curveStrength),
+              startX, timelineY + (isAboveTimeline ? -curveStrength : curveStrength),
+              startX, timelineY,
+            ]}
+            stroke={lineColor}
+            strokeWidth={2}
+            bezier
+            listening={false}
+          />
+          
+          {/* Right connecting line (bezier curve) */}
+          <Line
+            points={[
+              hoverCardX + hoverCardWidth, isAboveTimeline ? hoverCardY + hoverCardHeight : hoverCardY,
+              hoverCardX + hoverCardWidth, (isAboveTimeline ? hoverCardY + hoverCardHeight : hoverCardY) + (isAboveTimeline ? curveStrength : -curveStrength),
+              endX, timelineY + (isAboveTimeline ? -curveStrength : curveStrength),
+              endX, timelineY,
+            ]}
+            stroke={lineColor}
+            strokeWidth={2}
+            bezier
+            listening={false}
+          />
+          
+          <Group
+            x={hoverCardX}
+            y={hoverCardY}
+            onClick={handleCardClick}
+            onTap={handleCardClick}
+          >
+            {/* Card background */}
+            <Rect
+              width={hoverCardWidth}
+              height={hoverCardHeight}
+              fill="#ffffff"
+              cornerRadius={CARD_RADIUS}
+              shadowColor="rgba(0,0,0,0.15)"
+              shadowBlur={16}
+              shadowOffsetY={6}
+            />
+            
+            {/* Category accent bar */}
+            <Rect
+              x={0}
+              y={0}
+              width={6}
+              height={hoverCardHeight}
+              fill={accentColor}
+              cornerRadius={[CARD_RADIUS, 0, 0, CARD_RADIUS]}
+            />
+            
+            {/* Photo thumbnail if exists */}
+            {photoImage && hoverCardHeight >= 50 && (
+              <Group clipFunc={(ctx) => {
+                ctx.roundRect(hoverCardWidth - 44, 8, 36, 36, 6);
+              }}>
+                <KonvaImage
+                  image={photoImage}
+                  x={hoverCardWidth - 44}
+                  y={8}
+                  width={36}
+                  height={36}
+                />
+              </Group>
+            )}
+            
+            {/* Description */}
+            <Text
+              x={16}
+              y={hoverCardHeight > 40 ? 10 : Math.max(4, hoverCardHeight / 2 - 6)}
+              width={Math.max(10, hoverCardWidth - (photoImage && hoverCardHeight >= 50 ? 60 : 36))}
+              text={moment.description || 'Untitled moment'}
+              fontSize={hoverCardHeight < 50 ? Math.max(8, Math.min(12, hoverCardHeight / 5)) : 12}
+              fontFamily="Inter, sans-serif"
+              fontStyle="500"
+              fill="#2a3142"
+              ellipsis
+              wrap="none"
+            />
+            
+            {/* People */}
+            {moment.people && hoverCardHeight >= 45 && (
+              <Text
+                x={16}
+                y={hoverCardHeight < 60 ? Math.max(22, hoverCardHeight - 22) : 28}
+                width={Math.max(10, hoverCardWidth - (photoImage && hoverCardHeight >= 50 ? 60 : 36))}
+                text={moment.people}
+                fontSize={hoverCardHeight < 60 ? Math.max(7, Math.min(10, hoverCardHeight / 7)) : 10}
+                fontFamily="Inter, sans-serif"
+                fill="#7a8494"
+                ellipsis
+                wrap="none"
+              />
+            )}
+            
+            {/* Location */}
+            {moment.location && hoverCardHeight >= 60 && (
+              <Text
+                x={16}
+                y={hoverCardHeight < 80 ? Math.max(38, hoverCardHeight - 18) : (moment.people ? 44 : 28)}
+                width={Math.max(10, hoverCardWidth - (photoImage && hoverCardHeight >= 50 ? 60 : 36))}
+                text={`📍 ${moment.location}`}
+                fontSize={hoverCardHeight < 80 ? Math.max(7, Math.min(9, hoverCardHeight / 9)) : 9}
+                fontFamily="Inter, sans-serif"
+                fill="#9aa3b2"
+                ellipsis
+                wrap="none"
+              />
+            )}
+            
+            {/* Memorable indicator */}
+            <Group
+              x={photoImage && hoverCardHeight >= 50 ? hoverCardWidth - 50 : hoverCardWidth - 24}
+              y={4}
+              onClick={(e) => {
+                e.cancelBubble = true;
+                updateMoment(moment.id, { memorable: !moment.memorable });
+              }}
+              onTap={(e) => {
+                e.cancelBubble = true;
+                updateMoment(moment.id, { memorable: !moment.memorable });
+              }}
+            >
+              <Rect
+                width={18}
+                height={18}
+                fill={moment.memorable ? accentColor : '#9ca3af'}
+                cornerRadius={4}
+              />
+              <Text
+                x={4}
+                y={2}
+                text="M"
+                fontSize={12}
+                fontFamily="Inter, sans-serif"
+                fontStyle="bold"
+                fill="#ffffff"
+              />
+            </Group>
+          </Group>
+        </Group>
+      );
+    }
+
+    // Collapsed bubble view
     return (
       <Group
         x={bubbleX}
@@ -204,7 +367,6 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         onClick={handleCardClick}
         onTap={handleCardClick}
         onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
         {/* Connecting line to timeline */}
         <Line
@@ -218,93 +380,34 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         <Circle
           x={0}
           y={0}
-          radius={currentBubbleSize / 2}
+          radius={BUBBLE_SIZE / 2}
           fill="#ffffff"
           stroke={accentColor}
           strokeWidth={2}
           shadowColor="rgba(0,0,0,0.1)"
-          shadowBlur={isHovered ? 16 : 8}
-          shadowOffsetY={isHovered ? 6 : 2}
+          shadowBlur={8}
+          shadowOffsetY={2}
         />
         
-        {/* Photo or initial */}
-        {isHovered && photoImage ? (
-          <Group clipFunc={(ctx) => {
-            ctx.arc(0, 0, (currentBubbleSize / 2) - 2, 0, Math.PI * 2);
-          }}>
-            <KonvaImage
-              image={photoImage}
-              x={-(currentBubbleSize / 2) + 2}
-              y={-(currentBubbleSize / 2) + 2}
-              width={currentBubbleSize - 4}
-              height={currentBubbleSize - 4}
-            />
-          </Group>
-        ) : (
-          <>
-            {/* Category color dot when collapsed */}
-            <Circle
-              x={0}
-              y={0}
-              radius={isHovered ? (currentBubbleSize / 2) - 4 : 8}
-              fill={accentColor}
-            />
-            
-            {/* Memorable indicator */}
-            {moment.memorable && !isHovered && (
-              <Text
-                x={-4}
-                y={-5}
-                text="M"
-                fontSize={10}
-                fontFamily="Inter, sans-serif"
-                fontStyle="bold"
-                fill="#ffffff"
-              />
-            )}
-          </>
-        )}
+        {/* Category color dot */}
+        <Circle
+          x={0}
+          y={0}
+          radius={8}
+          fill={accentColor}
+        />
         
-        {/* Expanded content */}
-        {isHovered && (
-          <Group y={currentBubbleSize / 2 + 8}>
-            <Rect
-              x={-60}
-              y={0}
-              width={120}
-              height={40}
-              fill="#ffffff"
-              cornerRadius={8}
-              shadowColor="rgba(0,0,0,0.1)"
-              shadowBlur={8}
-              shadowOffsetY={2}
-            />
-            <Text
-              x={-54}
-              y={6}
-              width={108}
-              text={moment.description || 'Untitled'}
-              fontSize={10}
-              fontFamily="Inter, sans-serif"
-              fontStyle="500"
-              fill="#2a3142"
-              ellipsis
-              wrap="none"
-            />
-            {moment.people && (
-              <Text
-                x={-54}
-                y={20}
-                width={108}
-                text={moment.people}
-                fontSize={8}
-                fontFamily="Inter, sans-serif"
-                fill="#7a8494"
-                ellipsis
-                wrap="none"
-              />
-            )}
-          </Group>
+        {/* Memorable indicator */}
+        {moment.memorable && (
+          <Text
+            x={-4}
+            y={-5}
+            text="M"
+            fontSize={10}
+            fontFamily="Inter, sans-serif"
+            fontStyle="bold"
+            fill="#ffffff"
+          />
         )}
       </Group>
     );

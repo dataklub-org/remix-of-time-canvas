@@ -13,12 +13,17 @@ export function formatTickLabel(timestamp: number, msPerPixel: number): string {
     case '6hour':
       return format(date, 'HH:mm');
     case 'day':
-      if (isToday(date)) return 'Today';
-      if (isYesterday(date)) return 'Yesterday';
-      if (isTomorrow(date)) return 'Tomorrow';
+      if (isToday(date)) return `Today\n${format(date, 'MMM d')}`;
+      if (isYesterday(date)) return `Yesterday\n${format(date, 'MMM d')}`;
+      if (isTomorrow(date)) return `Tomorrow\n${format(date, 'MMM d')}`;
       return format(date, 'MMM d\nEEE');
     case 'week':
-      return format(date, 'd\nEEE');
+      // Show day number with weekday for Sundays, just day for others
+      const dayOfWeek = date.getDay();
+      if (dayOfWeek === 0) { // Sunday
+        return format(date, 'd');
+      }
+      return format(date, 'd');
     case 'month':
       return format(date, 'MMM yyyy');
     case 'year':

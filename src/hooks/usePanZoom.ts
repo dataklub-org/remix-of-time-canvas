@@ -186,6 +186,9 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
   }, [isPanning, isPinching, canvasState.msPerPixel, setCenterTime, isResizingMoment, getTouchDistance, animateZoom]);
 
   const handleMouseUp = useCallback(() => {
+    const wasPinching = isPinching;
+    const currentMsPerPixel = canvasState.msPerPixel;
+    
     setIsPanning(false);
     setIsPinching(false);
     panStartRef.current = null;
@@ -193,9 +196,11 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
     pinchStartRef.current = null;
     
     // Snap to nearest zoom level after pinch ends
-    if (isPinching) {
-      const currentIndex = getZoomLevelIndex(canvasState.msPerPixel);
-      animateZoom(ZOOM_LEVELS[currentIndex].msPerPixel);
+    if (wasPinching) {
+      const currentIndex = getZoomLevelIndex(currentMsPerPixel);
+      const targetZoom = ZOOM_LEVELS[currentIndex].msPerPixel;
+      targetMsPerPixelRef.current = targetZoom;
+      animateZoom(targetZoom);
     }
   }, [isPinching, canvasState.msPerPixel, animateZoom]);
 

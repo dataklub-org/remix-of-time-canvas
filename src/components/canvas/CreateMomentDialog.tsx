@@ -33,8 +33,8 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   const [memorable, setMemorable] = useState(false);
   const [dateInput, setDateInput] = useState('');
   const [timeInput, setTimeInput] = useState('');
-  const [endDateInput, setEndDateInput] = useState('');
-  const [endTimeInput, setEndTimeInput] = useState('');
+  const [duration, setDuration] = useState<string>('');
+  const [period, setPeriod] = useState<'m' | 'h' | 'd' | 'M'>('h');
   const [photo, setPhoto] = useState<string | null>(null);
   const [originalTimestamp, setOriginalTimestamp] = useState<number>(0);
   
@@ -117,26 +117,22 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     const [hours, minutes] = timeInput.split(':').map(Number);
     const parsedTimestamp = new Date(year, month - 1, day, hours, minutes).getTime();
     
-    // Parse endTime - if empty, it will be undefined (same as timestamp)
+    // Calculate endTime from duration and period
     let endTime: number | undefined;
-    if (endDateInput && endTimeInput) {
-      const [endYear, endMonth, endDay] = endDateInput.split('-').map(Number);
-      const [endHours, endMinutes] = endTimeInput.split(':').map(Number);
-      endTime = new Date(endYear, endMonth - 1, endDay, endHours, endMinutes).getTime();
-    } else if (endTimeInput) {
-      // Use same date as start if only time is provided
-      const date = new Date(parsedTimestamp);
-      const [endHours, endMinutes] = endTimeInput.split(':').map(Number);
-      date.setHours(endHours, endMinutes, 0, 0);
-      endTime = date.getTime();
-      if (endTime < parsedTimestamp) {
-        endTime += 24 * 60 * 60 * 1000;
+    const durationNum = parseFloat(duration);
+    if (!isNaN(durationNum) && durationNum > 0) {
+      let durationMs = 0;
+      switch (period) {
+        case 'm': durationMs = durationNum * 60 * 1000; break;
+        case 'h': durationMs = durationNum * 60 * 60 * 1000; break;
+        case 'd': durationMs = durationNum * 24 * 60 * 60 * 1000; break;
+        case 'M': durationMs = durationNum * 30 * 24 * 60 * 60 * 1000; break;
       }
-    }
-    
-    // Limit endTime to max 30 minutes from start
-    if (endTime && endTime - parsedTimestamp > MAX_INITIAL_DURATION_MS) {
-      endTime = parsedTimestamp + MAX_INITIAL_DURATION_MS;
+      // Limit to max 30 minutes for new moments
+      if (durationMs > MAX_INITIAL_DURATION_MS) {
+        durationMs = MAX_INITIAL_DURATION_MS;
+      }
+      endTime = parsedTimestamp + durationMs;
     }
     
     addMoment({
@@ -158,8 +154,8 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     setLocation('');
     setCategory('personal');
     setMemorable(false);
-    setEndDateInput('');
-    setEndTimeInput('');
+    setDuration('');
+    setPeriod('h');
     setPhoto(null);
     onOpenChange(false);
   };
@@ -273,41 +269,31 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
               </div>
             </div>
             
-            {/* End - collapsed by default, expands on focus */}
+            {/* Duration + Period */}
             <div className="space-y-1">
-              <Label className="text-sm text-muted-foreground">End</Label>
-              {(endDateInput || endTimeInput) ? (
-                <div className="flex gap-1">
-                  <Input
-                    id="endDate"
-                    type="date"
-                    value={endDateInput}
-                    onChange={(e) => setEndDateInput(e.target.value)}
-                    className="h-9 w-[110px]"
-                  />
-                  <Input
-                    id="endTime"
-                    type="time"
-                    value={endTimeInput}
-                    onChange={(e) => setEndTimeInput(e.target.value)}
-                    className="h-9 w-[72px]"
-                  />
-                </div>
-              ) : (
+              <Label className="text-sm text-muted-foreground">Duration</Label>
+              <div className="flex gap-1">
                 <Input
-                  id="endTime"
-                  type="time"
-                  placeholder="--:--"
-                  value={endTimeInput}
-                  onChange={(e) => {
-                    setEndTimeInput(e.target.value);
-                    if (!endDateInput && e.target.value) {
-                      setEndDateInput(dateInput);
-                    }
-                  }}
-                  className="h-9 w-[72px]"
+                  id="duration"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  placeholder="0"
+                  value={duration}
+                  onChange={(e) => setDuration(e.target.value)}
+                  className="h-9 w-[60px]"
                 />
-              )}
+                <select
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value as 'm' | 'h' | 'd' | 'M')}
+                  className="h-9 w-[52px] rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  <option value="m">m</option>
+                  <option value="h">h</option>
+                  <option value="d">d</option>
+                  <option value="M">M</option>
+                </select>
+              </div>
             </div>
           </div>
           

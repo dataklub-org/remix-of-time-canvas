@@ -12,9 +12,9 @@ interface MomentCardProps {
   timelineY: number;
 }
 
-const DEFAULT_CARD_WIDTH = 180;
-const DEFAULT_CARD_HEIGHT = 70;
-const CARD_RADIUS = 16;
+const DEFAULT_CARD_WIDTH = 220;
+const DEFAULT_CARD_HEIGHT = 56;
+const CARD_RADIUS = 12;
 const RESIZE_HANDLE_SIZE = 20;
 
 export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timelineY }: MomentCardProps) {
@@ -183,10 +183,10 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         {/* Description */}
         <Text
           x={16}
-          y={12}
+          y={cardHeight > 40 ? 10 : cardHeight / 2 - 6}
           width={Math.max(10, cardWidth - 28)}
           text={moment.description || 'Untitled moment'}
-          fontSize={13}
+          fontSize={12}
           fontFamily="Inter, sans-serif"
           fontStyle="500"
           fill="#2a3142"
@@ -195,13 +195,13 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         />
         
         {/* People */}
-        {moment.people && cardHeight > 45 && (
+        {moment.people && cardHeight > 38 && (
           <Text
             x={16}
-            y={32}
+            y={26}
             width={Math.max(10, cardWidth - 28)}
             text={moment.people}
-            fontSize={11}
+            fontSize={10}
             fontFamily="Inter, sans-serif"
             fill="#7a8494"
             ellipsis
@@ -210,13 +210,13 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         )}
         
         {/* Location */}
-        {moment.location && cardHeight > 60 && (
+        {moment.location && cardHeight > 50 && (
           <Text
             x={16}
-            y={48}
+            y={40}
             width={Math.max(10, cardWidth - 28)}
             text={`📍 ${moment.location}`}
-            fontSize={10}
+            fontSize={9}
             fontFamily="Inter, sans-serif"
             fill="#9aa3b2"
             ellipsis

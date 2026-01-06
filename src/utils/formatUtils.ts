@@ -16,7 +16,7 @@ export function formatTickLabel(timestamp: number, msPerPixel: number): string {
       if (isToday(date)) return 'Today';
       if (isYesterday(date)) return 'Yesterday';
       if (isTomorrow(date)) return 'Tomorrow';
-      return format(date, 'MMM d');
+      return format(date, 'MMM d\nEEE');
     case 'month':
       return format(date, 'MMM yyyy');
     case 'year':

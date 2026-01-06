@@ -81,16 +81,18 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
       const deltaX = clientX - lastTouchRef.current.x;
       const deltaY = clientY - lastTouchRef.current.y;
       
-      // Horizontal drag → timeline pan (left = future, right = past)
-      if (Math.abs(deltaX) > 0) {
+      // Determine primary direction to avoid conflicting gestures
+      const absX = Math.abs(deltaX);
+      const absY = Math.abs(deltaY);
+      
+      if (absX > absY && absX > 2) {
+        // Horizontal drag → timeline pan (drag right = see past, drag left = see future)
         const timeDelta = deltaX * msPerPixel;
         const newCenterTime = lastTouchRef.current.centerTime - timeDelta;
         setCenterTime(newCenterTime);
         lastTouchRef.current.centerTime = newCenterTime;
-      }
-      
-      // Vertical drag → Y-axis scroll (down = scroll up, up = scroll down)
-      if (Math.abs(deltaY) > 0 && verticalScrollRef.current) {
+      } else if (absY > absX && absY > 2 && verticalScrollRef.current) {
+        // Vertical drag → Y-axis scroll (drag down = scroll content up, drag up = scroll content down)
         verticalScrollRef.current(-deltaY);
       }
       

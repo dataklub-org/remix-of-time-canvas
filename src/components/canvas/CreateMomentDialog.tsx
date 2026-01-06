@@ -246,10 +246,10 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
             </div>
           )}
           
-          {/* Date & End in one row */}
-          <div className="flex gap-2 items-end">
+          {/* Date & Duration in one row (aligned with People/Location) */}
+          <div className="grid grid-cols-2 gap-2">
             {/* Start Date & Time */}
-            <div className="space-y-1 flex-1">
+            <div className="space-y-1">
               <Label className="text-sm">Date</Label>
               <div className="flex gap-1">
                 <Input
@@ -281,17 +281,17 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
                   placeholder="0"
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
-                  className="h-9 w-[60px]"
+                  className="h-9 flex-1 min-w-0"
                 />
                 <select
                   value={period}
                   onChange={(e) => setPeriod(e.target.value as 'm' | 'h' | 'd' | 'M')}
-                  className="h-9 w-[52px] rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                  className="h-9 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  <option value="m">m</option>
-                  <option value="h">h</option>
-                  <option value="d">d</option>
-                  <option value="M">M</option>
+                  <option value="m">minute</option>
+                  <option value="h">hour</option>
+                  <option value="d">day</option>
+                  <option value="M">month</option>
                 </select>
               </div>
             </div>

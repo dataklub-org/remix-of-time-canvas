@@ -106,7 +106,7 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
         if (monthStart.getTime() >= startTime - visibleTimeRange * 0.1) {
           allTicks.push({
             timestamp: monthStart.getTime(),
-            label: format(monthStart, 'MMM yyyy'),
+            label: format(monthStart, 'MMM'),
             priority: 3,
             isMonth: true,
           });
@@ -136,7 +136,7 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
         if (monthStart.getTime() >= startTime - visibleTimeRange * 0.1) {
           allTicks.push({
             timestamp: monthStart.getTime(),
-            label: format(monthStart, 'MMM yyyy'),
+            label: format(monthStart, 'MMM'),
             priority: 3,
             isMonth: true,
           });
@@ -348,6 +348,21 @@ export function TimeAxis({ width, height, timelineY }: TimeAxisProps) {
           x={width / 2 - 100}
           y={axisY + 32}
           width={200}
+          align="center"
+          fontSize={12}
+          fill="#5a6577"
+          fontFamily="Inter, sans-serif"
+          fontStyle="500"
+        />
+      )}
+      
+      {/* Year indicator for week or higher zoom levels */}
+      {isWeekOrHigher && (
+        <Text
+          text={format(centerDate, 'yyyy')}
+          x={width / 2 - 50}
+          y={axisY + 32}
+          width={100}
           align="center"
           fontSize={12}
           fill="#5a6577"

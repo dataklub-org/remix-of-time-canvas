@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Stage, Layer, Rect } from 'react-konva';
-import { Plus } from 'lucide-react';
+import { Plus, MessageSquare } from 'lucide-react';
 import { useCanvasSize } from '@/hooks/useCanvasSize';
 import { usePanZoom } from '@/hooks/usePanZoom';
 import { useMomentsStore } from '@/stores/useMomentsStore';
@@ -180,6 +180,16 @@ export function TimelineCanvas() {
       >
         <Plus className="h-4 w-4 mr-1.5" />
         Add Moment
+      </Button>
+      
+      {/* Feedback button */}
+      <Button
+        onClick={() => window.open('https://docs.google.com/forms/d/e/1FAIpQLSeGenbf-JwtWNWBdRaVyk-do8emzDvW1MNW91m5zGJSIiPpaw/viewform?usp=dialog', '_blank')}
+        className="absolute right-4 bottom-4 rounded-full shadow-lg bg-green-600 hover:bg-green-700 text-white"
+        size="sm"
+      >
+        <MessageSquare className="h-4 w-4 mr-1.5" />
+        Feedback
       </Button>
       
       {/* Help text - different for mobile vs desktop */}

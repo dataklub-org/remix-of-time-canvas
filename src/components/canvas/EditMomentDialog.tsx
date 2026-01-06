@@ -289,12 +289,12 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
               className={cn(
                 "flex items-center gap-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors",
                 memorable
-                  ? "bg-black text-white"
-                  : "bg-secondary"
+                  ? "bg-white text-black border border-black"
+                  : "bg-black"
               )}
             >
-              <span className={memorable ? "text-white" : "text-white font-bold"}>M</span>
-              <span className={memorable ? "text-white" : "text-black"}>emorable</span>
+              <span className={memorable ? "text-black font-bold" : "text-black font-bold"}>M</span>
+              <span className={memorable ? "text-black" : "text-white"}>emorable</span>
             </button>
             <span className="text-xs text-muted-foreground">
               Shown on monthly & yearly views

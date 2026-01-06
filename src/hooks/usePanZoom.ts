@@ -70,6 +70,7 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
       if (e.touches.length !== 1) return;
       clientX = e.touches[0].clientX;
       clientY = e.touches[0].clientY;
+      e.preventDefault(); // Prevent default touch behavior for smooth scrolling
     } else {
       clientX = e.clientX;
       clientY = e.clientY;
@@ -81,18 +82,17 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
       const deltaX = clientX - lastTouchRef.current.x;
       const deltaY = clientY - lastTouchRef.current.y;
       
-      // Determine primary direction to avoid conflicting gestures
-      const absX = Math.abs(deltaX);
-      const absY = Math.abs(deltaY);
-      
-      if (absX > absY && absX > 2) {
-        // Horizontal drag → timeline pan (drag right = see past, drag left = see future)
+      // Always apply both horizontal pan and vertical scroll based on movement
+      // Horizontal pan
+      if (Math.abs(deltaX) > 1) {
         const timeDelta = deltaX * msPerPixel;
         const newCenterTime = lastTouchRef.current.centerTime - timeDelta;
         setCenterTime(newCenterTime);
         lastTouchRef.current.centerTime = newCenterTime;
-      } else if (absY > absX && absY > 2 && verticalScrollRef.current) {
-        // Vertical drag → Y-axis scroll (drag down = scroll content up, drag up = scroll content down)
+      }
+      
+      // Vertical scroll
+      if (Math.abs(deltaY) > 1 && verticalScrollRef.current) {
         verticalScrollRef.current(-deltaY);
       }
       

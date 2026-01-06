@@ -51,14 +51,13 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
     updateMomentY(moment.id, e.target.y());
   };
   
-  const handleCardClick = () => {
+  const handleCardClick = useCallback(() => {
     // Don't open dialog if we just finished resizing
     if (justFinishedResizingRef.current) {
-      justFinishedResizingRef.current = false;
       return;
     }
     onSelect(moment);
-  };
+  }, [moment, onSelect]);
 
   // Dispatch custom event to notify pan/zoom to stop
   const dispatchResizeState = (resizing: boolean) => {
@@ -100,7 +99,7 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
     // Reset the flag after a longer delay to ensure click events are blocked
     setTimeout(() => {
       justFinishedResizingRef.current = false;
-    }, 300);
+    }, 500);
   }, [isResizing]);
 
   // Attach/detach global listeners when resizing
@@ -225,13 +224,13 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           cornerRadius={[CARD_RADIUS, 0, 0, CARD_RADIUS]}
         />
         
-        {/* Description */}
+        {/* Description - dynamic font size based on card height */}
         <Text
           x={16}
-          y={cardHeight > 40 ? 10 : cardHeight / 2 - 6}
-          width={Math.max(10, cardWidth - 28)}
+          y={cardHeight > 40 ? 10 : Math.max(4, cardHeight / 2 - 6)}
+          width={Math.max(10, cardWidth - 36)}
           text={moment.description || 'Untitled moment'}
-          fontSize={12}
+          fontSize={cardHeight < 50 ? Math.max(8, Math.min(12, cardHeight / 5)) : 12}
           fontFamily="Inter, sans-serif"
           fontStyle="500"
           fill="#2a3142"
@@ -239,14 +238,14 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           wrap="none"
         />
         
-        {/* People */}
-        {moment.people && (
+        {/* People - only show if card is tall enough */}
+        {moment.people && cardHeight >= 45 && (
           <Text
             x={16}
-            y={28}
-            width={Math.max(10, cardWidth - 28)}
+            y={cardHeight < 60 ? Math.max(22, cardHeight - 22) : 28}
+            width={Math.max(10, cardWidth - 36)}
             text={moment.people}
-            fontSize={10}
+            fontSize={cardHeight < 60 ? Math.max(7, Math.min(10, cardHeight / 7)) : 10}
             fontFamily="Inter, sans-serif"
             fill="#7a8494"
             ellipsis
@@ -254,14 +253,14 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           />
         )}
         
-        {/* Location */}
-        {moment.location && (
+        {/* Location - only show if card is tall enough */}
+        {moment.location && cardHeight >= 60 && (
           <Text
             x={16}
-            y={moment.people ? 44 : 28}
-            width={Math.max(10, cardWidth - 28)}
+            y={cardHeight < 80 ? Math.max(38, cardHeight - 18) : (moment.people ? 44 : 28)}
+            width={Math.max(10, cardWidth - 36)}
             text={`📍 ${moment.location}`}
-            fontSize={9}
+            fontSize={cardHeight < 80 ? Math.max(7, Math.min(9, cardHeight / 9)) : 9}
             fontFamily="Inter, sans-serif"
             fill="#9aa3b2"
             ellipsis

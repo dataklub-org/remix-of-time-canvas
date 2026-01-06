@@ -38,8 +38,12 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     
-    // Calculate zoom factor
-    const zoomFactor = e.deltaY > 0 ? 1.15 : 0.87;
+    // Detect pinch gesture (ctrlKey is set during pinch on trackpads)
+    const isPinch = e.ctrlKey;
+    
+    // Use deltaY for scroll wheel, or scale factor for pinch
+    const delta = isPinch ? e.deltaY * 3 : e.deltaY;
+    const zoomFactor = delta > 0 ? 1.15 : 0.87;
     const newMsPerPixel = clampZoom(canvasState.msPerPixel * zoomFactor);
     
     // Zoom towards cursor position

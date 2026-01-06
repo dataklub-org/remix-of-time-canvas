@@ -13,7 +13,7 @@ import { xToTime } from '@/utils/timeUtils';
 import { Button } from '@/components/ui/button';
 import type { Moment } from '@/types/moment';
 
-const DEFAULT_CARD_HEIGHT = 70;
+const DEFAULT_CARD_HEIGHT = 56;
 const PADDING = 100;
 
 export function TimelineCanvas() {

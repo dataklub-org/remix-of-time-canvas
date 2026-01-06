@@ -23,12 +23,27 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   const [people, setPeople] = useState('');
   const [location, setLocation] = useState('');
   const [category, setCategory] = useState<Category>('personal');
+  const [endTimeInput, setEndTimeInput] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Parse endTime - if empty, it will be undefined (same as timestamp)
+    let endTime: number | undefined;
+    if (endTimeInput) {
+      const date = new Date(timestamp);
+      const [hours, minutes] = endTimeInput.split(':').map(Number);
+      date.setHours(hours, minutes, 0, 0);
+      endTime = date.getTime();
+      // If end time is before start time, assume next day
+      if (endTime < timestamp) {
+        endTime += 24 * 60 * 60 * 1000;
+      }
+    }
+    
     addMoment({
       timestamp,
+      endTime,
       y,
       description,
       people,
@@ -41,6 +56,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     setPeople('');
     setLocation('');
     setCategory('personal');
+    setEndTimeInput('');
     onOpenChange(false);
   };
 
@@ -85,6 +101,17 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
               placeholder="Where was it?"
               value={location}
               onChange={(e) => setLocation(e.target.value)}
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="endTime">End Time (optional)</Label>
+            <Input
+              id="endTime"
+              type="time"
+              placeholder="HH:MM"
+              value={endTimeInput}
+              onChange={(e) => setEndTimeInput(e.target.value)}
             />
           </div>
           

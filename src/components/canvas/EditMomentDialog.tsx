@@ -8,6 +8,7 @@ import { useMomentsStore } from '@/stores/useMomentsStore';
 import type { Moment, Category } from '@/types/moment';
 import { cn } from '@/lib/utils';
 import { formatMomentTime } from '@/utils/formatUtils';
+import { format } from 'date-fns';
 import { Trash2 } from 'lucide-react';
 
 interface EditMomentDialogProps {
@@ -22,17 +23,36 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   const [people, setPeople] = useState(moment?.people || '');
   const [location, setLocation] = useState(moment?.location || '');
   const [category, setCategory] = useState<Category>(moment?.category || 'personal');
+  const [endTimeInput, setEndTimeInput] = useState(() => {
+    if (moment?.endTime) {
+      return format(new Date(moment.endTime), 'HH:mm');
+    }
+    return '';
+  });
 
   if (!moment) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Parse endTime
+    let endTime: number | undefined;
+    if (endTimeInput) {
+      const date = new Date(moment.timestamp);
+      const [hours, minutes] = endTimeInput.split(':').map(Number);
+      date.setHours(hours, minutes, 0, 0);
+      endTime = date.getTime();
+      if (endTime < moment.timestamp) {
+        endTime += 24 * 60 * 60 * 1000;
+      }
+    }
+    
     updateMoment(moment.id, {
       description,
       people,
       location,
       category,
+      endTime,
     });
     
     onClose();
@@ -82,6 +102,17 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
               value={location}
               onChange={(e) => setLocation(e.target.value)}
             />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="edit-endTime">End Time (optional)</Label>
+            <Input
+              id="edit-endTime"
+              type="time"
+              value={endTimeInput}
+              onChange={(e) => setEndTimeInput(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">Leave empty if same as start time</p>
           </div>
           
           <div className="space-y-2">

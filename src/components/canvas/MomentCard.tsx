@@ -13,9 +13,10 @@ interface MomentCardProps {
 }
 
 const DEFAULT_CARD_WIDTH = 220;
-const DEFAULT_CARD_HEIGHT = 56;
+const DEFAULT_CARD_HEIGHT = 80;
 const CARD_RADIUS = 12;
 const RESIZE_HANDLE_SIZE = 20;
+const TIMELINE_BUFFER = 10; // Minimum distance from timeline
 
 export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timelineY }: MomentCardProps) {
   const { canvasState, updateMomentY, updateMomentSize } = useMomentsStore();
@@ -57,10 +58,20 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
     const deltaY = e.clientY - resizeStartRef.current.y;
     
     const newWidth = Math.max(20, resizeStartRef.current.width + deltaX);
-    const newHeight = Math.max(20, resizeStartRef.current.height + deltaY);
+    let newHeight = Math.max(20, resizeStartRef.current.height + deltaY);
+    
+    // Prevent card from crossing the timeline
+    const isAbove = moment.y < timelineY;
+    if (isAbove) {
+      // Card is above timeline - limit height so bottom doesn't cross timeline
+      const maxHeight = timelineY - moment.y - TIMELINE_BUFFER;
+      newHeight = Math.min(newHeight, maxHeight);
+    } else {
+      // Card is below timeline - no height restriction needed
+    }
     
     updateMomentSize(moment.id, newWidth, newHeight);
-  }, [moment.id, updateMomentSize]);
+  }, [moment.id, moment.y, timelineY, updateMomentSize]);
 
   // Global mouse up handler for resize
   const handleGlobalMouseUp = useCallback(() => {
@@ -205,10 +216,10 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         />
         
         {/* People */}
-        {moment.people && cardHeight > 38 && (
+        {moment.people && (
           <Text
             x={16}
-            y={26}
+            y={28}
             width={Math.max(10, cardWidth - 28)}
             text={moment.people}
             fontSize={10}
@@ -220,10 +231,10 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         )}
         
         {/* Location */}
-        {moment.location && cardHeight > 50 && (
+        {moment.location && (
           <Text
             x={16}
-            y={40}
+            y={moment.people ? 44 : 28}
             width={Math.max(10, cardWidth - 28)}
             text={`📍 ${moment.location}`}
             fontSize={9}

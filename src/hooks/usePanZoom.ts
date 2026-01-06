@@ -41,25 +41,31 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
     // Detect pinch gesture (ctrlKey is set during pinch on trackpads)
     const isPinch = e.ctrlKey;
     
-    // Use deltaY for scroll wheel, or scale factor for pinch
-    const delta = isPinch ? e.deltaY * 3 : e.deltaY;
-    const zoomFactor = delta > 0 ? 1.15 : 0.87;
-    const newMsPerPixel = clampZoom(canvasState.msPerPixel * zoomFactor);
-    
-    // Zoom towards cursor position
-    const rect = e.currentTarget.getBoundingClientRect();
-    const cursorX = e.clientX - rect.left;
-    const centerX = canvasWidth / 2;
-    const cursorOffset = cursorX - centerX;
-    
-    // Time at cursor before zoom
-    const cursorTime = canvasState.centerTime + cursorOffset * canvasState.msPerPixel;
-    
-    // Adjust center to keep cursor time in same position
-    const newCenterTime = cursorTime - cursorOffset * newMsPerPixel;
-    
-    setMsPerPixel(newMsPerPixel);
-    setCenterTime(newCenterTime);
+    if (isPinch) {
+      // Pinch-to-zoom: adjust x-axis time range
+      const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
+      const newMsPerPixel = clampZoom(canvasState.msPerPixel * zoomFactor);
+      
+      // Zoom towards cursor position
+      const rect = e.currentTarget.getBoundingClientRect();
+      const cursorX = e.clientX - rect.left;
+      const centerX = canvasWidth / 2;
+      const cursorOffset = cursorX - centerX;
+      
+      // Time at cursor before zoom
+      const cursorTime = canvasState.centerTime + cursorOffset * canvasState.msPerPixel;
+      
+      // Adjust center to keep cursor time in same position
+      const newCenterTime = cursorTime - cursorOffset * newMsPerPixel;
+      
+      setMsPerPixel(newMsPerPixel);
+      setCenterTime(newCenterTime);
+    } else {
+      // Regular scroll: horizontal pan
+      const panDelta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
+      const timeDelta = panDelta * canvasState.msPerPixel * 0.5;
+      setCenterTime(canvasState.centerTime + timeDelta);
+    }
   }, [canvasState, canvasWidth, setCenterTime, setMsPerPixel]);
 
   return {

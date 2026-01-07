@@ -1,7 +1,17 @@
 export type Category = 'business' | 'personal';
 
+export type TimelineType = 'mylife' | 'ourlife';
+
+export interface Timeline {
+  id: string;
+  name: string;
+  type: TimelineType;
+  isDefault?: boolean;
+}
+
 export interface Moment {
   id: string;
+  timelineId: string; // Which timeline this moment belongs to
   timestamp: number; // Unix milliseconds - start time
   endTime?: number; // Unix milliseconds - end time (optional, defaults to timestamp)
   y: number; // Arbitrary vertical position
@@ -20,4 +30,5 @@ export interface Moment {
 export interface CanvasState {
   centerTime: number; // Unix ms - what time is at center of screen
   msPerPixel: number; // Zoom level - smaller = more zoomed in
+  activeTimelineId: string; // Currently selected timeline
 }

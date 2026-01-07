@@ -10,10 +10,12 @@ import { CreateMomentDialog } from './CreateMomentDialog';
 import { EditMomentDialog } from './EditMomentDialog';
 import { NavigationControls } from './NavigationControls';
 import { FeedbackPopup } from './FeedbackPopup';
+import { TimelineSelector } from './TimelineSelector';
 import { xToTime, getZoomLevel } from '@/utils/timeUtils';
 import { Button } from '@/components/ui/button';
 import type { Moment } from '@/types/moment';
 import fractalito from '@/assets/fractalito-logo.png';
+
 const DEFAULT_CARD_HEIGHT = 56;
 const PADDING = 100;
 const DEFAULT_MS_PER_PIXEL = 36_000;
@@ -25,16 +27,21 @@ export function TimelineCanvas() {
   const initialMsPerPixelRef = useRef(canvasState.msPerPixel);
   const [showVision, setShowVision] = useState(true);
   
+  // Filter moments by active timeline
+  const activeTimelineMoments = useMemo(() => {
+    return moments.filter(m => m.timelineId === canvasState.activeTimelineId);
+  }, [moments, canvasState.activeTimelineId]);
+  
   // Calculate dynamic canvas height based on moment positions
   const { canvasHeight, timelineY, scrollOffset } = useMemo(() => {
-    if (moments.length === 0) {
+    if (activeTimelineMoments.length === 0) {
       return { canvasHeight: viewportHeight, timelineY: viewportHeight / 2, scrollOffset: 0 };
     }
     
     let minY = Infinity;
     let maxY = -Infinity;
     
-    moments.forEach(m => {
+    activeTimelineMoments.forEach(m => {
       const cardHeight = m.height || DEFAULT_CARD_HEIGHT;
       minY = Math.min(minY, m.y);
       maxY = Math.max(maxY, m.y + cardHeight);
@@ -56,7 +63,7 @@ export function TimelineCanvas() {
       timelineY: timelinePos - contentTop,
       scrollOffset: contentTop
     };
-  }, [moments, viewportHeight]);
+  }, [activeTimelineMoments, viewportHeight]);
   
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createPosition, setCreatePosition] = useState({ timestamp: Date.now(), y: 0 });
@@ -160,7 +167,7 @@ export function TimelineCanvas() {
           <TimeAxis width={width} height={canvasHeight} timelineY={timelineY + scrollOffset} />
           
           {/* Moment cards - filter by memorable on monthly/yearly views */}
-          {moments
+          {activeTimelineMoments
             .filter((moment) => {
               const zoomLevel = getZoomLevel(canvasState.msPerPixel);
               if (zoomLevel === 'month' || zoomLevel === 'year') {
@@ -210,6 +217,11 @@ export function TimelineCanvas() {
       {/* Branding logo - same row as Add Moment */}
       <div className="absolute top-14 md:top-4 left-4">
         <img src={fractalito} alt="fractalito" className="h-5 w-auto" />
+      </div>
+      
+      {/* Timeline selector - centered */}
+      <div className="absolute top-3 md:top-4 left-1/2 transform -translate-x-1/2 z-10">
+        <TimelineSelector />
       </div>
       
       {/* Vision statement - top center below buttons */}

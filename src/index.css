@@ -127,4 +127,16 @@
     box-shadow: 0 2px 6px hsl(220 15% 20% / 0.08), 
                 0 8px 24px hsl(220 15% 20% / 0.06);
   }
+  
+  /* Safe area padding for mobile keyboards */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+}
+
+/* Mobile keyboard handling */
+@supports (height: 100dvh) {
+  .max-h-dialog {
+    max-height: calc(100dvh - 2rem);
+  }
 }

@@ -12,17 +12,21 @@ interface MomentCardProps {
   timelineY: number;
 }
 
-const MIN_CARD_WIDTH = 100;
-const MIN_CARD_HEIGHT = 36;
-const CARD_RADIUS = 12;
+const MIN_CARD_WIDTH = 120;
+const MIN_CARD_HEIGHT = 40;
+const CARD_RADIUS = 16;
 const RESIZE_HANDLE_SIZE = 20;
 const TIMELINE_BUFFER = 10;
-const PADDING_X = 16;
-const PADDING_Y = 8;
-const LINE_HEIGHT = 14;
-const SMALL_LINE_HEIGHT = 12;
-const BUBBLE_SIZE = 24;
+const PADDING_X = 18;
+const PADDING_Y = 10;
+const LINE_HEIGHT = 16;
+const SMALL_LINE_HEIGHT = 13;
+const BUBBLE_SIZE = 26;
 const BUBBLE_EXPANDED_SIZE = 80;
+
+// Expanded card dimensions for hover
+const EXPANDED_CARD_WIDTH = 240;
+const EXPANDED_CARD_HEIGHT = 100;
 
 // Helper to measure text width (approximate)
 function measureTextWidth(text: string, fontSize: number): number {
@@ -80,8 +84,10 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   const endX = timeToX(endTime, centerTime, msPerPixel, canvasWidth);
   
   // Color based on category
-  const accentColor = moment.category === 'business' ? '#4a7dff' : '#f5a623';
-  const lineColor = moment.category === 'business' ? 'rgba(74, 125, 255, 0.4)' : 'rgba(245, 166, 35, 0.4)';
+  // Modern gradient accents
+  const accentColor = moment.category === 'business' ? '#3b82f6' : '#f59e0b';
+  const accentColorLight = moment.category === 'business' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(245, 158, 11, 0.15)';
+  const lineColor = moment.category === 'business' ? 'rgba(59, 130, 246, 0.35)' : 'rgba(245, 158, 11, 0.35)';
   
   // Bubble mode positioning
   const bubbleX = (startX + endX) / 2;
@@ -201,18 +207,18 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
 
   // ===== BUBBLE MODE =====
   if (isBubbleMode) {
-    // When hovered, show full card with photo preview below
+    // When hovered, show expanded card with full description
     if (isHovered) {
-      // Show the full card on hover
-      const hoverCardWidth = cardWidth;
-      const hoverCardHeight = cardHeight;
+      // Expanded card dimensions
+      const hoverCardWidth = Math.max(cardWidth, EXPANDED_CARD_WIDTH);
+      const hoverCardHeight = Math.max(cardHeight, EXPANDED_CARD_HEIGHT);
       const hoverCardX = bubbleX - hoverCardWidth / 2;
       const hoverCardY = moment.y;
       const isAboveTimeline = hoverCardY + hoverCardHeight < timelineY;
       const curveStrength = Math.abs(timelineY - (isAboveTimeline ? hoverCardY + hoverCardHeight : hoverCardY)) * 0.4;
       
       // Photo preview position (below the card)
-      const photoPreviewY = hoverCardY + hoverCardHeight + 8;
+      const photoPreviewY = hoverCardY + hoverCardHeight + 10;
       const photoPreviewX = hoverCardX + (hoverCardWidth - PHOTO_PREVIEW_WIDTH) / 2;
 
       return (
@@ -253,66 +259,75 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
             onClick={handleCardClick}
             onTap={handleCardClick}
           >
-            {/* Card background */}
+            {/* Card background with subtle gradient effect */}
             <Rect
               width={hoverCardWidth}
               height={hoverCardHeight}
               fill="#ffffff"
               cornerRadius={CARD_RADIUS}
-              shadowColor="rgba(0,0,0,0.15)"
-              shadowBlur={16}
-              shadowOffsetY={6}
+              shadowColor="rgba(0,0,0,0.12)"
+              shadowBlur={24}
+              shadowOffsetY={8}
             />
             
-            {/* Category accent bar */}
+            {/* Subtle accent background */}
+            <Rect
+              width={hoverCardWidth}
+              height={hoverCardHeight}
+              fill={accentColorLight}
+              cornerRadius={CARD_RADIUS}
+              opacity={0.5}
+            />
+            
+            {/* Category accent bar - sleeker */}
             <Rect
               x={0}
               y={0}
-              width={6}
+              width={4}
               height={hoverCardHeight}
               fill={accentColor}
               cornerRadius={[CARD_RADIUS, 0, 0, CARD_RADIUS]}
             />
             
-            {/* Description */}
+            {/* Description - full text with wrapping */}
             <Text
-              x={16}
-              y={hoverCardHeight > 40 ? 10 : Math.max(4, hoverCardHeight / 2 - 6)}
-              width={Math.max(10, hoverCardWidth - 36)}
+              x={PADDING_X}
+              y={14}
+              width={Math.max(10, hoverCardWidth - 44)}
               text={moment.description || 'Untitled moment'}
-              fontSize={hoverCardHeight < 50 ? Math.max(8, Math.min(12, hoverCardHeight / 5)) : 12}
-              fontFamily="Inter, sans-serif"
-              fontStyle="500"
-              fill="#2a3142"
-              ellipsis
-              wrap="none"
+              fontSize={14}
+              fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+              fontStyle="600"
+              fill="#1a1f2e"
+              wrap="word"
+              lineHeight={1.3}
             />
             
             {/* People */}
-            {moment.people && hoverCardHeight >= 45 && (
+            {moment.people && (
               <Text
-                x={16}
-                y={hoverCardHeight < 60 ? Math.max(22, hoverCardHeight - 22) : 28}
-                width={Math.max(10, hoverCardWidth - 36)}
+                x={PADDING_X}
+                y={hoverCardHeight - 38}
+                width={Math.max(10, hoverCardWidth - 44)}
                 text={moment.people}
-                fontSize={hoverCardHeight < 60 ? Math.max(7, Math.min(10, hoverCardHeight / 7)) : 10}
-                fontFamily="Inter, sans-serif"
-                fill="#7a8494"
+                fontSize={11}
+                fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+                fill="#64748b"
                 ellipsis
                 wrap="none"
               />
             )}
             
             {/* Location */}
-            {moment.location && hoverCardHeight >= 60 && (
+            {moment.location && (
               <Text
-                x={16}
-                y={hoverCardHeight < 80 ? Math.max(38, hoverCardHeight - 18) : (moment.people ? 44 : 28)}
-                width={Math.max(10, hoverCardWidth - 36)}
+                x={PADDING_X}
+                y={hoverCardHeight - 22}
+                width={Math.max(10, hoverCardWidth - 44)}
                 text={`📍 ${moment.location}`}
-                fontSize={hoverCardHeight < 80 ? Math.max(7, Math.min(9, hoverCardHeight / 9)) : 9}
-                fontFamily="Inter, sans-serif"
-                fill="#9aa3b2"
+                fontSize={10}
+                fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+                fill="#94a3b8"
                 ellipsis
                 wrap="none"
               />
@@ -524,22 +539,33 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        {/* Card background */}
+        {/* Card background with modern styling */}
         <Rect
           width={cardWidth}
           height={cardHeight}
           fill="#ffffff"
           cornerRadius={CARD_RADIUS}
-          shadowColor="rgba(0,0,0,0.08)"
-          shadowBlur={12}
+          shadowColor="rgba(0,0,0,0.06)"
+          shadowBlur={16}
           shadowOffsetY={4}
         />
         
-        {/* Category accent bar */}
+        {/* Subtle accent background on hover */}
+        {isHovered && (
+          <Rect
+            width={cardWidth}
+            height={cardHeight}
+            fill={accentColorLight}
+            cornerRadius={CARD_RADIUS}
+            opacity={0.4}
+          />
+        )}
+        
+        {/* Category accent bar - sleeker */}
         <Rect
           x={0}
           y={0}
-          width={6}
+          width={4}
           height={cardHeight}
           fill={accentColor}
           cornerRadius={[CARD_RADIUS, 0, 0, CARD_RADIUS]}
@@ -560,45 +586,45 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           </Group>
         )}
         
-        {/* Description - dynamic font size based on card height */}
+        {/* Description - clean typography */}
         <Text
-          x={16}
-          y={cardHeight > 40 ? 10 : Math.max(4, cardHeight / 2 - 6)}
-          width={Math.max(10, cardWidth - (photoImage && cardHeight >= 50 ? 60 : 36))}
+          x={PADDING_X}
+          y={cardHeight > 44 ? 12 : Math.max(6, cardHeight / 2 - 7)}
+          width={Math.max(10, cardWidth - (photoImage && cardHeight >= 50 ? 64 : 40))}
           text={moment.description || 'Untitled moment'}
-          fontSize={cardHeight < 50 ? Math.max(8, Math.min(12, cardHeight / 5)) : 12}
-          fontFamily="Inter, sans-serif"
-          fontStyle="500"
-          fill="#2a3142"
+          fontSize={cardHeight < 50 ? Math.max(9, Math.min(13, cardHeight / 4.5)) : 13}
+          fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+          fontStyle="600"
+          fill="#1a1f2e"
           ellipsis
-          wrap="none"
+          wrap={isHovered ? "word" : "none"}
         />
         
         {/* People - only show if card is tall enough */}
-        {moment.people && cardHeight >= 45 && (
+        {moment.people && cardHeight >= 48 && (
           <Text
-            x={16}
-            y={cardHeight < 60 ? Math.max(22, cardHeight - 22) : 28}
-            width={Math.max(10, cardWidth - (photoImage && cardHeight >= 50 ? 60 : 36))}
+            x={PADDING_X}
+            y={cardHeight < 64 ? Math.max(26, cardHeight - 24) : 32}
+            width={Math.max(10, cardWidth - (photoImage && cardHeight >= 50 ? 64 : 40))}
             text={moment.people}
-            fontSize={cardHeight < 60 ? Math.max(7, Math.min(10, cardHeight / 7)) : 10}
-            fontFamily="Inter, sans-serif"
-            fill="#7a8494"
+            fontSize={cardHeight < 64 ? Math.max(8, Math.min(11, cardHeight / 6)) : 11}
+            fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+            fill="#64748b"
             ellipsis
             wrap="none"
           />
         )}
         
         {/* Location - only show if card is tall enough */}
-        {moment.location && cardHeight >= 60 && (
+        {moment.location && cardHeight >= 64 && (
           <Text
-            x={16}
-            y={cardHeight < 80 ? Math.max(38, cardHeight - 18) : (moment.people ? 44 : 28)}
-            width={Math.max(10, cardWidth - (photoImage && cardHeight >= 50 ? 60 : 36))}
+            x={PADDING_X}
+            y={cardHeight < 84 ? Math.max(42, cardHeight - 20) : (moment.people ? 48 : 32)}
+            width={Math.max(10, cardWidth - (photoImage && cardHeight >= 50 ? 64 : 40))}
             text={`📍 ${moment.location}`}
-            fontSize={cardHeight < 80 ? Math.max(7, Math.min(9, cardHeight / 9)) : 9}
-            fontFamily="Inter, sans-serif"
-            fill="#9aa3b2"
+            fontSize={cardHeight < 84 ? Math.max(8, Math.min(10, cardHeight / 8)) : 10}
+            fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+            fill="#94a3b8"
             ellipsis
             wrap="none"
           />

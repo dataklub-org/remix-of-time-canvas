@@ -174,8 +174,9 @@ export function MomentFormContent({
 
       {/* Scrollable form content */}
       <div 
-        className="flex-1 overflow-y-auto overscroll-contain px-1 py-3"
+        className="flex-1 overflow-y-auto overscroll-contain px-1 py-3 touch-pan-y"
         style={{ WebkitOverflowScrolling: 'touch' }}
+        onTouchMove={(e) => e.stopPropagation()}
       >
         <form
           id="moment-form"

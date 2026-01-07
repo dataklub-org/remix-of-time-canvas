@@ -12,7 +12,7 @@ interface MomentCardProps {
   timelineY: number;
 }
 
-const MIN_CARD_WIDTH = 120;
+const MIN_CARD_WIDTH = 60; // Reduced to allow smaller cards
 const MIN_CARD_HEIGHT = 40;
 const CARD_RADIUS = 16;
 const RESIZE_HANDLE_SIZE = 20;
@@ -28,7 +28,7 @@ const BUBBLE_EXPANDED_SIZE = 80;
 const EXPANDED_CARD_WIDTH = 240;
 const EXPANDED_CARD_HEIGHT = 100;
 
-// Minimum duration in milliseconds (5 minutes)
+// Minimum duration in milliseconds (5 minutes) - this is now the minimum width
 const MIN_DURATION_MS = 5 * 60 * 1000;
 
 // Helper to measure text width (approximate)
@@ -40,9 +40,13 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   const { canvasState, updateMomentY, updateMomentSize, updateMoment } = useMomentsStore();
   const { centerTime, msPerPixel } = canvasState;
   
-  // Check zoom level - show bubbles at day/week/month/year zoom
+  // Check zoom level - show bubbles at month/year zoom
+  // Memorable moments show as cards at 6h/day/week, only bubbles at month/year
   const zoomLevel = getZoomLevel(msPerPixel);
-  const isBubbleMode = zoomLevel === 'day' || zoomLevel === 'week' || zoomLevel === 'month' || zoomLevel === 'year';
+  const isHighZoom = zoomLevel === 'month' || zoomLevel === 'year';
+  const isMediumZoom = zoomLevel === 'day' || zoomLevel === 'week';
+  // Bubble mode: always for month/year, or for non-memorable at day/week
+  const isBubbleMode = isHighZoom || (isMediumZoom && !moment.memorable);
   
   // Detect mobile device
   const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;

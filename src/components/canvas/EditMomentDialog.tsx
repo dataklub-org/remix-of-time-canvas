@@ -208,17 +208,12 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   return (
     <Dialog open={!!moment} onOpenChange={() => onClose()}>
       <DialogContent 
-        className="sm:max-w-xl max-h-[85vh] overflow-y-auto pb-safe"
+        className="sm:max-w-xl max-h-[85vh] overflow-y-auto pb-safe overscroll-contain"
         style={{
-          // Mobile keyboard handling - ensure content is scrollable
+          // Mobile keyboard handling - ensure content is scrollable and accessible
           maxHeight: 'calc(100dvh - 2rem)',
           paddingBottom: 'max(1rem, env(safe-area-inset-bottom))',
-        }}
-        onScroll={() => {
-          // Blur active element to dismiss keyboard on scroll
-          if (document.activeElement instanceof HTMLElement) {
-            document.activeElement.blur();
-          }
+          WebkitOverflowScrolling: 'touch',
         }}
       >
         <DialogHeader className="pt-2 sticky top-0 bg-background z-10 pb-2 flex flex-row items-center justify-between">

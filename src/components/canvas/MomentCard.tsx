@@ -386,6 +386,16 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
       <Group
         x={bubbleX}
         y={bubbleY}
+        draggable
+        dragBoundFunc={(pos) => ({
+          x: bubbleX,
+          y: pos.y,
+        })}
+        onDragEnd={(e) => {
+          // Update Y based on drag, accounting for bubble center offset
+          const newY = e.target.y() - (moment.y < timelineY ? cardHeight / 2 : cardHeight / 2);
+          updateMomentY(moment.id, newY + moment.y - bubbleY);
+        }}
         onClick={handleCardClick}
         onTap={handleCardClick}
         onMouseEnter={() => setIsHovered(true)}

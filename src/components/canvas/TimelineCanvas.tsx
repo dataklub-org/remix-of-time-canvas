@@ -207,14 +207,14 @@ export function TimelineCanvas() {
       {/* Feedback popup */}
       <FeedbackPopup open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
       
-      {/* Branding logo */}
-      <div className="absolute top-4 left-4">
+      {/* Branding logo - same row as Add Moment */}
+      <div className="absolute top-14 md:top-4 left-4">
         <img src={fractalito} alt="fractalito" className="h-5 w-auto" />
       </div>
       
       {/* Vision statement - top center below buttons */}
       {showVision && (
-        <div className="absolute top-20 md:top-16 left-1/2 transform -translate-x-1/2 text-center pointer-events-none select-none max-w-2xl px-4">
+        <div className="absolute top-24 md:top-16 left-1/2 transform -translate-x-1/2 text-center pointer-events-none select-none max-w-2xl px-4">
           <p className="text-xl md:text-2xl font-semibold text-foreground tracking-tight mb-2">
             fractalito is a visual memory plane
           </p>
@@ -222,7 +222,7 @@ export function TimelineCanvas() {
             Time flows horizontally, moments live in space
           </p>
           <p className="text-xs md:text-sm font-normal text-muted-foreground max-w-md mx-auto leading-relaxed">
-            Capture thoughts, experiences, and ideas as points on a timeline—organized not by folders, but by meaning and proximity
+            Capture thoughts, experiences, and ideas as points on a timeline—organized by categories, enhanced by meaning and proximity
           </p>
         </div>
       )}

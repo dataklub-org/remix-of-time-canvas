@@ -44,8 +44,12 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   const zoomLevel = getZoomLevel(msPerPixel);
   const isBubbleMode = zoomLevel === 'day' || zoomLevel === 'week' || zoomLevel === 'month' || zoomLevel === 'year';
   
-  // Bubble hover state
+  // Detect mobile device
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches;
+  
+  // Bubble hover state - on mobile, use "expanded" state for first tap
   const [isHovered, setIsHovered] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false); // For mobile two-tap behavior
   const [photoImage, setPhotoImage] = useState<HTMLImageElement | null>(null);
   
   // Load photo image for Konva
@@ -123,6 +127,26 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
     }
     onSelect(moment);
   }, [moment, onSelect]);
+
+  // Handle bubble tap for mobile - first tap expands, second tap opens edit
+  const handleBubbleTap = useCallback(() => {
+    if (justFinishedResizingRef.current) {
+      return;
+    }
+    if (isMobile && isBubbleMode) {
+      if (isExpanded) {
+        // Second tap - open edit dialog
+        onSelect(moment);
+        setIsExpanded(false);
+      } else {
+        // First tap - expand to card view
+        setIsExpanded(true);
+      }
+    } else {
+      // Desktop behavior - just select
+      onSelect(moment);
+    }
+  }, [moment, onSelect, isMobile, isBubbleMode, isExpanded]);
 
   const dispatchResizeState = (resizing: boolean) => {
     window.dispatchEvent(new CustomEvent('momentResizing', { detail: { resizing } }));
@@ -214,8 +238,10 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
 
   // ===== BUBBLE MODE =====
   if (isBubbleMode) {
-    // When hovered, show expanded card with full description
-    if (isHovered) {
+    // When hovered (desktop) or expanded (mobile), show expanded card with full description
+    const showExpanded = isHovered || (isMobile && isExpanded);
+    
+    if (showExpanded) {
       // Expanded card dimensions
       const hoverCardWidth = Math.max(cardWidth, EXPANDED_CARD_WIDTH);
       const hoverCardHeight = Math.max(cardHeight, EXPANDED_CARD_HEIGHT);
@@ -231,6 +257,9 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
       return (
         <Group
           onMouseLeave={() => setIsHovered(false)}
+          onTouchEnd={(e) => {
+            // Collapse on tap outside (but tapping inside will trigger card click first)
+          }}
         >
           {/* Left connecting line (bezier curve) */}
           <Line
@@ -264,7 +293,15 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
             x={hoverCardX}
             y={hoverCardY}
             onClick={handleCardClick}
-            onTap={handleCardClick}
+            onTap={() => {
+              if (isMobile) {
+                // Second tap on expanded card - open edit
+                onSelect(moment);
+                setIsExpanded(false);
+              } else {
+                handleCardClick();
+              }
+            }}
           >
             {/* Card background with subtle gradient effect */}
             <Rect
@@ -419,7 +456,7 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           updateMomentY(moment.id, newY + moment.y - bubbleY);
         }}
         onClick={handleCardClick}
-        onTap={handleCardClick}
+        onTap={handleBubbleTap}
         onMouseEnter={() => setIsHovered(true)}
       >
         {/* Connecting line to timeline */}

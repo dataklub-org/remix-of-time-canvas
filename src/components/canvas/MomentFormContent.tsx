@@ -139,7 +139,8 @@ export function MomentFormContent({
     }
   };
 
-  const showCollapsible = mode === 'create' && setMoreDetailsOpen;
+  // Show collapsible for both create and edit modes when setMoreDetailsOpen is available
+  const showCollapsible = setMoreDetailsOpen !== undefined;
 
   return (
     <div ref={formRef} className="flex flex-col h-full">
@@ -174,7 +175,7 @@ export function MomentFormContent({
 
       {/* Scrollable form content */}
       <div 
-        className="flex-1 overflow-y-auto overscroll-contain px-1 py-3 touch-pan-y"
+        className="flex-1 overflow-y-auto overscroll-contain px-1 py-3 touch-pan-y pb-[50vh]"
         style={{ WebkitOverflowScrolling: 'touch' }}
         onTouchMove={(e) => e.stopPropagation()}
       >

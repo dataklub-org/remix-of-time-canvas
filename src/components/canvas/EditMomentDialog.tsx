@@ -28,6 +28,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   const [duration, setDuration] = useState<string>('');
   const [period, setPeriod] = useState<'m' | 'h' | 'd' | 'M'>('h');
   const [photo, setPhoto] = useState<string | null>(null);
+  const [moreDetailsOpen, setMoreDetailsOpen] = useState(true); // Start expanded for edit mode
   
   // Autosave function
   const saveChanges = useCallback(() => {
@@ -172,6 +173,8 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       setPeriod={setPeriod}
       photo={photo}
       setPhoto={setPhoto}
+      moreDetailsOpen={moreDetailsOpen}
+      setMoreDetailsOpen={setMoreDetailsOpen}
       onDelete={handleDelete}
       onMemento={handleMemento}
       onCancel={onClose}

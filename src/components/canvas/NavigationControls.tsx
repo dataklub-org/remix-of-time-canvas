@@ -35,11 +35,15 @@ export function NavigationControls() {
   const currentUnit = ZOOM_LEVELS[currentIndex].unit;
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-card/90 backdrop-blur-sm rounded-full px-2 py-1.5 shadow-lg border border-border">
+    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-card/90 backdrop-blur-sm rounded-full px-2 py-1.5 shadow-lg border border-border touch-none">
       <Button
         variant="ghost"
         size="sm"
-        onClick={handleZoomOut}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleZoomOut();
+        }}
         disabled={currentIndex >= ZOOM_LEVELS.length - 1}
         className="h-8 w-8 p-0 rounded-full"
       >
@@ -53,7 +57,11 @@ export function NavigationControls() {
       <Button
         variant="ghost"
         size="sm"
-        onClick={handleZoomIn}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleZoomIn();
+        }}
         disabled={currentIndex <= 0}
         className="h-8 w-8 p-0 rounded-full"
       >

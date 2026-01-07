@@ -112,7 +112,8 @@ export function TimelineCanvas() {
   const handleAddMoment = useCallback(() => {
     // Capture timestamp at the moment user clicks "Add Moment"
     const capturedTimestamp = Date.now();
-    setCreatePosition({ timestamp: capturedTimestamp, y: viewportHeight / 2 });
+    // Position moment slightly above timeline center (60px above)
+    setCreatePosition({ timestamp: capturedTimestamp, y: (viewportHeight / 2) - 60 });
     setCreateDialogOpen(true);
   }, [viewportHeight]);
 
@@ -166,11 +167,11 @@ export function TimelineCanvas() {
           {/* Time axis */}
           <TimeAxis width={width} height={canvasHeight} timelineY={timelineY + scrollOffset} />
           
-          {/* Moment cards - filter by memorable on monthly/yearly views */}
+          {/* Moment cards - filter by memorable on weekly/monthly/yearly views */}
           {activeTimelineMoments
             .filter((moment) => {
               const zoomLevel = getZoomLevel(canvasState.msPerPixel);
-              if (zoomLevel === 'month' || zoomLevel === 'year') {
+              if (zoomLevel === 'week' || zoomLevel === 'month' || zoomLevel === 'year') {
                 return moment.memorable === true;
               }
               return true;
@@ -226,11 +227,11 @@ export function TimelineCanvas() {
       
       {/* Vision statement - top center below buttons */}
       {showVision && (
-        <div className="absolute top-36 md:top-16 left-0 right-0 md:left-1/2 md:right-auto md:transform md:-translate-x-1/2 text-center pointer-events-none select-none max-w-2xl mx-auto px-8 md:px-4">
-          <p className="text-base md:text-2xl font-semibold text-foreground tracking-tight mb-1 md:mb-2 truncate md:whitespace-normal">
+        <div className="absolute top-[9rem] md:top-16 left-0 right-0 md:left-1/2 md:right-auto md:transform md:-translate-x-1/2 text-center pointer-events-none select-none max-w-2xl mx-auto px-6 md:px-4">
+          <p className="text-base md:text-2xl font-semibold text-foreground tracking-tight mb-1 md:mb-2 md:whitespace-normal">
             A visual memory plane
           </p>
-          <p className="text-sm md:text-lg italic text-foreground/80 tracking-wide mb-1 md:mb-2 truncate md:whitespace-normal">
+          <p className="text-sm md:text-lg italic text-foreground/80 tracking-wide mb-1 md:mb-2 md:whitespace-normal">
             Time flows horizontally, moments live in space
           </p>
           <p className="text-xs md:text-sm font-normal text-muted-foreground max-w-md mx-auto leading-relaxed hidden md:block">

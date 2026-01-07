@@ -219,21 +219,21 @@ export function TimelineCanvas() {
         <img src={fractalito} alt="fractalito" className="h-5 w-auto" />
       </div>
       
-      {/* Timeline selector - centered */}
-      <div className="absolute top-3 md:top-4 left-1/2 transform -translate-x-1/2 z-10">
+      {/* Timeline selector - below Add Moment on mobile, centered on desktop */}
+      <div className="absolute top-[6.5rem] md:top-4 left-1/2 transform -translate-x-1/2 z-10">
         <TimelineSelector />
       </div>
       
       {/* Vision statement - top center below buttons */}
       {showVision && (
-        <div className="absolute top-24 md:top-16 left-1/2 transform -translate-x-1/2 text-center pointer-events-none select-none max-w-2xl px-4">
+        <div className="absolute top-36 md:top-16 left-1/2 transform -translate-x-1/2 text-center pointer-events-none select-none max-w-2xl px-4">
           <p className="text-xl md:text-2xl font-semibold text-foreground tracking-tight mb-2">
-            fractalito is a visual memory plane
+            A visual memory plane
           </p>
           <p className="text-base md:text-lg italic text-foreground/80 tracking-wide mb-2">
             Time flows horizontally, moments live in space
           </p>
-          <p className="text-xs md:text-sm font-normal text-muted-foreground max-w-md mx-auto leading-relaxed">
+          <p className="text-xs md:text-sm font-normal text-muted-foreground max-w-md mx-auto leading-relaxed hidden md:block">
             Capture thoughts, experiences, and ideas as points on a timeline—organized by categories, enhanced by meaning and proximity
           </p>
         </div>

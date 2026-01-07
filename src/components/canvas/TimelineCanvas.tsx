@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Stage, Layer, Rect } from 'react-konva';
 import { Plus, MessageSquare } from 'lucide-react';
 import { useCanvasSize } from '@/hooks/useCanvasSize';
@@ -16,11 +16,14 @@ import type { Moment } from '@/types/moment';
 
 const DEFAULT_CARD_HEIGHT = 56;
 const PADDING = 100;
+const DEFAULT_MS_PER_PIXEL = 36_000;
 
 export function TimelineCanvas() {
   const { width, height: viewportHeight } = useCanvasSize();
   const { moments, canvasState } = useMomentsStore();
   const { isPanning, handleMouseDown, handleMouseMove, handleMouseUp, handleWheel, setVerticalScrollHandler } = usePanZoom({ canvasWidth: width });
+  const initialMsPerPixelRef = useRef(canvasState.msPerPixel);
+  const [showVision, setShowVision] = useState(true);
   
   // Calculate dynamic canvas height based on moment positions
   const { canvasHeight, timelineY, scrollOffset } = useMemo(() => {
@@ -71,6 +74,13 @@ export function TimelineCanvas() {
       });
     });
   }, [setVerticalScrollHandler, canvasHeight, viewportHeight]);
+
+  // Hide vision text when zoom changes from initial
+  useEffect(() => {
+    if (canvasState.msPerPixel !== initialMsPerPixelRef.current) {
+      setShowVision(false);
+    }
+  }, [canvasState.msPerPixel]);
 
   const handleCanvasClick = useCallback((e: any) => {
     // Only create on double-click to avoid accidental creation
@@ -197,14 +207,16 @@ export function TimelineCanvas() {
       {/* Feedback popup */}
       <FeedbackPopup open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
       
-      {/* Help text - different for mobile vs desktop */}
-      <div className="absolute top-4 left-4 text-xs text-muted-foreground">
-        <span className="bg-card/80 backdrop-blur-sm px-2 py-1 rounded hidden md:inline">
-          Double-click to add • Drag to pan • Scroll horizontal • Shift+scroll vertical
-        </span>
-        <span className="bg-card/80 backdrop-blur-sm px-2 py-1 rounded md:hidden">
-          Tap + to add • Swipe left/right for time • Swipe up/down to scroll
-        </span>
+      {/* Branding and vision */}
+      <div className="absolute top-4 left-4 max-w-xs">
+        <h1 className="text-xl font-semibold text-foreground mb-1">fractalito</h1>
+        {showVision && (
+          <p className="text-xs text-muted-foreground leading-relaxed bg-card/80 backdrop-blur-sm px-2 py-1.5 rounded">
+            fractalito is a visual memory plane.<br />
+            Time flows horizontally, moments live in space.<br />
+            Capture thoughts, experiences, and ideas as points on a timeline—organized not by folders, but by meaning and proximity.
+          </p>
+        )}
       </div>
       
       {/* Create dialog */}

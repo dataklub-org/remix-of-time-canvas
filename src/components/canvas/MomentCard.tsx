@@ -292,6 +292,14 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           <Group
             x={hoverCardX}
             y={hoverCardY}
+            draggable
+            dragBoundFunc={(pos) => ({
+              x: hoverCardX,
+              y: pos.y,
+            })}
+            onDragEnd={(e) => {
+              updateMomentY(moment.id, e.target.y());
+            }}
             onClick={handleCardClick}
             onTap={() => {
               if (isMobile) {

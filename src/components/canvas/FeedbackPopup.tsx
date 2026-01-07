@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Star, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
 
 interface FeedbackPopupProps {
   open: boolean;
@@ -14,6 +16,7 @@ export function FeedbackPopup({ open, onClose }: FeedbackPopupProps) {
   const [hoveredRating, setHoveredRating] = useState(0);
   const [feedback, setFeedback] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isMobile = useIsMobile();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,19 +50,21 @@ export function FeedbackPopup({ open, onClose }: FeedbackPopupProps) {
 
   if (!open) return null;
 
-  return (
+  const formContent = (
     <form 
       onSubmit={handleSubmit} 
-      className="absolute right-4 bottom-16 md:bottom-16 w-72 bg-green-600 rounded-xl shadow-2xl p-4 z-50 animate-in slide-in-from-bottom-2 fade-in duration-200"
+      className="w-full bg-green-600 rounded-xl p-4"
     >
-      {/* Close button */}
-      <button 
-        type="button"
-        onClick={onClose}
-        className="absolute top-2 right-2 text-white/80 hover:text-white transition-colors"
-      >
-        <X className="h-4 w-4" />
-      </button>
+      {/* Close button - only for desktop */}
+      {!isMobile && (
+        <button 
+          type="button"
+          onClick={onClose}
+          className="absolute top-2 right-2 text-white/80 hover:text-white transition-colors"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      )}
       
       <h3 className="text-white font-semibold text-sm mb-3">Share your feedback</h3>
       
@@ -109,5 +114,26 @@ export function FeedbackPopup({ open, onClose }: FeedbackPopupProps) {
         {isSubmitting ? 'Sending...' : 'Send Feedback'}
       </Button>
     </form>
+  );
+
+  // Mobile: Use bottom sheet for keyboard handling
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+        <SheetContent 
+          side="bottom" 
+          className="rounded-t-2xl p-4 bg-green-600 border-green-600"
+        >
+          {formContent}
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  // Desktop: Positioned popup
+  return (
+    <div className="absolute right-4 bottom-16 w-72 shadow-2xl z-50 animate-in slide-in-from-bottom-2 fade-in duration-200">
+      {formContent}
+    </div>
   );
 }

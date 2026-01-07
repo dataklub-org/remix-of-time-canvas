@@ -360,7 +360,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
                   type="button"
                   onClick={() => setCategory('personal')}
                   className={cn(
-                    "flex-1 py-1 px-2 rounded-md text-xs font-medium transition-colors",
+                    "py-1 px-3 rounded-md text-xs font-medium transition-colors",
                     category === 'personal'
                       ? "bg-orange-100 text-orange-700 border-2 border-orange-300"
                       : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -372,7 +372,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
                   type="button"
                   onClick={() => setCategory('business')}
                   className={cn(
-                    "flex-1 py-1 px-2 rounded-md text-xs font-medium transition-colors",
+                    "py-1 px-3 rounded-md text-xs font-medium transition-colors",
                     category === 'business'
                       ? "bg-blue-100 text-blue-700 border-2 border-blue-300"
                       : "bg-secondary text-secondary-foreground hover:bg-secondary/80"

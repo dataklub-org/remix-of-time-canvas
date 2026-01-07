@@ -220,7 +220,7 @@ export function TimelineCanvas() {
       </div>
       
       {/* Timeline selector - below Add Moment on mobile, centered on desktop */}
-      <div className="absolute top-[6.5rem] md:top-4 left-1/2 transform -translate-x-1/2 z-10">
+      <div className="absolute top-[6.5rem] md:top-4 right-4 md:right-auto md:left-1/2 md:transform md:-translate-x-1/2 z-10">
         <TimelineSelector />
       </div>
       

@@ -448,6 +448,9 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
       );
     }
 
+    // Check if this is a date-range moment
+    const hasDateRange = moment.endTime && moment.endTime > moment.timestamp;
+    
     // Collapsed bubble view
     return (
       <Group
@@ -467,13 +470,32 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         onTap={handleBubbleTap}
         onMouseEnter={() => setIsHovered(true)}
       >
-        {/* Connecting line to timeline */}
-        <Line
-          points={[0, 0, 0, timelineY - bubbleY]}
-          stroke={lineColor}
-          strokeWidth={2}
-          listening={false}
-        />
+        {/* Connecting lines to timeline - two lines for date-range moments */}
+        {hasDateRange ? (
+          <>
+            {/* Start line */}
+            <Line
+              points={[startX - bubbleX, 0, startX - bubbleX, timelineY - bubbleY]}
+              stroke={lineColor}
+              strokeWidth={2}
+              listening={false}
+            />
+            {/* End line */}
+            <Line
+              points={[endX - bubbleX, 0, endX - bubbleX, timelineY - bubbleY]}
+              stroke={lineColor}
+              strokeWidth={2}
+              listening={false}
+            />
+          </>
+        ) : (
+          <Line
+            points={[0, 0, 0, timelineY - bubbleY]}
+            stroke={lineColor}
+            strokeWidth={2}
+            listening={false}
+          />
+        )}
         
         {/* Bubble background - show photo if available */}
         {photoImage ? (

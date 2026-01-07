@@ -170,9 +170,9 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
         lastTouchRef.current.centerTime = newCenterTime;
       }
       
-      // Vertical scroll
+      // Vertical scroll - swipe up moves canvas up (scrollY increases), swipe down moves canvas down (scrollY decreases)
       if (Math.abs(deltaY) > 1 && verticalScrollRef.current) {
-        verticalScrollRef.current(-deltaY);
+        verticalScrollRef.current(deltaY);
       }
       
       lastTouchRef.current.x = clientX;

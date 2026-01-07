@@ -161,18 +161,24 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
       const deltaX = clientX - lastTouchRef.current.x;
       const deltaY = clientY - lastTouchRef.current.y;
       
-      // Always apply both horizontal pan and vertical scroll based on movement
-      // Horizontal pan
-      if (Math.abs(deltaX) > 1) {
+      // Determine primary direction of movement
+      const isHorizontalDominant = Math.abs(deltaX) > Math.abs(deltaY) * 1.5;
+      const isVerticalDominant = Math.abs(deltaY) > Math.abs(deltaX) * 1.5;
+      
+      // Horizontal pan - only when horizontal movement is dominant
+      if (isHorizontalDominant && Math.abs(deltaX) > 1) {
         const timeDelta = deltaX * msPerPixel;
         const newCenterTime = lastTouchRef.current.centerTime - timeDelta;
         setCenterTime(newCenterTime);
         lastTouchRef.current.centerTime = newCenterTime;
       }
       
-      // Vertical scroll - swipe up moves canvas up (scrollY increases), swipe down moves canvas down (scrollY decreases)
-      if (Math.abs(deltaY) > 1 && verticalScrollRef.current) {
-        verticalScrollRef.current(deltaY);
+      // Vertical scroll - when vertical movement is dominant
+      // Swipe up (negative deltaY) should scroll down to see content above (decrease scrollY)
+      // Swipe down (positive deltaY) should scroll up to see content below (increase scrollY)
+      if (isVerticalDominant && Math.abs(deltaY) > 1 && verticalScrollRef.current) {
+        // Invert deltaY for natural scrolling behavior
+        verticalScrollRef.current(-deltaY);
       }
       
       lastTouchRef.current.x = clientX;

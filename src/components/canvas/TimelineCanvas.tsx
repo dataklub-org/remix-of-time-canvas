@@ -13,7 +13,7 @@ import { FeedbackPopup } from './FeedbackPopup';
 import { xToTime, getZoomLevel } from '@/utils/timeUtils';
 import { Button } from '@/components/ui/button';
 import type { Moment } from '@/types/moment';
-
+import fractalito from '@/assets/fractalito-logo.png';
 const DEFAULT_CARD_HEIGHT = 56;
 const PADDING = 100;
 const DEFAULT_MS_PER_PIXEL = 36_000;
@@ -207,17 +207,25 @@ export function TimelineCanvas() {
       {/* Feedback popup */}
       <FeedbackPopup open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
       
-      {/* Branding and vision */}
-      <div className="absolute top-4 left-4 max-w-xs">
-        <h1 className="text-xl font-semibold text-foreground mb-1">fractalito</h1>
-        {showVision && (
-          <p className="text-xs text-muted-foreground leading-relaxed bg-card/80 backdrop-blur-sm px-2 py-1.5 rounded">
-            fractalito is a visual memory plane.<br />
-            Time flows horizontally, moments live in space.<br />
+      {/* Branding logo */}
+      <div className="absolute top-4 left-4">
+        <img src={fractalito} alt="fractalito" className="h-8 w-auto" />
+      </div>
+      
+      {/* Vision statement - centered */}
+      {showVision && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-center pointer-events-none select-none">
+          <p className="text-2xl md:text-3xl font-bold text-foreground tracking-tight mb-3">
+            fractalito is a visual memory plane.
+          </p>
+          <p className="text-lg md:text-xl font-medium text-foreground/80 tracking-wide mb-3">
+            Time flows horizontally, moments live in space.
+          </p>
+          <p className="text-sm md:text-base font-normal text-muted-foreground max-w-lg mx-auto leading-relaxed">
             Capture thoughts, experiences, and ideas as points on a timeline—organized not by folders, but by meaning and proximity.
           </p>
-        )}
-      </div>
+        </div>
+      )}
       
       {/* Create dialog */}
       <CreateMomentDialog

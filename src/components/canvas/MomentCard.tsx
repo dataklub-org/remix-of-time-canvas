@@ -28,6 +28,9 @@ const BUBBLE_EXPANDED_SIZE = 80;
 const EXPANDED_CARD_WIDTH = 240;
 const EXPANDED_CARD_HEIGHT = 100;
 
+// Minimum duration in milliseconds (5 minutes)
+const MIN_DURATION_MS = 5 * 60 * 1000;
+
 // Helper to measure text width (approximate)
 function measureTextWidth(text: string, fontSize: number): number {
   return text.length * fontSize * 0.55;
@@ -131,8 +134,12 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
     const deltaX = e.clientX - resizeStartRef.current.x;
     const deltaY = e.clientY - resizeStartRef.current.y;
     
-    const newWidth = Math.max(20, resizeStartRef.current.width + deltaX);
-    let newHeight = Math.max(20, resizeStartRef.current.height + deltaY);
+    // Calculate minimum width based on 5 minutes duration at current zoom level
+    const minWidthFromDuration = MIN_DURATION_MS / msPerPixel;
+    const minWidth = Math.max(MIN_CARD_WIDTH, minWidthFromDuration);
+    
+    const newWidth = Math.max(minWidth, resizeStartRef.current.width + deltaX);
+    let newHeight = Math.max(MIN_CARD_HEIGHT, resizeStartRef.current.height + deltaY);
     
     const isAbove = moment.y < timelineY;
     if (isAbove) {
@@ -141,7 +148,7 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
     }
     
     updateMomentSize(moment.id, newWidth, newHeight);
-  }, [moment.id, moment.y, timelineY, updateMomentSize]);
+  }, [moment.id, moment.y, timelineY, msPerPixel, updateMomentSize]);
 
   const handleGlobalMouseUp = useCallback(() => {
     if (!isResizing) return;

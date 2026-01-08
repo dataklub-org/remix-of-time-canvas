@@ -192,20 +192,15 @@ export function TimelineCanvas() {
       {/* Navigation controls */}
       <NavigationControls />
       
-      {/* Add moment button - pushed lower on mobile */}
-      <Button
-        onClick={handleAddMoment}
-        className="absolute right-4 top-14 md:top-4 rounded-full shadow-lg"
-        size="sm"
-      >
-        <Plus className="h-4 w-4 mr-1.5" />
-        Add Moment
-      </Button>
+      {/* Branding logo - top left */}
+      <div className="absolute top-4 left-4 z-10">
+        <img src={fractalito} alt="fractalito" className="h-5 w-auto" />
+      </div>
       
-      {/* Feedback button - higher on mobile to avoid overlap with Jump to Now */}
+      {/* Feedback button - top right */}
       <Button
         onClick={() => setFeedbackOpen(true)}
-        className="absolute right-4 bottom-20 md:bottom-4 rounded-full shadow-lg bg-green-600 hover:bg-green-700 text-white"
+        className="absolute top-4 right-4 rounded-full shadow-lg bg-green-600 hover:bg-green-700 text-white z-10"
         size="sm"
       >
         <MessageSquare className="h-4 w-4 mr-1.5" />
@@ -215,23 +210,28 @@ export function TimelineCanvas() {
       {/* Feedback popup */}
       <FeedbackPopup open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
       
-      {/* Branding logo - aligned with middle of Add Moment button */}
-      <div className="absolute top-[3.65rem] md:top-[0.65rem] left-4">
-        <img src={fractalito} alt="fractalito" className="h-5 w-auto" />
-      </div>
+      {/* Add moment button - bottom right */}
+      <Button
+        onClick={handleAddMoment}
+        className="absolute right-4 bottom-20 md:bottom-4 rounded-full shadow-lg z-10"
+        size="sm"
+      >
+        <Plus className="h-4 w-4 mr-1.5" />
+        Add Moment
+      </Button>
       
-      {/* Timeline selector - centered on mobile below Add Moment, centered on desktop */}
-      <div className="absolute top-[6.5rem] md:top-4 left-1/2 transform -translate-x-1/2 z-10">
+      {/* Timeline selector - centered, below logo/feedback */}
+      <div className="absolute top-12 left-1/2 transform -translate-x-1/2 z-10">
         <TimelineSelector />
       </div>
       
-      {/* Vision statement - top center below buttons */}
+      {/* Vision statement - centered between selector and timeline */}
       {showVision && (
-        <div className="absolute top-[9rem] md:top-16 left-0 right-0 md:left-1/2 md:right-auto md:transform md:-translate-x-1/2 text-center pointer-events-none select-none max-w-2xl mx-auto px-6 md:px-4">
-          <p className="text-base md:text-2xl font-semibold text-foreground tracking-tight mb-1 md:mb-2 md:whitespace-normal">
+        <div className="absolute top-24 left-0 right-0 text-center pointer-events-none select-none px-6 z-0">
+          <p className="text-base md:text-2xl font-semibold text-foreground tracking-tight mb-1">
             A visual memory plane
           </p>
-          <p className="text-sm md:text-lg italic text-foreground/80 tracking-wide mb-1 md:mb-2 md:whitespace-normal">
+          <p className="text-sm md:text-lg italic text-foreground/80 tracking-wide mb-1">
             Time flows horizontally, moments live in space
           </p>
           <p className="text-xs md:text-sm font-normal text-muted-foreground max-w-md mx-auto leading-relaxed hidden md:block">

@@ -143,7 +143,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent 
           side="bottom" 
-          className="h-[90dvh] rounded-t-2xl p-4 flex flex-col"
+          className="h-[90dvh] rounded-t-2xl px-6 pt-6 pb-4 flex flex-col"
         >
           {formContent}
         </SheetContent>

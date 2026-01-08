@@ -197,10 +197,10 @@ export function TimelineCanvas() {
         <img src={fractalito} alt="fractalito" className="h-5 w-auto" />
       </div>
       
-      {/* Feedback button - top right */}
+      {/* Feedback button - bottom left */}
       <Button
         onClick={() => setFeedbackOpen(true)}
-        className="absolute top-4 right-4 rounded-full shadow-lg bg-green-600 hover:bg-green-700 text-white z-10"
+        className="absolute bottom-20 md:bottom-4 left-4 rounded-full shadow-lg bg-green-600 hover:bg-green-700 text-white z-10"
         size="sm"
       >
         <MessageSquare className="h-4 w-4 mr-1.5" />

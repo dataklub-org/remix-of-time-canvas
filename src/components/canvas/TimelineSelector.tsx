@@ -131,6 +131,10 @@ export function TimelineSelector() {
                   <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
                   Advanced privacy controls
                 </li>
+                <li className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  Original photo size
+                </li>
               </ul>
             </div>
             

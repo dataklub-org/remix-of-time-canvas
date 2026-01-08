@@ -1,13 +1,14 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Switch } from '@/components/ui/switch';
 import type { Category } from '@/types/moment';
 import { cn } from '@/lib/utils';
-import { X, Camera, Image, ChevronDown, Trash2 } from 'lucide-react';
+import { X, Camera, Image, ChevronDown, Trash2, Crown } from 'lucide-react';
 import mementoIcon from '@/assets/memento-icon.png';
 
 interface MomentFormContentProps {
@@ -79,6 +80,7 @@ export function MomentFormContent({
 }: MomentFormContentProps) {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
+  const [keepOriginalSize, setKeepOriginalSize] = useState(false);
 
   const addPerson = () => {
     const trimmed = personInput.trim();
@@ -104,29 +106,35 @@ export function MomentFormContent({
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        const img = document.createElement('img');
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const maxSize = 400;
-          let width = img.width;
-          let height = img.height;
+        if (keepOriginalSize) {
+          // Pro feature: keep original size
+          setPhoto(reader.result as string);
+        } else {
+          // Default: compress to max 400px
+          const img = document.createElement('img');
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const maxSize = 400;
+            let width = img.width;
+            let height = img.height;
 
-          if (width > height && width > maxSize) {
-            height = (height * maxSize) / width;
-            width = maxSize;
-          } else if (height > maxSize) {
-            width = (width * maxSize) / height;
-            height = maxSize;
-          }
+            if (width > height && width > maxSize) {
+              height = (height * maxSize) / width;
+              width = maxSize;
+            } else if (height > maxSize) {
+              width = (width * maxSize) / height;
+              height = maxSize;
+            }
 
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-          setPhoto(compressedBase64);
-        };
-        img.src = reader.result as string;
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx?.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+            setPhoto(compressedBase64);
+          };
+          img.src = reader.result as string;
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -279,6 +287,8 @@ export function MomentFormContent({
                   photoInputRef={photoInputRef}
                   handlePhotoChange={handlePhotoChange}
                   removePhoto={removePhoto}
+                  keepOriginalSize={keepOriginalSize}
+                  setKeepOriginalSize={setKeepOriginalSize}
                 />
               </CollapsibleContent>
             </Collapsible>
@@ -305,6 +315,8 @@ export function MomentFormContent({
                 photoInputRef={photoInputRef}
                 handlePhotoChange={handlePhotoChange}
                 removePhoto={removePhoto}
+                keepOriginalSize={keepOriginalSize}
+                setKeepOriginalSize={setKeepOriginalSize}
               />
             </>
           )}
@@ -454,14 +466,18 @@ function PhotoSection({
   photoInputRef,
   handlePhotoChange,
   removePhoto,
+  keepOriginalSize,
+  setKeepOriginalSize,
 }: {
   photo: string | null;
   photoInputRef: React.RefObject<HTMLInputElement>;
   handlePhotoChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   removePhoto: () => void;
+  keepOriginalSize: boolean;
+  setKeepOriginalSize: (v: boolean) => void;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-3">
       <Label className="text-sm font-medium">Photo</Label>
       <input
         ref={photoInputRef}
@@ -512,6 +528,24 @@ function PhotoSection({
           </Button>
         </div>
       )}
+      
+      {/* Pro Feature: Keep Original Size */}
+      <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border">
+        <div className="flex items-center gap-2">
+          <Crown className="h-4 w-4 text-amber-500" />
+          <div>
+            <Label htmlFor="keep-original" className="text-sm font-medium cursor-pointer">
+              Keep original size
+            </Label>
+            <p className="text-xs text-muted-foreground">Pro feature • Higher quality</p>
+          </div>
+        </div>
+        <Switch
+          id="keep-original"
+          checked={keepOriginalSize}
+          onCheckedChange={setKeepOriginalSize}
+        />
+      </div>
     </div>
   );
 }

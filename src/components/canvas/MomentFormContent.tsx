@@ -174,14 +174,14 @@ export function MomentFormContent({
               Memento
             </Button>
           )}
-          <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-            Cancel
-          </Button>
           {mode === 'create' && onSubmit && (
             <Button type="submit" size="sm" form="moment-form">
               Create
             </Button>
           )}
+          <Button type="button" variant="ghost" size="icon" onClick={onCancel} className="h-8 w-8">
+            <X className="h-4 w-4" />
+          </Button>
         </div>
       </div>
 

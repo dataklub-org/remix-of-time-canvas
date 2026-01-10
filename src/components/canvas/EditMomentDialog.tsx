@@ -188,7 +188,8 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       <Sheet open={!!moment} onOpenChange={() => onClose()}>
         <SheetContent 
           side="bottom" 
-          className="h-[90dvh] rounded-t-2xl px-6 pt-6 pb-4 flex flex-col"
+          className="h-[85dvh] rounded-t-2xl px-6 pt-4 pb-4 flex flex-col"
+          hideCloseButton
         >
           {formContent}
         </SheetContent>

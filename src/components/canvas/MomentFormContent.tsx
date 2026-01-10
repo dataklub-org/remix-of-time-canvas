@@ -152,6 +152,10 @@ export function MomentFormContent({
 
   return (
     <div ref={formRef} className="flex flex-col h-full">
+      {/* Drag handle for mobile sheets */}
+      <div className="flex justify-center pt-1 pb-3 shrink-0 md:hidden">
+        <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
+      </div>
       {/* Header */}
       <div className="flex items-center justify-between py-3 px-1 border-b border-border shrink-0">
         <h2 className="text-lg font-medium">

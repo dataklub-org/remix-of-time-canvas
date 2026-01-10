@@ -32,7 +32,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   const [duration, setDuration] = useState<string>('');
   const [period, setPeriod] = useState<'m' | 'h' | 'd' | 'M'>('h');
   const [photo, setPhoto] = useState<string | null>(null);
-  const [moreDetailsOpen, setMoreDetailsOpen] = useState(false);
+  const [moreDetailsOpen, setMoreDetailsOpen] = useState(true); // Start expanded like edit mode
   
   // Initialize date/time inputs when dialog opens
   useEffect(() => {

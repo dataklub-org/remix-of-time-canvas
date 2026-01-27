@@ -13,7 +13,7 @@ interface MomentCardProps {
 }
 
 const MIN_CARD_WIDTH = 4; // Absolute minimum - just past starting point
-const MIN_CARD_HEIGHT = 16;
+const MIN_CARD_HEIGHT = 4; // Absolute minimum - just needs to be visible
 const CARD_RADIUS = 16;
 const RESIZE_HANDLE_SIZE = 20;
 const TIMELINE_BUFFER = 10;
@@ -646,8 +646,8 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           cornerRadius={[CARD_RADIUS, 0, 0, CARD_RADIUS]}
         />
         
-        {/* Photo thumbnail if exists */}
-        {photoImage && cardHeight >= 50 && (
+        {/* Photo thumbnail if exists - only show if card has enough space */}
+        {photoImage && cardHeight >= 50 && cardWidth > 60 && (
           <Group clipFunc={(ctx) => {
             ctx.roundRect(cardWidth - 44, 8, 36, 36, 6);
           }}>
@@ -694,7 +694,8 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         )}
         
         {/* Location - only show if card is tall enough */}
-        {moment.location && cardHeight >= 64 && (
+        {/* Location - only show if card has enough space */}
+        {moment.location && cardHeight >= 64 && cardWidth > 60 && (
           <Text
             x={PADDING_X}
             y={cardHeight < 84 ? Math.max(42, cardHeight - 20) : (moment.people ? 48 : 32)}
@@ -708,35 +709,37 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           />
         )}
         
-        {/* Memorable indicator (M in top right corner) - always visible, clickable */}
-        <Group
-          x={photoImage && cardHeight >= 50 ? cardWidth - 50 : cardWidth - 24}
-          y={4}
-          onClick={(e) => {
-            e.cancelBubble = true;
-            updateMoment(moment.id, { memorable: !moment.memorable });
-          }}
-          onTap={(e) => {
-            e.cancelBubble = true;
-            updateMoment(moment.id, { memorable: !moment.memorable });
-          }}
-        >
-          <Rect
-            width={18}
-            height={18}
-            fill={moment.memorable ? accentColor : '#9ca3af'}
-            cornerRadius={4}
-          />
-          <Text
-            x={4}
-            y={2}
-            text="M"
-            fontSize={12}
-            fontFamily="Inter, sans-serif"
-            fontStyle="bold"
-            fill="#ffffff"
-          />
-        </Group>
+        {/* Memorable indicator (M in top right corner) - only show if card has space */}
+        {cardWidth > 28 && cardHeight > 22 && (
+          <Group
+            x={photoImage && cardHeight >= 50 ? cardWidth - 50 : cardWidth - 24}
+            y={4}
+            onClick={(e) => {
+              e.cancelBubble = true;
+              updateMoment(moment.id, { memorable: !moment.memorable });
+            }}
+            onTap={(e) => {
+              e.cancelBubble = true;
+              updateMoment(moment.id, { memorable: !moment.memorable });
+            }}
+          >
+            <Rect
+              width={18}
+              height={18}
+              fill={moment.memorable ? accentColor : '#9ca3af'}
+              cornerRadius={4}
+            />
+            <Text
+              x={4}
+              y={2}
+              text="M"
+              fontSize={12}
+              fontFamily="Inter, sans-serif"
+              fontStyle="bold"
+              fill="#ffffff"
+            />
+          </Group>
+        )}
         
         {/* Photo preview below card on hover */}
         {isHovered && photoImage && (

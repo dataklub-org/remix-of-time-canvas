@@ -63,7 +63,7 @@ export function TimelineSelector() {
           className={cn(
             "px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200",
             canvasState.activeTimelineId === DEFAULT_TIMELINE_ID
-              ? "bg-foreground text-background shadow-sm"
+              ? "bg-black text-white shadow-sm"
               : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
           )}
         >
@@ -78,7 +78,7 @@ export function TimelineSelector() {
                 className={cn(
                   "px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 relative",
                   canvasState.activeTimelineId !== DEFAULT_TIMELINE_ID
-                    ? "bg-foreground text-background shadow-sm"
+                    ? "bg-black text-white shadow-sm"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 )}
               >
@@ -105,7 +105,7 @@ export function TimelineSelector() {
             className={cn(
               "px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 flex items-center gap-1.5 relative",
               canvasState.activeTimelineId === OURLIFE_TIMELINE_ID
-                ? "bg-foreground text-background shadow-sm"
+                ? "bg-black text-white shadow-sm"
                 : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
             )}
           >

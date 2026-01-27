@@ -177,7 +177,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       <Sheet open={open} onOpenChange={(isOpen) => !isOpen && handleAutosave()}>
         <SheetContent 
           side="bottom" 
-          className="h-auto max-h-[85dvh] rounded-t-2xl px-6 pt-4 pb-4 flex flex-col"
+          className="h-[85dvh] rounded-t-2xl px-6 pt-4 pb-4 flex flex-col"
           onCloseClick={handleDiscard}
         >
           {formContent}

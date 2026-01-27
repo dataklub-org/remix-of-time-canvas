@@ -99,15 +99,13 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     setMoreDetailsOpen(false);
   };
 
-  const handleClose = () => {
-    // Autosave: create the moment if there's a description
+  // Autosave when clicking away (backdrop click)
+  const handleAutosave = () => {
     if (description.trim()) {
-      // Parse timestamp from date and time inputs
       const [year, month, day] = dateInput.split('-').map(Number);
       const [hours, minutes] = timeInput.split(':').map(Number);
       const parsedTimestamp = new Date(year, month - 1, day, hours, minutes).getTime();
       
-      // Calculate endTime from duration and period
       let endTime: number | undefined;
       const durationNum = parseFloat(duration);
       if (!isNaN(durationNum) && durationNum > 0) {
@@ -141,6 +139,12 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     onOpenChange(false);
   };
 
+  // X button: discard new moment (don't save)
+  const handleDiscard = () => {
+    resetForm();
+    onOpenChange(false);
+  };
+
   const formContent = (
     <MomentFormContent
       mode="create"
@@ -168,7 +172,6 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       setPhoto={setPhoto}
       moreDetailsOpen={moreDetailsOpen}
       setMoreDetailsOpen={setMoreDetailsOpen}
-      onCancel={handleClose}
       autoFocusDescription
     />
   );
@@ -176,11 +179,11 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   // Mobile: Use bottom sheet for better keyboard handling
   if (isMobile) {
     return (
-      <Sheet open={open} onOpenChange={handleClose}>
+      <Sheet open={open} onOpenChange={(isOpen) => !isOpen && handleAutosave()}>
         <SheetContent 
           side="bottom" 
           className="h-[85dvh] rounded-t-2xl px-6 pt-4 pb-4 flex flex-col"
-          hideCloseButton
+          onCloseClick={handleDiscard}
         >
           {formContent}
         </SheetContent>
@@ -190,8 +193,11 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
 
   // Desktop: Use dialog
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-hidden p-4 flex flex-col">
+    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleAutosave()}>
+      <DialogContent 
+        className="sm:max-w-xl max-h-[85vh] overflow-hidden p-4 flex flex-col"
+        onCloseClick={handleDiscard}
+      >
         {formContent}
       </DialogContent>
     </Dialog>

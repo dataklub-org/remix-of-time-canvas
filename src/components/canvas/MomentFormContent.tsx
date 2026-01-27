@@ -183,7 +183,7 @@ export function MomentFormContent({
           {/* Description */}
           <div className="space-y-1.5">
             <Label htmlFor="description" className="text-sm font-medium">
-              Description
+              Description <span className="text-destructive">*</span>
             </Label>
             <Textarea
               ref={descriptionRef}

@@ -39,8 +39,10 @@ interface MomentFormContentProps {
   setMoreDetailsOpen?: (value: boolean) => void;
   onDelete?: () => void;
   onMemento?: () => void;
+  onSubmit?: () => void;
   descriptionRef?: React.RefObject<HTMLTextAreaElement>;
   autoFocusDescription?: boolean;
+  isMobile?: boolean;
 }
 
 export function MomentFormContent({
@@ -71,8 +73,10 @@ export function MomentFormContent({
   setMoreDetailsOpen,
   onDelete,
   onMemento,
+  onSubmit,
   descriptionRef,
   autoFocusDescription = false,
+  isMobile = false,
 }: MomentFormContentProps) {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
@@ -197,6 +201,18 @@ export function MomentFormContent({
             />
           </div>
 
+          {/* Create button for web - positioned below description */}
+          {mode === 'create' && onSubmit && !isMobile && (
+            <Button
+              type="button"
+              onClick={onSubmit}
+              disabled={!description.trim()}
+              className="w-full h-11"
+            >
+              Create
+            </Button>
+          )}
+
           {/* People */}
           <div className="space-y-1.5">
             <Label htmlFor="people" className="text-sm font-medium">People</Label>
@@ -310,9 +326,22 @@ export function MomentFormContent({
         </div>
       </div>
 
-      {/* Footer for edit mode */}
-      {mode === 'edit' && onDelete && (
-        <div className="shrink-0 border-t border-border py-3 px-1">
+      {/* Footer */}
+      <div className="shrink-0 border-t border-border py-3 px-1">
+        {/* Create button for mobile - at bottom */}
+        {mode === 'create' && onSubmit && isMobile && (
+          <Button
+            type="button"
+            onClick={onSubmit}
+            disabled={!description.trim()}
+            className="w-full h-12 text-base font-medium"
+          >
+            Create
+          </Button>
+        )}
+        
+        {/* Delete button for edit mode */}
+        {mode === 'edit' && onDelete && (
           <Button
             type="button"
             variant="ghost"
@@ -323,8 +352,8 @@ export function MomentFormContent({
             <Trash2 className="h-4 w-4" />
             Delete Moment
           </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

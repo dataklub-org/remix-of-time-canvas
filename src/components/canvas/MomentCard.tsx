@@ -674,7 +674,7 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
             fontStyle="600"
             fill="#1a1f2e"
             ellipsis
-            wrap="word"
+            wrap="none"
           />
         )}
         

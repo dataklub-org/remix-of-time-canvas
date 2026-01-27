@@ -12,8 +12,8 @@ interface MomentCardProps {
   timelineY: number;
 }
 
-const MIN_CARD_WIDTH = 8; // Minimal width, just needs to be visible
-const MIN_CARD_HEIGHT = 20;
+const MIN_CARD_WIDTH = 4; // Absolute minimum - just past starting point
+const MIN_CARD_HEIGHT = 16;
 const CARD_RADIUS = 16;
 const RESIZE_HANDLE_SIZE = 20;
 const TIMELINE_BUFFER = 10;
@@ -162,11 +162,8 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
     const deltaX = e.clientX - resizeStartRef.current.x;
     const deltaY = e.clientY - resizeStartRef.current.y;
     
-    // Calculate minimum width based on 5 minutes duration at current zoom level
-    const minWidthFromDuration = MIN_DURATION_MS / msPerPixel;
-    const minWidth = Math.max(MIN_CARD_WIDTH, minWidthFromDuration);
-    
-    const newWidth = Math.max(minWidth, resizeStartRef.current.width + deltaX);
+    // Allow resizing down to just past starting point (MIN_CARD_WIDTH)
+    const newWidth = Math.max(MIN_CARD_WIDTH, resizeStartRef.current.width + deltaX);
     let newHeight = Math.max(MIN_CARD_HEIGHT, resizeStartRef.current.height + deltaY);
     
     const isAbove = moment.y < timelineY;
@@ -176,7 +173,7 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
     }
     
     updateMomentSize(moment.id, newWidth, newHeight);
-  }, [moment.id, moment.y, timelineY, msPerPixel, updateMomentSize]);
+  }, [moment.id, moment.y, timelineY, updateMomentSize]);
 
   const handleGlobalMouseUp = useCallback(() => {
     if (!isResizing) return;
@@ -664,23 +661,25 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           </Group>
         )}
         
-        {/* Description - contained within box with ellipsis */}
-        <Text
-          x={PADDING_X}
-          y={cardHeight > 44 ? 12 : Math.max(6, cardHeight / 2 - 7)}
-          width={Math.max(10, cardWidth - (photoImage && cardHeight >= 50 ? 64 : PADDING_X + 8))}
-          height={Math.max(14, cardHeight - (moment.people && cardHeight >= 48 ? 32 : PADDING_Y * 2))}
-          text={moment.description || 'Untitled moment'}
-          fontSize={cardHeight < 50 ? Math.max(9, Math.min(13, cardHeight / 4.5)) : 13}
-          fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
-          fontStyle="600"
-          fill="#1a1f2e"
-          ellipsis
-          wrap="word"
-        />
+        {/* Description - truncated based on available space */}
+        {cardWidth > 20 && cardHeight > 14 && (
+          <Text
+            x={Math.min(PADDING_X, cardWidth / 4)}
+            y={cardHeight > 30 ? Math.min(12, cardHeight / 4) : Math.max(2, cardHeight / 2 - 6)}
+            width={Math.max(1, cardWidth - Math.min(PADDING_X * 2, cardWidth / 2))}
+            height={Math.max(12, cardHeight - 8)}
+            text={moment.description || 'Untitled moment'}
+            fontSize={Math.max(8, Math.min(13, cardWidth / 8, cardHeight / 3))}
+            fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+            fontStyle="600"
+            fill="#1a1f2e"
+            ellipsis
+            wrap="word"
+          />
+        )}
         
-        {/* People - only show if card is tall enough */}
-        {moment.people && cardHeight >= 48 && (
+        {/* People - only show if card has enough space */}
+        {moment.people && cardHeight >= 48 && cardWidth > 60 && (
           <Text
             x={PADDING_X}
             y={cardHeight < 64 ? Math.max(26, cardHeight - 24) : 32}

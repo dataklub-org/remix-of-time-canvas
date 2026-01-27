@@ -238,8 +238,8 @@ export function TimelineCanvas() {
         <TimelineSelector />
       </div>
       
-      {/* Vision statement - centered between selector and timeline */}
-      {showVision && (
+      {/* Vision statement - centered between selector and timeline, hidden when logged in */}
+      {showVision && !isAuthenticated && (
         <div className="absolute top-24 left-0 right-0 text-center pointer-events-none select-none px-6 z-0">
           <p className="text-base md:text-2xl font-semibold text-foreground tracking-tight mb-1">
             A visual memory plane

@@ -173,9 +173,8 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
       }
       
       // Vertical scroll - Y-axis scrolling to see moments above/below
-      // Swipe up (negative deltaY) should move content up (increase scrollY to see content below)
-      // Swipe down (positive deltaY) should move content down (decrease scrollY to see content above)
-      if (Math.abs(deltaY) > 0.5 && verticalScrollRef.current) {
+      // Always apply vertical scrolling on touch devices to expose moved moments
+      if (verticalScrollRef.current) {
         // Use positive deltaY directly - swiping down moves content down (natural scrolling)
         verticalScrollRef.current(-deltaY);
       }

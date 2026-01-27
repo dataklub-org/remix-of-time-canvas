@@ -39,7 +39,6 @@ interface MomentFormContentProps {
   setMoreDetailsOpen?: (value: boolean) => void;
   onDelete?: () => void;
   onMemento?: () => void;
-  onCancel: () => void;
   descriptionRef?: React.RefObject<HTMLTextAreaElement>;
   autoFocusDescription?: boolean;
 }
@@ -72,7 +71,6 @@ export function MomentFormContent({
   setMoreDetailsOpen,
   onDelete,
   onMemento,
-  onCancel,
   descriptionRef,
   autoFocusDescription = false,
 }: MomentFormContentProps) {
@@ -172,9 +170,6 @@ export function MomentFormContent({
               Memento
             </Button>
           )}
-          <Button type="button" variant="ghost" size="icon" onClick={onCancel} className="h-8 w-8">
-            <X className="h-4 w-4" />
-          </Button>
         </div>
       </div>
 
@@ -188,7 +183,7 @@ export function MomentFormContent({
           {/* Description */}
           <div className="space-y-1.5">
             <Label htmlFor="description" className="text-sm font-medium">
-              Description {mode === 'create' && <span className="text-muted-foreground text-xs">(auto-saves on close)</span>}
+              Description
             </Label>
             <Textarea
               ref={descriptionRef}

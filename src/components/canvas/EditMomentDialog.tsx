@@ -177,7 +177,6 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       setMoreDetailsOpen={setMoreDetailsOpen}
       onDelete={handleDelete}
       onMemento={handleMemento}
-      onCancel={onClose}
       descriptionRef={descriptionRef}
     />
   );
@@ -189,7 +188,6 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
         <SheetContent 
           side="bottom" 
           className="h-[85dvh] rounded-t-2xl px-6 pt-4 pb-4 flex flex-col"
-          hideCloseButton
         >
           {formContent}
         </SheetContent>

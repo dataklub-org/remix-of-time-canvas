@@ -99,7 +99,44 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     setMoreDetailsOpen(false);
   };
 
-  const handleCancel = () => {
+  const handleClose = () => {
+    // Autosave: create the moment if there's a description
+    if (description.trim()) {
+      // Parse timestamp from date and time inputs
+      const [year, month, day] = dateInput.split('-').map(Number);
+      const [hours, minutes] = timeInput.split(':').map(Number);
+      const parsedTimestamp = new Date(year, month - 1, day, hours, minutes).getTime();
+      
+      // Calculate endTime from duration and period
+      let endTime: number | undefined;
+      const durationNum = parseFloat(duration);
+      if (!isNaN(durationNum) && durationNum > 0) {
+        let durationMs = 0;
+        switch (period) {
+          case 'm': durationMs = durationNum * 60 * 1000; break;
+          case 'h': durationMs = durationNum * 60 * 60 * 1000; break;
+          case 'd': durationMs = durationNum * 24 * 60 * 60 * 1000; break;
+          case 'M': durationMs = durationNum * 30 * 24 * 60 * 60 * 1000; break;
+        }
+        if (durationMs > MAX_INITIAL_DURATION_MS) {
+          durationMs = MAX_INITIAL_DURATION_MS;
+        }
+        endTime = parsedTimestamp + durationMs;
+      }
+      
+      addMoment({
+        timestamp: parsedTimestamp,
+        endTime,
+        y,
+        description: description.trim(),
+        people: people.join(', '),
+        location,
+        category,
+        memorable,
+        photo: photo || undefined,
+      });
+    }
+    
     resetForm();
     onOpenChange(false);
   };
@@ -131,8 +168,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       setPhoto={setPhoto}
       moreDetailsOpen={moreDetailsOpen}
       setMoreDetailsOpen={setMoreDetailsOpen}
-      onSubmit={handleSubmit}
-      onCancel={handleCancel}
+      onCancel={handleClose}
       autoFocusDescription
     />
   );
@@ -140,7 +176,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   // Mobile: Use bottom sheet for better keyboard handling
   if (isMobile) {
     return (
-      <Sheet open={open} onOpenChange={onOpenChange}>
+      <Sheet open={open} onOpenChange={handleClose}>
         <SheetContent 
           side="bottom" 
           className="h-[85dvh] rounded-t-2xl px-6 pt-4 pb-4 flex flex-col"

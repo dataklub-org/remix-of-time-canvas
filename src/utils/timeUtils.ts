@@ -62,3 +62,28 @@ export function getTickInterval(msPerPixel: number): number {
   const index = getZoomLevelIndex(msPerPixel);
   return ZOOM_LEVELS[index].tickInterval;
 }
+
+// Get default moment width in pixels based on zoom level
+// Returns width representing a reasonable time span for the current zoom
+export function getDefaultMomentWidth(msPerPixel: number): number {
+  const unit = getTimeUnit(msPerPixel);
+  
+  // Map zoom levels to default durations (in ms)
+  const defaultDurations: Record<string, number> = {
+    '5min': 5 * 60 * 1000,           // 5 minutes
+    '10min': 10 * 60 * 1000,         // 10 minutes
+    '30min': 30 * 60 * 1000,         // 30 minutes
+    'hour': 60 * 60 * 1000,          // 1 hour
+    '6hour': 2 * 60 * 60 * 1000,     // 2 hours
+    'day': 4 * 60 * 60 * 1000,       // 4 hours
+    'week': 24 * 60 * 60 * 1000,     // 1 day
+    'month': 7 * 24 * 60 * 60 * 1000, // 1 week
+    'year': 30 * 24 * 60 * 60 * 1000, // 1 month
+  };
+  
+  const duration = defaultDurations[unit] || 60 * 60 * 1000; // fallback to 1 hour
+  const width = duration / msPerPixel;
+  
+  // Cap width between reasonable bounds (60-300 pixels)
+  return Math.max(60, Math.min(300, width));
+}

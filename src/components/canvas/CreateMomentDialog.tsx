@@ -6,6 +6,7 @@ import type { Category } from '@/types/moment';
 import { format } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MomentFormContent } from './MomentFormContent';
+import { getDefaultMomentWidth } from '@/utils/timeUtils';
 
 interface CreateMomentDialogProps {
   open: boolean;
@@ -15,7 +16,7 @@ interface CreateMomentDialogProps {
 }
 
 export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateMomentDialogProps) {
-  const { addMoment } = useMomentsStore();
+  const { addMoment, canvasState } = useMomentsStore();
   const isMobile = useIsMobile();
   
   const [description, setDescription] = useState('');
@@ -59,6 +60,9 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       }
     }
     
+    // Calculate initial width based on current zoom level
+    const initialWidth = getDefaultMomentWidth(canvasState.msPerPixel);
+    
     await addMoment({
       timestamp: parsedTimestamp,
       endTime,
@@ -69,6 +73,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       category,
       memorable,
       photo: photo || undefined,
+      width: initialWidth,
     });
     
     // Reset form
@@ -106,6 +111,9 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
         }
       }
       
+      // Calculate initial width based on current zoom level
+      const initialWidth = getDefaultMomentWidth(canvasState.msPerPixel);
+      
       await addMoment({
         timestamp: parsedTimestamp,
         endTime,
@@ -116,6 +124,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
         category,
         memorable,
         photo: photo || undefined,
+        width: initialWidth,
       });
     }
     

@@ -29,10 +29,10 @@ interface MomentFormContentProps {
   setDateInput: (value: string) => void;
   timeInput: string;
   setTimeInput: (value: string) => void;
-  duration: string;
-  setDuration: (value: string) => void;
-  period: 'm' | 'h' | 'd' | 'M';
-  setPeriod: (value: 'm' | 'h' | 'd' | 'M') => void;
+  endDateInput: string;
+  setEndDateInput: (value: string) => void;
+  endTimeInput: string;
+  setEndTimeInput: (value: string) => void;
   photo: string | null;
   setPhoto: (value: string | null) => void;
   moreDetailsOpen?: boolean;
@@ -63,10 +63,10 @@ export function MomentFormContent({
   setDateInput,
   timeInput,
   setTimeInput,
-  duration,
-  setDuration,
-  period,
-  setPeriod,
+  endDateInput,
+  setEndDateInput,
+  endTimeInput,
+  setEndTimeInput,
   photo,
   setPhoto,
   moreDetailsOpen = false,
@@ -269,15 +269,15 @@ export function MomentFormContent({
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-4 pt-3">
-                <DateTimeFields
+              <DateTimeFields
                   dateInput={dateInput}
                   setDateInput={setDateInput}
                   timeInput={timeInput}
                   setTimeInput={setTimeInput}
-                  duration={duration}
-                  setDuration={setDuration}
-                  period={period}
-                  setPeriod={setPeriod}
+                  endDateInput={endDateInput}
+                  setEndDateInput={setEndDateInput}
+                  endTimeInput={endTimeInput}
+                  setEndTimeInput={setEndTimeInput}
                 />
                 <CategorySection
                   category={category}
@@ -302,10 +302,10 @@ export function MomentFormContent({
                 setDateInput={setDateInput}
                 timeInput={timeInput}
                 setTimeInput={setTimeInput}
-                duration={duration}
-                setDuration={setDuration}
-                period={period}
-                setPeriod={setPeriod}
+                endDateInput={endDateInput}
+                setEndDateInput={setEndDateInput}
+                endTimeInput={endTimeInput}
+                setEndTimeInput={setEndTimeInput}
               />
               <CategorySection
                 category={category}
@@ -364,24 +364,24 @@ function DateTimeFields({
   setDateInput,
   timeInput,
   setTimeInput,
-  duration,
-  setDuration,
-  period,
-  setPeriod,
+  endDateInput,
+  setEndDateInput,
+  endTimeInput,
+  setEndTimeInput,
 }: {
   dateInput: string;
   setDateInput: (v: string) => void;
   timeInput: string;
   setTimeInput: (v: string) => void;
-  duration: string;
-  setDuration: (v: string) => void;
-  period: 'm' | 'h' | 'd' | 'M';
-  setPeriod: (v: 'm' | 'h' | 'd' | 'M') => void;
+  endDateInput: string;
+  setEndDateInput: (v: string) => void;
+  endTimeInput: string;
+  setEndTimeInput: (v: string) => void;
 }) {
   return (
     <div className="grid grid-cols-2 gap-3">
       <div className="space-y-1.5">
-        <Label className="text-sm font-medium">Date & Time</Label>
+        <Label className="text-sm font-medium">Start</Label>
         <Input
           type="date"
           value={dateInput}
@@ -396,26 +396,19 @@ function DateTimeFields({
         />
       </div>
       <div className="space-y-1.5">
-        <Label className="text-sm font-medium text-muted-foreground">Duration</Label>
+        <Label className="text-sm font-medium text-muted-foreground">End (optional)</Label>
         <Input
-          type="number"
-          step="0.1"
-          min="0"
-          placeholder="0"
-          value={duration}
-          onChange={(e) => setDuration(e.target.value)}
+          type="date"
+          value={endDateInput}
+          onChange={(e) => setEndDateInput(e.target.value)}
           className="h-11 text-base"
         />
-        <select
-          value={period}
-          onChange={(e) => setPeriod(e.target.value as 'm' | 'h' | 'd' | 'M')}
-          className="h-11 w-full rounded-md border border-input bg-background px-3 text-base focus:outline-none focus:ring-2 focus:ring-ring"
-        >
-          <option value="m">minutes</option>
-          <option value="h">hours</option>
-          <option value="d">days</option>
-          <option value="M">months</option>
-        </select>
+        <Input
+          type="time"
+          value={endTimeInput}
+          onChange={(e) => setEndTimeInput(e.target.value)}
+          className="h-11 text-base"
+        />
       </div>
     </div>
   );

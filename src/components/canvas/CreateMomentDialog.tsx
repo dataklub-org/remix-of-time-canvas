@@ -14,9 +14,6 @@ interface CreateMomentDialogProps {
   y: number;
 }
 
-// Max 30 minutes for new moments
-const MAX_INITIAL_DURATION_MS = 30 * 60 * 1000;
-
 export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateMomentDialogProps) {
   const { addMoment } = useMomentsStore();
   const isMobile = useIsMobile();
@@ -29,8 +26,8 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   const [memorable, setMemorable] = useState(false);
   const [dateInput, setDateInput] = useState('');
   const [timeInput, setTimeInput] = useState('');
-  const [duration, setDuration] = useState<string>('');
-  const [period, setPeriod] = useState<'m' | 'h' | 'd' | 'M'>('h');
+  const [endDateInput, setEndDateInput] = useState('');
+  const [endTimeInput, setEndTimeInput] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
   const [moreDetailsOpen, setMoreDetailsOpen] = useState(false);
   
@@ -51,22 +48,15 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     const [hours, minutes] = timeInput.split(':').map(Number);
     const parsedTimestamp = new Date(year, month - 1, day, hours, minutes).getTime();
     
-    // Calculate endTime from duration and period
+    // Calculate endTime from end date/time inputs
     let endTime: number | undefined;
-    const durationNum = parseFloat(duration);
-    if (!isNaN(durationNum) && durationNum > 0) {
-      let durationMs = 0;
-      switch (period) {
-        case 'm': durationMs = durationNum * 60 * 1000; break;
-        case 'h': durationMs = durationNum * 60 * 60 * 1000; break;
-        case 'd': durationMs = durationNum * 24 * 60 * 60 * 1000; break;
-        case 'M': durationMs = durationNum * 30 * 24 * 60 * 60 * 1000; break;
+    if (endDateInput && endTimeInput) {
+      const [endYear, endMonth, endDay] = endDateInput.split('-').map(Number);
+      const [endHours, endMinutes] = endTimeInput.split(':').map(Number);
+      const parsedEndTime = new Date(endYear, endMonth - 1, endDay, endHours, endMinutes).getTime();
+      if (parsedEndTime > parsedTimestamp) {
+        endTime = parsedEndTime;
       }
-      // Limit to max 30 minutes for new moments
-      if (durationMs > MAX_INITIAL_DURATION_MS) {
-        durationMs = MAX_INITIAL_DURATION_MS;
-      }
-      endTime = parsedTimestamp + durationMs;
     }
     
     addMoment({
@@ -93,8 +83,8 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     setLocation('');
     setCategory('personal');
     setMemorable(false);
-    setDuration('');
-    setPeriod('h');
+    setEndDateInput('');
+    setEndTimeInput('');
     setPhoto(null);
     setMoreDetailsOpen(false);
   };
@@ -107,19 +97,13 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       const parsedTimestamp = new Date(year, month - 1, day, hours, minutes).getTime();
       
       let endTime: number | undefined;
-      const durationNum = parseFloat(duration);
-      if (!isNaN(durationNum) && durationNum > 0) {
-        let durationMs = 0;
-        switch (period) {
-          case 'm': durationMs = durationNum * 60 * 1000; break;
-          case 'h': durationMs = durationNum * 60 * 60 * 1000; break;
-          case 'd': durationMs = durationNum * 24 * 60 * 60 * 1000; break;
-          case 'M': durationMs = durationNum * 30 * 24 * 60 * 60 * 1000; break;
+      if (endDateInput && endTimeInput) {
+        const [endYear, endMonth, endDay] = endDateInput.split('-').map(Number);
+        const [endHours, endMinutes] = endTimeInput.split(':').map(Number);
+        const parsedEndTime = new Date(endYear, endMonth - 1, endDay, endHours, endMinutes).getTime();
+        if (parsedEndTime > parsedTimestamp) {
+          endTime = parsedEndTime;
         }
-        if (durationMs > MAX_INITIAL_DURATION_MS) {
-          durationMs = MAX_INITIAL_DURATION_MS;
-        }
-        endTime = parsedTimestamp + durationMs;
       }
       
       addMoment({
@@ -164,10 +148,10 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       setDateInput={setDateInput}
       timeInput={timeInput}
       setTimeInput={setTimeInput}
-      duration={duration}
-      setDuration={setDuration}
-      period={period}
-      setPeriod={setPeriod}
+      endDateInput={endDateInput}
+      setEndDateInput={setEndDateInput}
+      endTimeInput={endTimeInput}
+      setEndTimeInput={setEndTimeInput}
       photo={photo}
       setPhoto={setPhoto}
       moreDetailsOpen={moreDetailsOpen}

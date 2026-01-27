@@ -14,7 +14,131 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      moments: {
+        Row: {
+          category: Database["public"]["Enums"]["category_type"]
+          created_at: string
+          description: string
+          end_time: number | null
+          height: number | null
+          id: string
+          location: string | null
+          memorable: boolean | null
+          people: string | null
+          photo_url: string | null
+          start_time: number
+          timeline_id: string
+          updated_at: string
+          user_id: string
+          width: number | null
+          y_position: number
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["category_type"]
+          created_at?: string
+          description: string
+          end_time?: number | null
+          height?: number | null
+          id?: string
+          location?: string | null
+          memorable?: boolean | null
+          people?: string | null
+          photo_url?: string | null
+          start_time: number
+          timeline_id: string
+          updated_at?: string
+          user_id: string
+          width?: number | null
+          y_position?: number
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["category_type"]
+          created_at?: string
+          description?: string
+          end_time?: number | null
+          height?: number | null
+          id?: string
+          location?: string | null
+          memorable?: boolean | null
+          people?: string | null
+          photo_url?: string | null
+          start_time?: number
+          timeline_id?: string
+          updated_at?: string
+          user_id?: string
+          width?: number | null
+          y_position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "moments_timeline_id_fkey"
+            columns: ["timeline_id"]
+            isOneToOne: false
+            referencedRelation: "timelines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      timelines: {
+        Row: {
+          created_at: string
+          id: string
+          is_default: boolean | null
+          name: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name: string
+          type?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_default?: boolean | null
+          name?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +147,7 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      category_type: "business" | "personal"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +274,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      category_type: ["business", "personal"],
+    },
   },
 } as const

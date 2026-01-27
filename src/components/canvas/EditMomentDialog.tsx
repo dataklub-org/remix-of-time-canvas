@@ -25,8 +25,8 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   const [memorable, setMemorable] = useState(false);
   const [dateInput, setDateInput] = useState('');
   const [timeInput, setTimeInput] = useState('');
-  const [duration, setDuration] = useState<string>('');
-  const [period, setPeriod] = useState<'m' | 'h' | 'd' | 'M'>('h');
+  const [endDateInput, setEndDateInput] = useState('');
+  const [endTimeInput, setEndTimeInput] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
   const [moreDetailsOpen, setMoreDetailsOpen] = useState(true); // Start expanded for edit mode
   
@@ -41,18 +41,15 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
     const [hours, minutes] = timeInput.split(':').map(Number);
     const parsedTimestamp = new Date(year, month - 1, day, hours, minutes).getTime();
     
-    // Calculate endTime from duration and period
+    // Calculate endTime from end date/time inputs
     let endTime: number | undefined;
-    const durationNum = parseFloat(duration);
-    if (!isNaN(durationNum) && durationNum > 0) {
-      let durationMs = 0;
-      switch (period) {
-        case 'm': durationMs = durationNum * 60 * 1000; break;
-        case 'h': durationMs = durationNum * 60 * 60 * 1000; break;
-        case 'd': durationMs = durationNum * 24 * 60 * 60 * 1000; break;
-        case 'M': durationMs = durationNum * 30 * 24 * 60 * 60 * 1000; break;
+    if (endDateInput && endTimeInput) {
+      const [endYear, endMonth, endDay] = endDateInput.split('-').map(Number);
+      const [endHours, endMinutes] = endTimeInput.split(':').map(Number);
+      const parsedEndTime = new Date(endYear, endMonth - 1, endDay, endHours, endMinutes).getTime();
+      if (parsedEndTime > parsedTimestamp) {
+        endTime = parsedEndTime;
       }
-      endTime = parsedTimestamp + durationMs;
     }
     
     updateMoment(moment.id, {
@@ -65,7 +62,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       endTime,
       photo: photo || undefined,
     });
-  }, [moment, dateInput, timeInput, description, people, location, category, memorable, duration, period, photo, updateMoment]);
+  }, [moment, dateInput, timeInput, endDateInput, endTimeInput, description, people, location, category, memorable, photo, updateMoment]);
 
   // Autosave on changes (debounced)
   useEffect(() => {
@@ -75,7 +72,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
     }, 300);
     return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [description, people, location, category, memorable, dateInput, timeInput, duration, period, photo, saveChanges, moment]);
+  }, [description, people, location, category, memorable, dateInput, timeInput, endDateInput, endTimeInput, photo, saveChanges, moment]);
   
   // Reset form when moment changes
   useEffect(() => {
@@ -94,31 +91,13 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       setDateInput(format(new Date(moment.timestamp), 'yyyy-MM-dd'));
       setTimeInput(format(new Date(moment.timestamp), 'HH:mm'));
       
-      // Calculate duration and period from endTime
+      // Set end date/time from endTime
       if (moment.endTime && moment.endTime > moment.timestamp) {
-        const diffMs = moment.endTime - moment.timestamp;
-        const diffMinutes = diffMs / (60 * 1000);
-        const diffHours = diffMs / (60 * 60 * 1000);
-        const diffDays = diffMs / (24 * 60 * 60 * 1000);
-        const diffMonths = diffMs / (30 * 24 * 60 * 60 * 1000);
-        
-        // Choose the most appropriate period
-        if (diffMonths >= 1 && diffMonths === Math.floor(diffMonths)) {
-          setDuration(diffMonths.toString());
-          setPeriod('M');
-        } else if (diffDays >= 1 && diffDays === Math.floor(diffDays)) {
-          setDuration(diffDays.toString());
-          setPeriod('d');
-        } else if (diffHours >= 1) {
-          setDuration(parseFloat(diffHours.toFixed(2)).toString());
-          setPeriod('h');
-        } else {
-          setDuration(parseFloat(diffMinutes.toFixed(1)).toString());
-          setPeriod('m');
-        }
+        setEndDateInput(format(new Date(moment.endTime), 'yyyy-MM-dd'));
+        setEndTimeInput(format(new Date(moment.endTime), 'HH:mm'));
       } else {
-        setDuration('');
-        setPeriod('h');
+        setEndDateInput('');
+        setEndTimeInput('');
       }
       
       // Focus and select description field
@@ -167,10 +146,10 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       setDateInput={setDateInput}
       timeInput={timeInput}
       setTimeInput={setTimeInput}
-      duration={duration}
-      setDuration={setDuration}
-      period={period}
-      setPeriod={setPeriod}
+      endDateInput={endDateInput}
+      setEndDateInput={setEndDateInput}
+      endTimeInput={endTimeInput}
+      setEndTimeInput={setEndTimeInput}
       photo={photo}
       setPhoto={setPhoto}
       moreDetailsOpen={moreDetailsOpen}

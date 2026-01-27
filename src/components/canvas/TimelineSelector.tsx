@@ -42,7 +42,8 @@ export function TimelineSelector() {
       setProDialogOpen(true);
       return;
     }
-    setActiveTimeline(timelineId);
+    // MyLife is already selected - no action needed
+    // Timeline stays on MyLife until Pro is enabled
   };
 
   const handleUpgradeToPro = () => {

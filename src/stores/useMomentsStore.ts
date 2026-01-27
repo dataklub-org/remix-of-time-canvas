@@ -78,11 +78,52 @@ export const useMomentsStore = create<MomentsStore>()(
       },
 
       updateMomentY: (id, y) => {
-        set((state) => ({
-          moments: state.moments.map((m) =>
-            m.id === id ? { ...m, y, updatedAt: Date.now() } : m
-          ),
-        }));
+        const state = get();
+        const movingMoment = state.moments.find((m) => m.id === id);
+        if (!movingMoment) return;
+
+        const movingHeight = movingMoment.height || 56;
+        const newTop = y;
+        const newBottom = y + movingHeight;
+        
+        // Find overlapping moments in the same timeline (within similar time range)
+        const PUSH_MARGIN = 8; // Gap between pushed moments
+        const TIME_OVERLAP_THRESHOLD = 2 * 60 * 60 * 1000; // 2 hours overlap window
+        
+        let updatedMoments = state.moments.map((m) => {
+          if (m.id === id) {
+            return { ...m, y, updatedAt: Date.now() };
+          }
+          
+          // Only push moments in same timeline
+          if (m.timelineId !== movingMoment.timelineId) return m;
+          
+          // Check if moments overlap in time
+          const timeOverlap = Math.abs(m.timestamp - movingMoment.timestamp) < TIME_OVERLAP_THRESHOLD;
+          if (!timeOverlap) return m;
+          
+          const otherHeight = m.height || 56;
+          const otherTop = m.y;
+          const otherBottom = m.y + otherHeight;
+          
+          // Check vertical overlap
+          const verticalOverlap = !(newBottom <= otherTop || newTop >= otherBottom);
+          
+          if (verticalOverlap) {
+            // Push the other moment out of the way
+            // Determine direction: push up if moving moment is coming from above, down otherwise
+            const pushUp = newTop < otherTop;
+            const newOtherY = pushUp 
+              ? newBottom + PUSH_MARGIN 
+              : newTop - otherHeight - PUSH_MARGIN;
+            
+            return { ...m, y: newOtherY, updatedAt: Date.now() };
+          }
+          
+          return m;
+        });
+        
+        set({ moments: updatedMoments });
       },
 
       updateMomentSize: (id, width, height) => {

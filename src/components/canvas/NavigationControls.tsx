@@ -35,11 +35,22 @@ export function NavigationControls() {
   const currentUnit = ZOOM_LEVELS[currentIndex].unit;
 
   return (
-    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-card/90 backdrop-blur-sm rounded-full px-2 py-1.5 shadow-lg border border-border touch-none">
+    <div 
+      className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-card/90 backdrop-blur-sm rounded-full px-2 py-1.5 shadow-lg border border-border"
+      onTouchStart={(e) => e.stopPropagation()}
+      onTouchMove={(e) => e.stopPropagation()}
+      onTouchEnd={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       <Button
         variant="ghost"
         size="sm"
         onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleZoomOut();
+        }}
+        onTouchEnd={(e) => {
           e.preventDefault();
           e.stopPropagation();
           handleZoomOut();
@@ -62,6 +73,11 @@ export function NavigationControls() {
           e.stopPropagation();
           handleZoomIn();
         }}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          handleZoomIn();
+        }}
         disabled={currentIndex <= 0}
         className="h-8 w-8 p-0 rounded-full"
       >
@@ -73,7 +89,16 @@ export function NavigationControls() {
       <Button
         variant="default"
         size="sm"
-        onClick={jumpToNow}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          jumpToNow();
+        }}
+        onTouchEnd={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          jumpToNow();
+        }}
         className="h-8 px-4 rounded-full text-xs font-medium"
       >
         <Focus className="h-3.5 w-3.5 mr-1.5" />

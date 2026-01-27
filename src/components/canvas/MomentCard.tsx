@@ -664,18 +664,19 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           </Group>
         )}
         
-        {/* Description - clean typography */}
+        {/* Description - clean typography with ellipsis based on box size */}
         <Text
           x={PADDING_X}
           y={cardHeight > 44 ? 12 : Math.max(6, cardHeight / 2 - 7)}
           width={Math.max(10, cardWidth - (photoImage && cardHeight >= 50 ? 64 : 40))}
+          height={cardHeight > 60 ? cardHeight - 36 : undefined}
           text={moment.description || 'Untitled moment'}
           fontSize={cardHeight < 50 ? Math.max(9, Math.min(13, cardHeight / 4.5)) : 13}
           fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
           fontStyle="600"
           fill="#1a1f2e"
           ellipsis
-          wrap={isHovered ? "word" : "none"}
+          wrap={cardHeight > 60 ? "word" : "none"}
         />
         
         {/* People - only show if card is tall enough */}

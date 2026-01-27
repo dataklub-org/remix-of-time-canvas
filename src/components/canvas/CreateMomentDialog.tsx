@@ -172,7 +172,9 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       setPhoto={setPhoto}
       moreDetailsOpen={moreDetailsOpen}
       setMoreDetailsOpen={setMoreDetailsOpen}
+      onSubmit={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
       autoFocusDescription
+      isMobile={isMobile}
     />
   );
 

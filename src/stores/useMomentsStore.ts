@@ -361,6 +361,23 @@ export const useMomentsStore = create<MomentsStore>()(
             m.id === id ? { ...m, width, height, updatedAt: Date.now() } : m
           ),
         }));
+        
+        // Sync size to Supabase if authenticated
+        const { isAuthenticated, userId } = get();
+        if (isAuthenticated && userId) {
+          supabase
+            .from('moments')
+            .update({ 
+              width,
+              height,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', id)
+            .eq('user_id', userId)
+            .then(({ error }) => {
+              if (error) console.error('Error syncing size:', error);
+            });
+        }
       },
 
       setActiveTimeline: (timelineId) => {

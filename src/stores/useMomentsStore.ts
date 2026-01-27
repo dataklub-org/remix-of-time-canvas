@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
 import type { Moment, Category, CanvasState, Timeline } from '@/types/moment';
+import { supabase } from '@/integrations/supabase/client';
 
 const DEFAULT_TIMELINE_ID = 'mylife';
 const OURLIFE_TIMELINE_ID = 'ourlife';
@@ -15,11 +16,20 @@ interface MomentsStore {
   moments: Moment[];
   timelines: Timeline[];
   canvasState: CanvasState;
+  isAuthenticated: boolean;
+  userId: string | null;
+  userTimelineId: string | null; // The user's actual timeline ID from Supabase
+  isLoading: boolean;
+  
+  // Auth actions
+  setAuthenticated: (isAuth: boolean, userId: string | null) => void;
+  loadUserData: () => Promise<void>;
+  clearUserData: () => void;
   
   // Moment actions
-  addMoment: (moment: Omit<Moment, 'id' | 'createdAt' | 'updatedAt' | 'timelineId'>) => void;
-  updateMoment: (id: string, updates: Partial<Omit<Moment, 'id' | 'createdAt'>>) => void;
-  deleteMoment: (id: string) => void;
+  addMoment: (moment: Omit<Moment, 'id' | 'createdAt' | 'updatedAt' | 'timelineId'>) => Promise<void>;
+  updateMoment: (id: string, updates: Partial<Omit<Moment, 'id' | 'createdAt'>>) => Promise<void>;
+  deleteMoment: (id: string) => Promise<void>;
   updateMomentY: (id: string, y: number) => void;
   updateMomentSize: (id: string, width: number, height: number) => void;
   
@@ -35,6 +45,27 @@ interface MomentsStore {
 
 const DEFAULT_MS_PER_PIXEL = 36_000; // 1 hour per pixel (hourly view)
 
+// Helper to convert Supabase moment to local Moment type
+function supabaseMomentToLocal(row: any): Moment {
+  return {
+    id: row.id,
+    timelineId: row.timeline_id,
+    timestamp: row.start_time,
+    endTime: row.end_time || undefined,
+    y: row.y_position,
+    width: row.width || undefined,
+    height: row.height || undefined,
+    description: row.description,
+    people: row.people || '',
+    location: row.location || '',
+    category: row.category as Category,
+    memorable: row.memorable || false,
+    photo: row.photo_url || undefined,
+    createdAt: new Date(row.created_at).getTime(),
+    updatedAt: new Date(row.updated_at).getTime(),
+  };
+}
+
 export const useMomentsStore = create<MomentsStore>()(
   persist(
     (set, get) => ({
@@ -45,36 +76,208 @@ export const useMomentsStore = create<MomentsStore>()(
         msPerPixel: DEFAULT_MS_PER_PIXEL,
         activeTimelineId: DEFAULT_TIMELINE_ID,
       },
+      isAuthenticated: false,
+      userId: null,
+      userTimelineId: null,
+      isLoading: false,
 
-      addMoment: (moment) => {
+      setAuthenticated: (isAuth, userId) => {
+        set({ isAuthenticated: isAuth, userId });
+        if (isAuth && userId) {
+          get().loadUserData();
+        } else {
+          get().clearUserData();
+        }
+      },
+
+      loadUserData: async () => {
+        const { userId } = get();
+        if (!userId) return;
+        
+        set({ isLoading: true });
+        
+        try {
+          // Get user's default timeline
+          const { data: timelines, error: timelineError } = await supabase
+            .from('timelines')
+            .select('*')
+            .eq('user_id', userId)
+            .eq('is_default', true)
+            .maybeSingle();
+          
+          if (timelineError) throw timelineError;
+          
+          const userTimelineId = timelines?.id || null;
+          
+          if (userTimelineId) {
+            // Load moments for this timeline
+            const { data: moments, error: momentsError } = await supabase
+              .from('moments')
+              .select('*')
+              .eq('timeline_id', userTimelineId)
+              .order('start_time', { ascending: false });
+            
+            if (momentsError) throw momentsError;
+            
+            const localMoments = (moments || []).map(supabaseMomentToLocal);
+            
+            set({ 
+              moments: localMoments, 
+              userTimelineId,
+              canvasState: {
+                ...get().canvasState,
+                activeTimelineId: userTimelineId,
+              }
+            });
+          }
+        } catch (error) {
+          console.error('Error loading user data:', error);
+        } finally {
+          set({ isLoading: false });
+        }
+      },
+
+      clearUserData: () => {
+        set({ 
+          moments: [], 
+          userId: null, 
+          userTimelineId: null,
+          isAuthenticated: false,
+          canvasState: {
+            centerTime: Date.now(),
+            msPerPixel: DEFAULT_MS_PER_PIXEL,
+            activeTimelineId: DEFAULT_TIMELINE_ID,
+          }
+        });
+      },
+
+      addMoment: async (moment) => {
         const now = Date.now();
-        const { activeTimelineId } = get().canvasState;
-        set((state) => ({
-          moments: [
-            ...state.moments,
-            {
-              ...moment,
-              id: nanoid(),
-              timelineId: activeTimelineId,
-              createdAt: now,
-              updatedAt: now,
-            },
-          ],
-        }));
+        const { isAuthenticated, userId, userTimelineId } = get();
+        
+        if (isAuthenticated && userId && userTimelineId) {
+          // Save to Supabase
+          try {
+            const { data, error } = await supabase
+              .from('moments')
+              .insert({
+                user_id: userId,
+                timeline_id: userTimelineId,
+                start_time: moment.timestamp,
+                end_time: moment.endTime || null,
+                y_position: moment.y,
+                description: moment.description,
+                people: moment.people || null,
+                location: moment.location || null,
+                category: moment.category,
+                memorable: moment.memorable || false,
+                photo_url: moment.photo || null,
+                width: moment.width || null,
+                height: moment.height || null,
+              })
+              .select()
+              .single();
+            
+            if (error) throw error;
+            
+            const newMoment = supabaseMomentToLocal(data);
+            set((state) => ({
+              moments: [...state.moments, newMoment],
+            }));
+          } catch (error) {
+            console.error('Error adding moment:', error);
+          }
+        } else {
+          // Local-only storage
+          set((state) => ({
+            moments: [
+              ...state.moments,
+              {
+                ...moment,
+                id: nanoid(),
+                timelineId: DEFAULT_TIMELINE_ID,
+                createdAt: now,
+                updatedAt: now,
+              },
+            ],
+          }));
+        }
       },
 
-      updateMoment: (id, updates) => {
-        set((state) => ({
-          moments: state.moments.map((m) =>
-            m.id === id ? { ...m, ...updates, updatedAt: Date.now() } : m
-          ),
-        }));
+      updateMoment: async (id, updates) => {
+        const { isAuthenticated, userId } = get();
+        
+        if (isAuthenticated && userId) {
+          // Update in Supabase
+          try {
+            const supabaseUpdates: any = {
+              updated_at: new Date().toISOString(),
+            };
+            
+            if (updates.timestamp !== undefined) supabaseUpdates.start_time = updates.timestamp;
+            if (updates.endTime !== undefined) supabaseUpdates.end_time = updates.endTime || null;
+            if (updates.y !== undefined) supabaseUpdates.y_position = updates.y;
+            if (updates.description !== undefined) supabaseUpdates.description = updates.description;
+            if (updates.people !== undefined) supabaseUpdates.people = updates.people || null;
+            if (updates.location !== undefined) supabaseUpdates.location = updates.location || null;
+            if (updates.category !== undefined) supabaseUpdates.category = updates.category;
+            if (updates.memorable !== undefined) supabaseUpdates.memorable = updates.memorable;
+            if (updates.photo !== undefined) supabaseUpdates.photo_url = updates.photo || null;
+            if (updates.width !== undefined) supabaseUpdates.width = updates.width;
+            if (updates.height !== undefined) supabaseUpdates.height = updates.height;
+            
+            const { error } = await supabase
+              .from('moments')
+              .update(supabaseUpdates)
+              .eq('id', id)
+              .eq('user_id', userId);
+            
+            if (error) throw error;
+            
+            set((state) => ({
+              moments: state.moments.map((m) =>
+                m.id === id ? { ...m, ...updates, updatedAt: Date.now() } : m
+              ),
+            }));
+          } catch (error) {
+            console.error('Error updating moment:', error);
+          }
+        } else {
+          // Local-only update
+          set((state) => ({
+            moments: state.moments.map((m) =>
+              m.id === id ? { ...m, ...updates, updatedAt: Date.now() } : m
+            ),
+          }));
+        }
       },
 
-      deleteMoment: (id) => {
-        set((state) => ({
-          moments: state.moments.filter((m) => m.id !== id),
-        }));
+      deleteMoment: async (id) => {
+        const { isAuthenticated, userId } = get();
+        
+        if (isAuthenticated && userId) {
+          // Delete from Supabase
+          try {
+            const { error } = await supabase
+              .from('moments')
+              .delete()
+              .eq('id', id)
+              .eq('user_id', userId);
+            
+            if (error) throw error;
+            
+            set((state) => ({
+              moments: state.moments.filter((m) => m.id !== id),
+            }));
+          } catch (error) {
+            console.error('Error deleting moment:', error);
+          }
+        } else {
+          // Local-only delete
+          set((state) => ({
+            moments: state.moments.filter((m) => m.id !== id),
+          }));
+        }
       },
 
       updateMomentY: (id, y) => {
@@ -124,6 +327,12 @@ export const useMomentsStore = create<MomentsStore>()(
         });
         
         set({ moments: updatedMoments });
+        
+        // Also sync the y update to Supabase if authenticated
+        const { isAuthenticated, userId } = get();
+        if (isAuthenticated && userId) {
+          // Debounced update - happens through the updateMoment call usually
+        }
       },
 
       updateMomentSize: (id, width, height) => {
@@ -166,6 +375,20 @@ export const useMomentsStore = create<MomentsStore>()(
     }),
     {
       name: 'temporal-memory-storage',
+      partialize: (state) => {
+        // Only persist local data when NOT authenticated
+        if (state.isAuthenticated) {
+          return {
+            canvasState: state.canvasState,
+            timelines: state.timelines,
+          };
+        }
+        return {
+          moments: state.moments,
+          canvasState: state.canvasState,
+          timelines: state.timelines,
+        };
+      },
       // Migration to add timelineId to existing moments
       migrate: (persistedState: any, version: number) => {
         if (persistedState.moments) {

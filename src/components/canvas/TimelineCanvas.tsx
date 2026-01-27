@@ -4,6 +4,7 @@ import { Plus, MessageSquare } from 'lucide-react';
 import { useCanvasSize } from '@/hooks/useCanvasSize';
 import { usePanZoom } from '@/hooks/usePanZoom';
 import { useMomentsStore } from '@/stores/useMomentsStore';
+import { useAuth } from '@/hooks/useAuth';
 import { TimeAxis } from './TimeAxis';
 import { MomentCard } from './MomentCard';
 import { CreateMomentDialog } from './CreateMomentDialog';
@@ -23,10 +24,16 @@ const DEFAULT_MS_PER_PIXEL = 36_000;
 
 export function TimelineCanvas() {
   const { width, height: viewportHeight } = useCanvasSize();
-  const { moments, canvasState } = useMomentsStore();
+  const { moments, canvasState, setAuthenticated } = useMomentsStore();
+  const { user, isAuthenticated } = useAuth();
   const { isPanning, handleMouseDown, handleMouseMove, handleMouseUp, handleWheel, setVerticalScrollHandler } = usePanZoom({ canvasWidth: width });
   const initialMsPerPixelRef = useRef(canvasState.msPerPixel);
   const [showVision, setShowVision] = useState(true);
+  
+  // Sync auth state with moments store
+  useEffect(() => {
+    setAuthenticated(isAuthenticated, user?.id || null);
+  }, [isAuthenticated, user?.id, setAuthenticated]);
   
   // Filter moments by active timeline
   const activeTimelineMoments = useMemo(() => {

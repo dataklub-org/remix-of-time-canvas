@@ -12,8 +12,8 @@ interface MomentCardProps {
   timelineY: number;
 }
 
-const MIN_CARD_WIDTH = 30; // Very small minimum to allow compact cards
-const MIN_CARD_HEIGHT = 40;
+const MIN_CARD_WIDTH = 8; // Minimal width, just needs to be visible
+const MIN_CARD_HEIGHT = 20;
 const CARD_RADIUS = 16;
 const RESIZE_HANDLE_SIZE = 20;
 const TIMELINE_BUFFER = 10;
@@ -28,8 +28,8 @@ const BUBBLE_EXPANDED_SIZE = 80;
 const EXPANDED_CARD_WIDTH = 240;
 const EXPANDED_CARD_HEIGHT = 100;
 
-// Minimum duration in milliseconds (5 minutes) - this is the minimum width constraint
-const MIN_DURATION_MS = 5 * 60 * 1000;
+// No minimum duration constraint - width just needs to be positive
+const MIN_DURATION_MS = 0;
 
 // Helper to measure text width (approximate)
 function measureTextWidth(text: string, fontSize: number): number {

@@ -162,6 +162,17 @@ export function MomentFormContent({
           {mode === 'create' ? 'New Moment' : 'Edit Moment'}
         </h2>
         <div className="flex items-center gap-2">
+          {mode === 'create' && onSubmit && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={onSubmit}
+              disabled={!description.trim()}
+              className="h-8 px-4"
+            >
+              Create
+            </Button>
+          )}
           {mode === 'edit' && onMemento && (
             <Button
               type="button"
@@ -200,17 +211,6 @@ export function MomentFormContent({
             />
           </div>
 
-          {/* Create button for web - positioned below description */}
-          {mode === 'create' && onSubmit && !isMobile && (
-            <Button
-              type="button"
-              onClick={onSubmit}
-              disabled={!description.trim()}
-              className="w-full h-11"
-            >
-              Create
-            </Button>
-          )}
 
           {/* People */}
           <div className="space-y-1.5">
@@ -327,18 +327,6 @@ export function MomentFormContent({
 
       {/* Footer */}
       <div className="shrink-0 border-t border-border py-3 px-1">
-        {/* Create button for mobile - at bottom */}
-        {mode === 'create' && onSubmit && isMobile && (
-          <Button
-            type="button"
-            onClick={onSubmit}
-            disabled={!description.trim()}
-            className="w-full h-12 text-base font-medium"
-          >
-            Create
-          </Button>
-        )}
-        
         {/* Delete button for edit mode */}
         {mode === 'edit' && onDelete && (
           <Button

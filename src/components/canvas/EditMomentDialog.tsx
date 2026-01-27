@@ -31,7 +31,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   const [moreDetailsOpen, setMoreDetailsOpen] = useState(true); // Start expanded for edit mode
   
   // Autosave function
-  const saveChanges = useCallback(() => {
+  const saveChanges = useCallback(async () => {
     if (!moment) return;
     
     // Parse timestamp from date and time inputs
@@ -52,7 +52,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       }
     }
     
-    updateMoment(moment.id, {
+    await updateMoment(moment.id, {
       timestamp: parsedTimestamp,
       description,
       people: people.join(', '),
@@ -112,8 +112,8 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
 
   if (!moment) return null;
 
-  const handleDelete = () => {
-    deleteMoment(moment.id);
+  const handleDelete = async () => {
+    await deleteMoment(moment.id);
     onClose();
   };
 

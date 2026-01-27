@@ -40,7 +40,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     }
   }, [open, timestamp]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Parse timestamp from date and time inputs
@@ -59,7 +59,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       }
     }
     
-    addMoment({
+    await addMoment({
       timestamp: parsedTimestamp,
       endTime,
       y,
@@ -90,7 +90,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   };
 
   // Autosave when clicking away (backdrop click)
-  const handleAutosave = () => {
+  const handleAutosave = async () => {
     if (description.trim()) {
       const [year, month, day] = dateInput.split('-').map(Number);
       const [hours, minutes] = timeInput.split(':').map(Number);
@@ -106,7 +106,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
         }
       }
       
-      addMoment({
+      await addMoment({
         timestamp: parsedTimestamp,
         endTime,
         y,

@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ChevronDown, Lock, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useMomentsStore } from '@/stores/useMomentsStore';
+import { useAuth } from '@/hooks/useAuth';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,7 +23,9 @@ const DEFAULT_TIMELINE_ID = 'mylife';
 const OURLIFE_TIMELINE_ID = 'ourlife';
 
 export function TimelineSelector() {
+  const navigate = useNavigate();
   const { canvasState, timelines, setActiveTimeline } = useMomentsStore();
+  const { isAuthenticated } = useAuth();
   const [proDialogOpen, setProDialogOpen] = useState(false);
   
   const activeTimeline = timelines.find(t => t.id === canvasState.activeTimelineId) || timelines[0];
@@ -29,12 +33,24 @@ export function TimelineSelector() {
   const hasMultipleOurLife = ourLifeTimelines.length > 1;
   
   const handleTimelineSelect = (timelineId: string) => {
-    // If selecting OurLife, show Pro dialog
+    // If selecting OurLife, check auth first then show Pro dialog
     if (timelineId !== DEFAULT_TIMELINE_ID) {
+      if (!isAuthenticated) {
+        navigate('/auth');
+        return;
+      }
       setProDialogOpen(true);
       return;
     }
     setActiveTimeline(timelineId);
+  };
+
+  const handleUpgradeToPro = () => {
+    setProDialogOpen(false);
+    if (!isAuthenticated) {
+      navigate('/auth');
+    }
+    // TODO: Implement Pro upgrade flow
   };
 
   return (
@@ -148,9 +164,9 @@ export function TimelineSelector() {
               </Button>
               <Button
                 className="flex-1 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white"
-                onClick={() => setProDialogOpen(false)}
+                onClick={handleUpgradeToPro}
               >
-                Upgrade to Pro
+                {isAuthenticated ? 'Upgrade to Pro' : 'Sign In to Upgrade'}
               </Button>
             </div>
           </div>

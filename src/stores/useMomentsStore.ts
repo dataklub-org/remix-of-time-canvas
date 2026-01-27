@@ -293,6 +293,9 @@ export const useMomentsStore = create<MomentsStore>()(
         const PUSH_MARGIN = 4; // Gap between pushed moments
         const TIME_OVERLAP_THRESHOLD = 2 * 60 * 60 * 1000; // 2 hours overlap window
         
+        // Track which moments need Y position updates for Supabase sync
+        const momentsToSync: { id: string; y: number }[] = [{ id, y }];
+        
         let updatedMoments = state.moments.map((m) => {
           if (m.id === id) {
             return { ...m, y, updatedAt: Date.now() };
@@ -320,6 +323,9 @@ export const useMomentsStore = create<MomentsStore>()(
               ? newBottom + PUSH_MARGIN 
               : newTop - otherHeight - PUSH_MARGIN;
             
+            // Track pushed moment for Supabase sync
+            momentsToSync.push({ id: m.id, y: newOtherY });
+            
             return { ...m, y: newOtherY, updatedAt: Date.now() };
           }
           
@@ -328,10 +334,24 @@ export const useMomentsStore = create<MomentsStore>()(
         
         set({ moments: updatedMoments });
         
-        // Also sync the y update to Supabase if authenticated
+        // Sync Y position updates to Supabase if authenticated
         const { isAuthenticated, userId } = get();
         if (isAuthenticated && userId) {
-          // Debounced update - happens through the updateMoment call usually
+          // Batch update all affected moments
+          momentsToSync.forEach(async ({ id: momentId, y: newY }) => {
+            try {
+              await supabase
+                .from('moments')
+                .update({ 
+                  y_position: newY,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', momentId)
+                .eq('user_id', userId);
+            } catch (error) {
+              console.error('Error syncing Y position:', error);
+            }
+          });
         }
       },
 

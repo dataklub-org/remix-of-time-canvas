@@ -37,7 +37,6 @@ interface MomentFormContentProps {
   setPhoto: (value: string | null) => void;
   moreDetailsOpen?: boolean;
   setMoreDetailsOpen?: (value: boolean) => void;
-  onSubmit?: (e: React.FormEvent) => void;
   onDelete?: () => void;
   onMemento?: () => void;
   onCancel: () => void;
@@ -71,7 +70,6 @@ export function MomentFormContent({
   setPhoto,
   moreDetailsOpen = false,
   setMoreDetailsOpen,
-  onSubmit,
   onDelete,
   onMemento,
   onCancel,
@@ -174,11 +172,6 @@ export function MomentFormContent({
               Memento
             </Button>
           )}
-          {mode === 'create' && onSubmit && (
-            <Button type="submit" size="sm" form="moment-form">
-              Create
-            </Button>
-          )}
           <Button type="button" variant="ghost" size="icon" onClick={onCancel} className="h-8 w-8">
             <X className="h-4 w-4" />
           </Button>
@@ -191,15 +184,11 @@ export function MomentFormContent({
         style={{ WebkitOverflowScrolling: 'touch' }}
         onTouchMove={(e) => e.stopPropagation()}
       >
-        <form
-          id="moment-form"
-          onSubmit={onSubmit}
-          className="space-y-4"
-        >
+        <div className="space-y-4">
           {/* Description */}
           <div className="space-y-1.5">
             <Label htmlFor="description" className="text-sm font-medium">
-              Description <span className="text-destructive">*</span>
+              Description {mode === 'create' && <span className="text-muted-foreground text-xs">(auto-saves on close)</span>}
             </Label>
             <Textarea
               ref={descriptionRef}
@@ -210,7 +199,6 @@ export function MomentFormContent({
               className="resize-none min-h-[80px] text-base"
               rows={3}
               autoFocus={autoFocusDescription}
-              required={mode === 'create'}
             />
           </div>
 
@@ -324,7 +312,7 @@ export function MomentFormContent({
               />
             </>
           )}
-        </form>
+        </div>
       </div>
 
       {/* Footer for edit mode */}

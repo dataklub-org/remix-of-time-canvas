@@ -87,7 +87,7 @@ export const useMomentsStore = create<MomentsStore>()(
         const newBottom = y + movingHeight;
         
         // Find overlapping moments in the same timeline (within similar time range)
-        const PUSH_MARGIN = 8; // Gap between pushed moments
+        const PUSH_MARGIN = 4; // Gap between pushed moments
         const TIME_OVERLAP_THRESHOLD = 2 * 60 * 60 * 1000; // 2 hours overlap window
         
         let updatedMoments = state.moments.map((m) => {

@@ -4,18 +4,22 @@ import { Focus, ZoomIn, ZoomOut } from 'lucide-react';
 import { ZOOM_LEVELS, getZoomLevelIndex } from '@/utils/timeUtils';
 
 export function NavigationControls() {
-  const { canvasState, jumpToNow, setMsPerPixel } = useMomentsStore();
+  const { canvasState, jumpToNow, setMsPerPixel, setCenterTime } = useMomentsStore();
   
   const currentIndex = getZoomLevelIndex(canvasState.msPerPixel);
   
   const handleZoomIn = () => {
     if (currentIndex > 0) {
+      // Reset center time to current and apply new zoom level
+      setCenterTime(canvasState.centerTime);
       setMsPerPixel(ZOOM_LEVELS[currentIndex - 1].msPerPixel);
     }
   };
   
   const handleZoomOut = () => {
     if (currentIndex < ZOOM_LEVELS.length - 1) {
+      // Reset center time to current and apply new zoom level
+      setCenterTime(canvasState.centerTime);
       setMsPerPixel(ZOOM_LEVELS[currentIndex + 1].msPerPixel);
     }
   };

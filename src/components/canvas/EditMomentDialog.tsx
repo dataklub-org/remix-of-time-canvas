@@ -100,11 +100,13 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
         setEndTimeInput('');
       }
       
-      // Focus and select description field
+      // Focus description field and place cursor at the end
       setTimeout(() => {
         if (descriptionRef.current) {
           descriptionRef.current.focus();
-          descriptionRef.current.select();
+          // Move cursor to end instead of selecting all
+          const len = descriptionRef.current.value.length;
+          descriptionRef.current.setSelectionRange(len, len);
         }
       }, 100);
     }

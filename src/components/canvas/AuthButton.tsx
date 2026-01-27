@@ -11,7 +11,7 @@ import {
 
 export function AuthButton() {
   const navigate = useNavigate();
-  const { user, isAuthenticated, signOut } = useAuth();
+  const { user, profile, isAuthenticated, signOut } = useAuth();
 
   const handleSignOut = async () => {
     await signOut();
@@ -27,7 +27,7 @@ export function AuthButton() {
           >
             <User className="h-4 w-4" />
             <span className="hidden sm:inline max-w-[100px] truncate">
-              {user.email?.split('@')[0]}
+              {profile?.username || user.email?.split('@')[0]}
             </span>
           </Button>
         </DropdownMenuTrigger>

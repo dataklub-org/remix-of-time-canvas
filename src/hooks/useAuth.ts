@@ -2,10 +2,33 @@ import { useState, useEffect, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
+interface UserProfile {
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const fetchProfile = useCallback(async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('username, display_name, avatar_url')
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    if (!error && data) {
+      setProfile({
+        username: data.username,
+        displayName: data.display_name,
+        avatarUrl: data.avatar_url,
+      });
+    }
+  }, []);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -14,6 +37,15 @@ export function useAuth() {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+        
+        // Fetch profile when user logs in
+        if (session?.user) {
+          setTimeout(() => {
+            fetchProfile(session.user.id);
+          }, 0);
+        } else {
+          setProfile(null);
+        }
       }
     );
 
@@ -22,23 +54,61 @@ export function useAuth() {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      }
     });
 
     return () => subscription.unsubscribe();
+  }, [fetchProfile]);
+
+  const checkUsernameAvailable = useCallback(async (username: string): Promise<boolean> => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('username', username)
+      .maybeSingle();
+    
+    return !data && !error;
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string, username: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
+    // First check if username is available
+    const isAvailable = await checkUsernameAvailable(username);
+    if (!isAvailable) {
+      return { error: { message: 'Username is already taken' } };
+    }
+    
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl
       }
     });
-    return { error };
-  }, []);
+    
+    if (error) return { error };
+    
+    // Create profile with username
+    if (data.user) {
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .insert({
+          user_id: data.user.id,
+          username: username.toLowerCase(),
+        });
+      
+      if (profileError) {
+        console.error('Error creating profile:', profileError);
+        return { error: { message: 'Failed to create profile' } };
+      }
+    }
+    
+    return { error: null };
+  }, [checkUsernameAvailable]);
 
   const signIn = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({
@@ -50,16 +120,19 @@ export function useAuth() {
 
   const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
+    setProfile(null);
     return { error };
   }, []);
 
   return {
     user,
     session,
+    profile,
     loading,
     signUp,
     signIn,
     signOut,
+    checkUsernameAvailable,
     isAuthenticated: !!user,
   };
 }

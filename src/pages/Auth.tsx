@@ -1,12 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Mail, Lock, Loader2 } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, Loader2, User, Check, X } from 'lucide-react';
 import fractalito from '@/assets/fractalito-logo.png';
+
+const usernameSchema = z.string()
+  .min(3, { message: "Username must be at least 3 characters" })
+  .max(20, { message: "Username must be less than 20 characters" })
+  .regex(/^[a-zA-Z0-9_]+$/, { message: "Only letters, numbers, and underscores allowed" });
 
 const authSchema = z.object({
   email: z.string().trim().email({ message: "Invalid email address" }).max(255),
@@ -15,14 +20,45 @@ const authSchema = z.object({
 
 export default function Auth() {
   const navigate = useNavigate();
-  const { signIn, signUp, isAuthenticated, loading } = useAuth();
+  const { signIn, signUp, isAuthenticated, loading, checkUsernameAvailable } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [usernameError, setUsernameError] = useState<string | null>(null);
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Debounced username check
+  useEffect(() => {
+    if (!isSignUp || !username) {
+      setUsernameAvailable(null);
+      setUsernameError(null);
+      return;
+    }
+
+    const validation = usernameSchema.safeParse(username);
+    if (!validation.success) {
+      setUsernameError(validation.error.errors[0].message);
+      setUsernameAvailable(null);
+      return;
+    }
+
+    setUsernameError(null);
+    setCheckingUsername(true);
+    
+    const timeout = setTimeout(async () => {
+      const available = await checkUsernameAvailable(username);
+      setUsernameAvailable(available);
+      setCheckingUsername(false);
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  }, [username, isSignUp, checkUsernameAvailable]);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -43,16 +79,29 @@ export default function Auth() {
       return;
     }
 
-    if (isSignUp && password !== confirmPassword) {
-      setError("Passwords don't match");
-      return;
+    if (isSignUp) {
+      const usernameValidation = usernameSchema.safeParse(username);
+      if (!usernameValidation.success) {
+        setError(usernameValidation.error.errors[0].message);
+        return;
+      }
+      
+      if (!usernameAvailable) {
+        setError('Please choose an available username');
+        return;
+      }
+      
+      if (password !== confirmPassword) {
+        setError("Passwords don't match");
+        return;
+      }
     }
 
     setSubmitting(true);
 
     try {
       if (isSignUp) {
-        const { error } = await signUp(email, password);
+        const { error } = await signUp(email, password, username);
         if (error) {
           if (error.message.includes('already registered')) {
             setError('This email is already registered. Please sign in instead.');
@@ -64,6 +113,7 @@ export default function Auth() {
           setEmail('');
           setPassword('');
           setConfirmPassword('');
+          setUsername('');
         }
       } else {
         const { error } = await signIn(email, password);
@@ -136,6 +186,41 @@ export default function Auth() {
               </div>
             </div>
 
+            {isSignUp && (
+              <div className="space-y-2">
+                <Label htmlFor="username">Username</Label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="username"
+                    type="text"
+                    placeholder="your_username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                    className="pl-10 pr-10"
+                    required
+                  />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {checkingUsername && (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    )}
+                    {!checkingUsername && usernameAvailable === true && (
+                      <Check className="h-4 w-4 text-green-500" />
+                    )}
+                    {!checkingUsername && usernameAvailable === false && (
+                      <X className="h-4 w-4 text-destructive" />
+                    )}
+                  </div>
+                </div>
+                {usernameError && (
+                  <p className="text-xs text-destructive">{usernameError}</p>
+                )}
+                {!checkingUsername && usernameAvailable === false && !usernameError && (
+                  <p className="text-xs text-destructive">Username is taken</p>
+                )}
+              </div>
+            )}
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <div className="relative">
@@ -204,6 +289,9 @@ export default function Auth() {
                 setIsSignUp(!isSignUp);
                 setError(null);
                 setSuccessMessage(null);
+                setUsername('');
+                setUsernameAvailable(null);
+                setUsernameError(null);
               }}
               className="text-sm text-muted-foreground hover:text-foreground transition-colors"
             >

@@ -11,6 +11,7 @@ import { EditMomentDialog } from './EditMomentDialog';
 import { NavigationControls } from './NavigationControls';
 import { FeedbackPopup } from './FeedbackPopup';
 import { TimelineSelector } from './TimelineSelector';
+import { AuthButton } from './AuthButton';
 import { xToTime, getZoomLevel } from '@/utils/timeUtils';
 import { Button } from '@/components/ui/button';
 import type { Moment } from '@/types/moment';
@@ -195,6 +196,11 @@ export function TimelineCanvas() {
       {/* Branding logo - top left */}
       <div className="absolute top-4 left-4 z-10">
         <img src={fractalito} alt="fractalito" className="h-5 w-auto" />
+      </div>
+      
+      {/* Auth button - top right */}
+      <div className="absolute top-4 right-4 z-10">
+        <AuthButton />
       </div>
       
       {/* Feedback button - bottom left */}

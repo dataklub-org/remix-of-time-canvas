@@ -352,6 +352,7 @@ export type Database = {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
       }
+      redeem_invite_code: { Args: { invite_code: string }; Returns: boolean }
     }
     Enums: {
       category_type: "business" | "personal"

@@ -209,7 +209,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   return (
     <Dialog open={!!moment} onOpenChange={() => onClose()}>
       <DialogContent 
-        className="sm:max-w-xl max-h-[85vh] overflow-hidden p-4 flex flex-col"
+        className="sm:max-w-xl h-[85vh] max-h-[85vh] overflow-hidden p-4 flex flex-col"
         aria-describedby={undefined}
       >
         <VisuallyHidden.Root>

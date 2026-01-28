@@ -149,6 +149,8 @@ export function TimelineCanvas() {
       onTouchMove={handleMouseMove as any}
       onTouchEnd={handleMouseUp}
       onWheel={(e) => {
+        // If a modal is open, let the modal consume scrolling (don't pan/zoom the canvas)
+        if (createDialogOpen || !!selectedMoment || feedbackOpen) return;
         if (e.shiftKey) {
           handleVerticalScroll(e);
         } else {

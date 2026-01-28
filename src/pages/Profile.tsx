@@ -88,17 +88,32 @@ export default function Profile() {
     setGeneratingCode(true);
     try {
       const code = nanoid(10);
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('invite_codes')
         .insert({
           code,
           inviter_user_id: user.id,
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
+      // Add the new code to the list immediately
+      if (data) {
+        setInviteCodes((prev) => [
+          {
+            id: data.id,
+            code: data.code,
+            usedByUserId: data.used_by_user_id,
+            usedAt: data.used_at,
+            createdAt: data.created_at,
+          },
+          ...prev,
+        ]);
+      }
+
       toast.success('Invite link generated!');
-      loadInviteCodes();
     } catch (error) {
       console.error('Error generating invite code:', error);
       toast.error('Failed to generate invite link');

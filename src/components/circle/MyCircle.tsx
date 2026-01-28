@@ -9,10 +9,14 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { useConnections, Connection } from '@/hooks/useConnections';
+import { useGroups } from '@/hooks/useGroups';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+import { GroupsSection } from './GroupsSection';
+import { Separator } from '@/components/ui/separator';
 
 export function MyCircle() {
   const { user, isAuthenticated } = useAuth();
@@ -26,6 +30,14 @@ export function MyCircle() {
     removeConnection,
     clearSearchResults,
   } = useConnections(user?.id || null);
+
+  const {
+    groups,
+    loading: groupsLoading,
+    createGroup,
+    deleteGroup,
+    getGroupMembers,
+  } = useGroups(user?.id || null);
 
   const [searchQuery, setSearchQuery] = useState('');
   const [open, setOpen] = useState(false);
@@ -65,12 +77,15 @@ export function MyCircle() {
           )}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5" />
             My Circle
           </DialogTitle>
+          <DialogDescription>
+            Manage your connections and groups
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -147,7 +162,7 @@ export function MyCircle() {
                 No connections yet. Search for users to add them to your circle.
               </p>
             ) : (
-              <div className="space-y-1 max-h-64 overflow-y-auto">
+              <div className="space-y-1 max-h-48 overflow-y-auto">
                 {connections.map((connection) => (
                   <ConnectionItem
                     key={connection.id}
@@ -158,6 +173,19 @@ export function MyCircle() {
               </div>
             )}
           </div>
+
+          <Separator />
+
+          {/* Groups section */}
+          <GroupsSection
+            groups={groups}
+            loading={groupsLoading}
+            connections={connections}
+            userId={user?.id || ''}
+            onCreateGroup={createGroup}
+            onDeleteGroup={deleteGroup}
+            onGetMembers={getGroupMembers}
+          />
         </div>
       </DialogContent>
     </Dialog>

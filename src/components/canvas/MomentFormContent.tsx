@@ -43,6 +43,7 @@ interface MomentFormContentProps {
   descriptionRef?: React.RefObject<HTMLTextAreaElement>;
   autoFocusDescription?: boolean;
   isMobile?: boolean;
+  shareButton?: React.ReactNode;
 }
 
 export function MomentFormContent({
@@ -77,6 +78,7 @@ export function MomentFormContent({
   descriptionRef,
   autoFocusDescription = false,
   isMobile = false,
+  shareButton,
 }: MomentFormContentProps) {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
@@ -144,6 +146,7 @@ export function MomentFormContent({
           {mode === 'create' ? 'New Moment' : 'Edit Moment'}
         </h2>
         <div className="flex items-center gap-2">
+          {shareButton}
           {mode === 'edit' && onMemento && (
             <Button
               type="button"

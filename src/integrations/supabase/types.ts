@@ -35,6 +35,131 @@ export type Database = {
         }
         Relationships: []
       }
+      group_members: {
+        Row: {
+          group_id: string
+          id: string
+          joined_at: string
+          user_id: string
+        }
+        Insert: {
+          group_id: string
+          id?: string
+          joined_at?: string
+          user_id: string
+        }
+        Update: {
+          group_id?: string
+          id?: string
+          joined_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_moments: {
+        Row: {
+          category: Database["public"]["Enums"]["category_type"]
+          description: string
+          end_time: number | null
+          group_id: string
+          height: number | null
+          id: string
+          location: string | null
+          memorable: boolean | null
+          original_moment_id: string | null
+          people: string | null
+          photo_url: string | null
+          shared_at: string
+          shared_by: string
+          start_time: number
+          width: number | null
+          y_position: number
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["category_type"]
+          description: string
+          end_time?: number | null
+          group_id: string
+          height?: number | null
+          id?: string
+          location?: string | null
+          memorable?: boolean | null
+          original_moment_id?: string | null
+          people?: string | null
+          photo_url?: string | null
+          shared_at?: string
+          shared_by: string
+          start_time: number
+          width?: number | null
+          y_position?: number
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["category_type"]
+          description?: string
+          end_time?: number | null
+          group_id?: string
+          height?: number | null
+          id?: string
+          location?: string | null
+          memorable?: boolean | null
+          original_moment_id?: string | null
+          people?: string | null
+          photo_url?: string | null
+          shared_at?: string
+          shared_by?: string
+          start_time?: number
+          width?: number | null
+          y_position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_moments_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "group_moments_original_moment_id_fkey"
+            columns: ["original_moment_id"]
+            isOneToOne: false
+            referencedRelation: "moments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      groups: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       moments: {
         Row: {
           category: Database["public"]["Enums"]["category_type"]
@@ -168,7 +293,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_group_member: {
+        Args: { _group_id: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       category_type: "business" | "personal"

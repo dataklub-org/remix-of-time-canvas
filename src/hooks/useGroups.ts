@@ -90,29 +90,34 @@ export function useGroups(userId: string | null) {
         .from('groups')
         .insert({ name, created_by: userId })
         .select()
-        .single();
+        .maybeSingle();
 
       if (groupError) throw groupError;
+      if (!groupData) throw new Error('Group was created but could not be returned');
 
-      // Add creator as a member
-      const members = [userId, ...memberUserIds.filter(id => id !== userId)];
-      const memberInserts = members.map(uid => ({
-        group_id: groupData.id,
-        user_id: uid,
-      }));
+      // NOTE: Creator is automatically added as a member by DB trigger.
+      // Only insert the *additional* selected members here.
+      const additionalMembers = memberUserIds.filter(id => id && id !== userId);
+      if (additionalMembers.length > 0) {
+        const memberInserts = additionalMembers.map(uid => ({
+          group_id: groupData.id,
+          user_id: uid,
+        }));
 
-      const { error: memberError } = await supabase
-        .from('group_members')
-        .insert(memberInserts);
+        const { error: memberError } = await supabase
+          .from('group_members')
+          .insert(memberInserts);
 
-      if (memberError) throw memberError;
+        // If a member is already inserted (race/dup), treat as non-fatal.
+        if (memberError && memberError.code !== '23505') throw memberError;
+      }
 
       const newGroup: Group = {
         id: groupData.id,
         name: groupData.name,
         createdBy: groupData.created_by,
         createdAt: groupData.created_at,
-        memberCount: members.length,
+        memberCount: 1 + additionalMembers.length,
       };
 
       setGroups(prev => [newGroup, ...prev]);

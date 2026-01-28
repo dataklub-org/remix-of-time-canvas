@@ -191,7 +191,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && handleAutosave()}>
       <DialogContent 
-        className="sm:max-w-xl max-h-[85vh] overflow-hidden p-4 flex flex-col"
+        className="sm:max-w-xl h-[85vh] max-h-[85vh] overflow-hidden p-4 flex flex-col"
         onCloseClick={handleDiscard}
         aria-describedby={undefined}
       >

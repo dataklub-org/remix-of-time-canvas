@@ -2,7 +2,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 /**
- * Redeem an invite code and create a bidirectional connection between the new user and inviter
+ * Redeem an invite code - the database trigger handles creating bidirectional connections
  */
 export async function redeemInviteCode(userId: string): Promise<boolean> {
   const inviteCode = localStorage.getItem('pending_invite_code');
@@ -35,7 +35,7 @@ export async function redeemInviteCode(userId: string): Promise<boolean> {
       return false;
     }
 
-    // Update the invite code as used
+    // Update the invite code as used - the database trigger will create connections
     const { error: updateError } = await supabase
       .from('invite_codes')
       .update({
@@ -49,23 +49,6 @@ export async function redeemInviteCode(userId: string): Promise<boolean> {
       localStorage.removeItem('pending_invite_code');
       return false;
     }
-
-    // Create bidirectional connection
-    // Connection from new user to inviter
-    await supabase
-      .from('connections')
-      .insert({
-        user_id: userId,
-        connected_user_id: invite.inviter_user_id,
-      });
-
-    // Connection from inviter to new user
-    await supabase
-      .from('connections')
-      .insert({
-        user_id: invite.inviter_user_id,
-        connected_user_id: userId,
-      });
 
     // Clear the stored invite code
     localStorage.removeItem('pending_invite_code');

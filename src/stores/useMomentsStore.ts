@@ -14,6 +14,7 @@ const DEFAULT_TIMELINES: Timeline[] = [
 
 interface MomentsStore {
   moments: Moment[];
+  groupMoments: Moment[]; // Moments from all groups user belongs to
   timelines: Timeline[];
   canvasState: CanvasState;
   isAuthenticated: boolean;
@@ -24,10 +25,12 @@ interface MomentsStore {
   // Auth actions
   setAuthenticated: (isAuth: boolean, userId: string | null) => void;
   loadUserData: () => Promise<void>;
+  loadGroupMoments: () => Promise<void>;
   clearUserData: () => void;
   
   // Moment actions
   addMoment: (moment: Omit<Moment, 'id' | 'createdAt' | 'updatedAt' | 'timelineId'>) => Promise<void>;
+  addGroupMoment: (groupId: string, moment: Omit<Moment, 'id' | 'createdAt' | 'updatedAt' | 'timelineId'>) => Promise<void>;
   updateMoment: (id: string, updates: Partial<Omit<Moment, 'id' | 'createdAt'>>) => Promise<void>;
   deleteMoment: (id: string) => Promise<void>;
   updateMomentY: (id: string, y: number) => void;
@@ -66,10 +69,32 @@ function supabaseMomentToLocal(row: any): Moment {
   };
 }
 
+// Helper to convert group_moment row to local Moment type
+function groupMomentToLocal(row: any): Moment {
+  return {
+    id: row.id,
+    timelineId: OURLIFE_TIMELINE_ID, // All group moments belong to OurLife
+    timestamp: row.start_time,
+    endTime: row.end_time || undefined,
+    y: row.y_position,
+    width: row.width || undefined,
+    height: row.height || undefined,
+    description: row.description,
+    people: row.people || '',
+    location: row.location || '',
+    category: row.category as Category,
+    memorable: row.memorable || false,
+    photo: row.photo_url || undefined,
+    createdAt: new Date(row.shared_at).getTime(),
+    updatedAt: new Date(row.shared_at).getTime(),
+  };
+}
+
 export const useMomentsStore = create<MomentsStore>()(
   persist(
     (set, get) => ({
       moments: [],
+      groupMoments: [],
       timelines: DEFAULT_TIMELINES,
       canvasState: {
         centerTime: Date.now(),
@@ -85,6 +110,7 @@ export const useMomentsStore = create<MomentsStore>()(
         set({ isAuthenticated: isAuth, userId });
         if (isAuth && userId) {
           get().loadUserData();
+          get().loadGroupMoments();
         } else {
           get().clearUserData();
         }
@@ -126,7 +152,7 @@ export const useMomentsStore = create<MomentsStore>()(
               userTimelineId,
               canvasState: {
                 ...get().canvasState,
-                activeTimelineId: userTimelineId,
+                activeTimelineId: DEFAULT_TIMELINE_ID, // Start on MyLife
               }
             });
           }
@@ -137,9 +163,44 @@ export const useMomentsStore = create<MomentsStore>()(
         }
       },
 
+      loadGroupMoments: async () => {
+        const { userId } = get();
+        if (!userId) return;
+
+        try {
+          // Get all groups user is a member of
+          const { data: groups, error: groupsError } = await supabase
+            .from('groups')
+            .select('id');
+
+          if (groupsError) throw groupsError;
+          if (!groups || groups.length === 0) {
+            set({ groupMoments: [] });
+            return;
+          }
+
+          const groupIds = groups.map(g => g.id);
+
+          // Fetch all moments from those groups
+          const { data: gMoments, error: momentsError } = await supabase
+            .from('group_moments')
+            .select('*')
+            .in('group_id', groupIds)
+            .order('start_time', { ascending: false });
+
+          if (momentsError) throw momentsError;
+
+          const localGroupMoments = (gMoments || []).map(groupMomentToLocal);
+          set({ groupMoments: localGroupMoments });
+        } catch (error) {
+          console.error('Error loading group moments:', error);
+        }
+      },
+
       clearUserData: () => {
         set({ 
           moments: [], 
+          groupMoments: [],
           userId: null, 
           userTimelineId: null,
           isAuthenticated: false,
@@ -201,6 +262,42 @@ export const useMomentsStore = create<MomentsStore>()(
               },
             ],
           }));
+        }
+      },
+
+      addGroupMoment: async (groupId, moment) => {
+        const { userId } = get();
+        if (!userId) return;
+
+        try {
+          const { data, error } = await supabase
+            .from('group_moments')
+            .insert({
+              group_id: groupId,
+              shared_by: userId,
+              start_time: moment.timestamp,
+              end_time: moment.endTime || null,
+              y_position: moment.y,
+              description: moment.description,
+              people: moment.people || null,
+              location: moment.location || null,
+              category: moment.category,
+              memorable: moment.memorable || false,
+              photo_url: moment.photo || null,
+              width: moment.width || null,
+              height: moment.height || null,
+            })
+            .select()
+            .single();
+
+          if (error) throw error;
+
+          const newGroupMoment = groupMomentToLocal(data);
+          set((state) => ({
+            groupMoments: [...state.groupMoments, newGroupMoment],
+          }));
+        } catch (error) {
+          console.error('Error adding group moment:', error);
         }
       },
 
@@ -446,3 +543,5 @@ export const useMomentsStore = create<MomentsStore>()(
     }
   )
 );
+
+export { DEFAULT_TIMELINE_ID, OURLIFE_TIMELINE_ID };

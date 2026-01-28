@@ -3,7 +3,7 @@ import { Stage, Layer, Rect } from 'react-konva';
 import { Plus, MessageSquare } from 'lucide-react';
 import { useCanvasSize } from '@/hooks/useCanvasSize';
 import { usePanZoom } from '@/hooks/usePanZoom';
-import { useMomentsStore } from '@/stores/useMomentsStore';
+import { useMomentsStore, OURLIFE_TIMELINE_ID } from '@/stores/useMomentsStore';
 import { useAuth } from '@/hooks/useAuth';
 import { TimeAxis } from './TimeAxis';
 import { MomentCard } from './MomentCard';
@@ -25,7 +25,7 @@ const DEFAULT_MS_PER_PIXEL = 36_000;
 
 export function TimelineCanvas() {
   const { width, height: viewportHeight } = useCanvasSize();
-  const { moments, canvasState, setAuthenticated } = useMomentsStore();
+  const { moments, groupMoments, canvasState, setAuthenticated } = useMomentsStore();
   const { user, isAuthenticated } = useAuth();
   const { isPanning, handleMouseDown, handleMouseMove, handleMouseUp, handleWheel, setVerticalScrollHandler } = usePanZoom({ canvasWidth: width });
   const initialMsPerPixelRef = useRef(canvasState.msPerPixel);
@@ -36,10 +36,17 @@ export function TimelineCanvas() {
     setAuthenticated(isAuthenticated, user?.id || null);
   }, [isAuthenticated, user?.id, setAuthenticated]);
   
-  // Filter moments by active timeline
+  // Determine which moments to show based on active timeline
+  const isOurLifeActive = canvasState.activeTimelineId === OURLIFE_TIMELINE_ID;
+  
   const activeTimelineMoments = useMemo(() => {
-    return moments.filter(m => m.timelineId === canvasState.activeTimelineId);
-  }, [moments, canvasState.activeTimelineId]);
+    if (isOurLifeActive) {
+      // Show all group moments for OurLife
+      return groupMoments;
+    }
+    // For MyLife, show user's personal moments
+    return moments;
+  }, [moments, groupMoments, isOurLifeActive]);
   
   // Calculate dynamic canvas height based on moment positions
   const { canvasHeight, timelineY, scrollOffset } = useMemo(() => {

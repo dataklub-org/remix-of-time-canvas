@@ -13,6 +13,7 @@ import { NavigationControls } from './NavigationControls';
 import { FeedbackPopup } from './FeedbackPopup';
 import { TimelineSelector } from './TimelineSelector';
 import { AuthButton } from './AuthButton';
+import { MyCircle } from '@/components/circle/MyCircle';
 import { xToTime, getZoomLevel } from '@/utils/timeUtils';
 import { Button } from '@/components/ui/button';
 import type { Moment } from '@/types/moment';
@@ -205,8 +206,9 @@ export function TimelineCanvas() {
         <img src={fractalito} alt="fractalito" className="h-5 w-auto" />
       </div>
       
-      {/* Auth button - top right */}
-      <div className="absolute top-4 right-4 z-10">
+      {/* Auth button & My Circle - top right */}
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        <MyCircle />
         <AuthButton />
       </div>
       

@@ -3,12 +3,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Switch } from '@/components/ui/switch';
 import type { Category } from '@/types/moment';
 import { cn } from '@/lib/utils';
 import { X, Camera, Image, ChevronDown, Trash2, Crown } from 'lucide-react';
+import { PeopleAutocomplete } from './PeopleAutocomplete';
 import mementoIcon from '@/assets/memento-icon.png';
 
 interface MomentFormContentProps {
@@ -82,24 +82,6 @@ export function MomentFormContent({
   const formRef = useRef<HTMLDivElement>(null);
   const [keepOriginalSize, setKeepOriginalSize] = useState(false);
 
-  const addPerson = () => {
-    const trimmed = personInput.trim();
-    if (trimmed && !people.includes(trimmed)) {
-      setPeople([...people, trimmed]);
-      setPersonInput('');
-    }
-  };
-
-  const removePerson = (person: string) => {
-    setPeople(people.filter(p => p !== person));
-  };
-
-  const handlePersonKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      addPerson();
-    }
-  };
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -212,38 +194,15 @@ export function MomentFormContent({
             </Button>
           )}
 
-          {/* People */}
+          {/* People with autocomplete */}
           <div className="space-y-1.5">
             <Label htmlFor="people" className="text-sm font-medium">People</Label>
-            <div className="flex gap-2">
-              <Input
-                id="people"
-                placeholder="Add person..."
-                value={personInput}
-                onChange={(e) => setPersonInput(e.target.value)}
-                onKeyDown={handlePersonKeyDown}
-                className="flex-1 h-11 text-base"
-              />
-              <Button type="button" variant="outline" size="sm" onClick={addPerson} className="h-11 px-4">
-                +
-              </Button>
-            </div>
-            {people.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {people.map((person) => (
-                  <Badge key={person} variant="secondary" className="gap-1 pr-1 text-sm py-1">
-                    {person}
-                    <button
-                      type="button"
-                      onClick={() => removePerson(person)}
-                      className="ml-0.5 rounded-full hover:bg-muted-foreground/20 p-0.5"
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </Badge>
-                ))}
-              </div>
-            )}
+            <PeopleAutocomplete
+              people={people}
+              setPeople={setPeople}
+              personInput={personInput}
+              setPersonInput={setPersonInput}
+            />
           </div>
 
           {/* Location */}

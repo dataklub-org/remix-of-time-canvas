@@ -82,7 +82,7 @@ export function useConnections(userId: string | null) {
     }
   }, [userId]);
 
-  // Search for users by username
+  // Search for users by username (uses public_usernames table for privacy)
   const searchUsers = useCallback(async (query: string) => {
     if (!query.trim() || query.length < 2) {
       setSearchResults([]);
@@ -92,8 +92,8 @@ export function useConnections(userId: string | null) {
     setSearching(true);
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('user_id, username, display_name, avatar_url')
+        .from('public_usernames')
+        .select('user_id, username')
         .ilike('username', `%${query}%`)
         .limit(10);
 
@@ -108,8 +108,8 @@ export function useConnections(userId: string | null) {
         .map(p => ({
           userId: p.user_id,
           username: p.username,
-          displayName: p.display_name,
-          avatarUrl: p.avatar_url,
+          displayName: null, // Not exposed in public table
+          avatarUrl: null, // Not exposed in public table
         }));
 
       setSearchResults(results);

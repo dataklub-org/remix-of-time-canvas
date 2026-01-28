@@ -84,7 +84,7 @@ export function useConnections(userId: string | null) {
 
   // Search for users by exact username match (prevents user enumeration)
   const searchUsers = useCallback(async (query: string) => {
-    const trimmedQuery = query.trim().toLowerCase();
+    const trimmedQuery = query.trim();
     if (!trimmedQuery) {
       setSearchResults([]);
       return;
@@ -92,12 +92,9 @@ export function useConnections(userId: string | null) {
 
     setSearching(true);
     try {
-      // Only return exact matches to prevent enumeration attacks
+      // Use secure RPC function for exact match lookup (prevents enumeration)
       const { data, error } = await supabase
-        .from('public_usernames')
-        .select('user_id, username')
-        .ilike('username', trimmedQuery)
-        .limit(1);
+        .rpc('lookup_username_exact', { search_username: trimmedQuery });
 
       if (error) throw error;
 
@@ -106,12 +103,12 @@ export function useConnections(userId: string | null) {
       connectedIds.add(userId || '');
 
       const results: UserSearchResult[] = (data || [])
-        .filter(p => !connectedIds.has(p.user_id))
-        .map(p => ({
+        .filter((p: { user_id: string; username: string }) => !connectedIds.has(p.user_id))
+        .map((p: { user_id: string; username: string }) => ({
           userId: p.user_id,
           username: p.username,
-          displayName: null, // Not exposed in public table
-          avatarUrl: null, // Not exposed in public table
+          displayName: null, // Not exposed for non-connected users
+          avatarUrl: null, // Not exposed for non-connected users
         }));
 
       setSearchResults(results);

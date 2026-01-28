@@ -352,6 +352,13 @@ export type Database = {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
       }
+      lookup_username_exact: {
+        Args: { search_username: string }
+        Returns: {
+          user_id: string
+          username: string
+        }[]
+      }
       redeem_invite_code: { Args: { invite_code: string }; Returns: boolean }
     }
     Enums: {

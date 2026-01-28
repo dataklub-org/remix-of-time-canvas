@@ -5,6 +5,7 @@ import { useCanvasSize } from '@/hooks/useCanvasSize';
 import { usePanZoom } from '@/hooks/usePanZoom';
 import { useMomentsStore, OURLIFE_TIMELINE_ID } from '@/stores/useMomentsStore';
 import { useAuth } from '@/hooks/useAuth';
+import { useGroups } from '@/hooks/useGroups';
 import { TimeAxis } from './TimeAxis';
 import { MomentCard } from './MomentCard';
 import { CreateMomentDialog } from './CreateMomentDialog';
@@ -27,9 +28,21 @@ export function TimelineCanvas() {
   const { width, height: viewportHeight } = useCanvasSize();
   const { moments, groupMoments, canvasState, setAuthenticated } = useMomentsStore();
   const { user, isAuthenticated } = useAuth();
+  const { groups } = useGroups(user?.id || null);
   const { isPanning, handleMouseDown, handleMouseMove, handleMouseUp, handleWheel, setVerticalScrollHandler } = usePanZoom({ canvasWidth: width });
   const initialMsPerPixelRef = useRef(canvasState.msPerPixel);
   const [showVision, setShowVision] = useState(true);
+  
+  // Create a map of group ID to color for quick lookup
+  const groupColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    groups.forEach(g => {
+      if (g.color) {
+        map.set(g.id, g.color);
+      }
+    });
+    return map;
+  }, [groups]);
   
   // Sync auth state with moments store
   useEffect(() => {
@@ -203,6 +216,7 @@ export function TimelineCanvas() {
                 onSelect={handleSelectMoment}
                 timelineY={timelineY + scrollOffset}
                 isGroupMoment={isOurLifeActive}
+                groupColor={moment.groupId ? groupColorMap.get(moment.groupId) : undefined}
               />
             ))}
         </Layer>

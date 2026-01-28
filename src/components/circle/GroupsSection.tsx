@@ -1,11 +1,30 @@
 import { useState } from 'react';
-import { Plus, Users2, Trash2, ChevronRight, Loader2, Check, X, Mail, UserPlus } from 'lucide-react';
+import { Plus, Users2, Trash2, ChevronRight, Loader2, Check, X, Mail, UserPlus, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Group, GroupMember, PendingInvitation } from '@/hooks/useGroups';
 import { Connection } from '@/hooks/useConnections';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+
+// Predefined color palette for groups
+const GROUP_COLORS = [
+  '#3b82f6', // blue
+  '#f59e0b', // amber
+  '#10b981', // emerald
+  '#ef4444', // red
+  '#8b5cf6', // violet
+  '#ec4899', // pink
+  '#06b6d4', // cyan
+  '#f97316', // orange
+  '#84cc16', // lime
+  '#6366f1', // indigo
+];
 
 interface GroupsSectionProps {
   groups: Group[];
@@ -19,6 +38,7 @@ interface GroupsSectionProps {
   onAcceptInvitation: (membershipId: string, groupId: string) => Promise<void>;
   onDeclineInvitation: (membershipId: string) => Promise<void>;
   onAddConnection?: (userId: string) => Promise<unknown>;
+  onUpdateGroupColor?: (groupId: string, color: string | null) => Promise<void>;
 }
 
 export function GroupsSection({
@@ -33,6 +53,7 @@ export function GroupsSection({
   onAcceptInvitation,
   onDeclineInvitation,
   onAddConnection,
+  onUpdateGroupColor,
 }: GroupsSectionProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -41,6 +62,7 @@ export function GroupsSection({
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [colorPickerOpen, setColorPickerOpen] = useState<string | null>(null);
 
   const handleCreateGroup = async () => {
     if (!newGroupName.trim()) return;
@@ -239,6 +261,11 @@ export function GroupsSection({
                 className="flex items-center justify-between p-2.5 hover:bg-muted/50 cursor-pointer"
               >
                 <div className="flex items-center gap-2">
+                  {/* Color indicator */}
+                  <div 
+                    className="w-3 h-3 rounded-full shrink-0"
+                    style={{ backgroundColor: group.color || '#9ca3af' }}
+                  />
                   <ChevronRight 
                     className={cn(
                       "h-4 w-4 text-muted-foreground transition-transform",
@@ -250,19 +277,79 @@ export function GroupsSection({
                     {group.memberCount} member{group.memberCount !== 1 ? 's' : ''}
                   </span>
                 </div>
-                {group.createdBy === userId && (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onDeleteGroup(group.id);
-                    }}
-                    className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
+                <div className="flex items-center gap-1">
+                  {/* Color picker */}
+                  {onUpdateGroupColor && (
+                    <Popover 
+                      open={colorPickerOpen === group.id} 
+                      onOpenChange={(open) => setColorPickerOpen(open ? group.id : null)}
+                    >
+                      <PopoverTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setColorPickerOpen(colorPickerOpen === group.id ? null : group.id);
+                          }}
+                          className="h-7 w-7 p-0"
+                        >
+                          <Palette className="h-3.5 w-3.5" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent 
+                        className="w-auto p-2 z-50 bg-popover" 
+                        align="end"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="grid grid-cols-5 gap-1.5">
+                          {GROUP_COLORS.map((color) => (
+                            <button
+                              key={color}
+                              onClick={() => {
+                                onUpdateGroupColor(group.id, color);
+                                setColorPickerOpen(null);
+                              }}
+                              className={cn(
+                                "w-6 h-6 rounded-full border-2 transition-all",
+                                group.color === color 
+                                  ? "border-foreground scale-110" 
+                                  : "border-transparent hover:scale-110"
+                              )}
+                              style={{ backgroundColor: color }}
+                            />
+                          ))}
+                        </div>
+                        {group.color && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              onUpdateGroupColor(group.id, null);
+                              setColorPickerOpen(null);
+                            }}
+                            className="w-full mt-2 text-xs h-7"
+                          >
+                            Remove color
+                          </Button>
+                        )}
+                      </PopoverContent>
+                    </Popover>
+                  )}
+                  {group.createdBy === userId && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteGroup(group.id);
+                      }}
+                      className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  )}
+                </div>
               </div>
               
               {expandedGroupId === group.id && (

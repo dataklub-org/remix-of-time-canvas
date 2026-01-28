@@ -11,6 +11,7 @@ interface MomentCardProps {
   onSelect: (moment: Moment) => void;
   timelineY: number;
   isGroupMoment?: boolean;
+  groupColor?: string; // User-defined color for this group
 }
 
 const MIN_CARD_WIDTH = 4; // Absolute minimum - just past starting point
@@ -37,7 +38,7 @@ function measureTextWidth(text: string, fontSize: number): number {
   return text.length * fontSize * 0.55;
 }
 
-export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timelineY, isGroupMoment = false }: MomentCardProps) {
+export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timelineY, isGroupMoment = false, groupColor }: MomentCardProps) {
   const { canvasState, updateMomentY, updateGroupMomentY, updateMomentSize, updateMoment } = useMomentsStore();
   const { centerTime, msPerPixel } = canvasState;
   
@@ -95,11 +96,16 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   const endTime = moment.endTime || moment.timestamp;
   const endX = timeToX(endTime, centerTime, msPerPixel, canvasWidth);
   
-  // Color based on category
-  // Modern gradient accents
-  const accentColor = moment.category === 'business' ? '#3b82f6' : '#f59e0b';
-  const accentColorLight = moment.category === 'business' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(245, 158, 11, 0.15)';
-  const lineColor = moment.category === 'business' ? 'rgba(59, 130, 246, 0.35)' : 'rgba(245, 158, 11, 0.35)';
+  // Color based on category OR group color for OurLife moments
+  // Group color takes precedence when available
+  const baseColor = groupColor || (moment.category === 'business' ? '#3b82f6' : '#f59e0b');
+  const accentColor = baseColor;
+  const accentColorLight = groupColor 
+    ? `${groupColor}26` // 15% opacity hex
+    : (moment.category === 'business' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(245, 158, 11, 0.15)');
+  const lineColor = groupColor 
+    ? `${groupColor}59` // 35% opacity hex
+    : (moment.category === 'business' ? 'rgba(59, 130, 246, 0.35)' : 'rgba(245, 158, 11, 0.35)');
   
   // Bubble mode positioning
   const bubbleX = (startX + endX) / 2;

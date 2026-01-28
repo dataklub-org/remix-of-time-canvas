@@ -88,6 +88,7 @@ function groupMomentToLocal(row: any): Moment {
     photo: row.photo_url || undefined,
     createdAt: new Date(row.shared_at).getTime(),
     updatedAt: new Date(row.shared_at).getTime(),
+    groupId: row.group_id, // Include group ID for color lookup
   };
 }
 

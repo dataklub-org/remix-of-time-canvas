@@ -25,6 +25,7 @@ export interface Moment {
   photo?: string; // Photo URL or base64 data
   createdAt: number;
   updatedAt: number;
+  groupId?: string; // For group moments, the group this moment belongs to
 }
 
 export interface CanvasState {

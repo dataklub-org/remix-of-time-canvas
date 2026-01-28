@@ -8,6 +8,7 @@ export interface Group {
   createdBy: string;
   createdAt: string;
   memberCount?: number;
+  color?: string; // User-specific color for this group
 }
 
 export interface GroupMember {
@@ -59,6 +60,7 @@ export function useGroups(userId: string | null) {
     
     setLoading(true);
     try {
+      // Fetch groups with member count
       const { data, error } = await supabase
         .from('groups')
         .select(`
@@ -72,12 +74,21 @@ export function useGroups(userId: string | null) {
 
       if (error) throw error;
 
+      // Fetch user's color preferences for their group memberships
+      const { data: memberships } = await supabase
+        .from('group_members')
+        .select('group_id, color')
+        .eq('user_id', userId);
+
+      const colorMap = new Map(memberships?.map(m => [m.group_id, m.color]) || []);
+
       const formattedGroups: Group[] = (data || []).map((g: any) => ({
         id: g.id,
         name: g.name,
         createdBy: g.created_by,
         createdAt: g.created_at,
         memberCount: g.group_members?.[0]?.count || 0,
+        color: colorMap.get(g.id) || undefined,
       }));
 
       setGroups(formattedGroups);
@@ -361,6 +372,27 @@ export function useGroups(userId: string | null) {
     }
   };
 
+  const updateGroupColor = async (groupId: string, color: string | null) => {
+    if (!userId) return;
+
+    try {
+      const { error } = await supabase
+        .from('group_members')
+        .update({ color })
+        .eq('group_id', groupId)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+
+      setGroups(prev => prev.map(g => 
+        g.id === groupId ? { ...g, color: color || undefined } : g
+      ));
+    } catch (error) {
+      console.error('Error updating group color:', error);
+      toast.error('Failed to update group color');
+    }
+  };
+
   return {
     groups,
     pendingInvitations,
@@ -374,6 +406,7 @@ export function useGroups(userId: string | null) {
     getGroupMoments,
     acceptInvitation,
     declineInvitation,
+    updateGroupColor,
   };
 }
 

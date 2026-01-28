@@ -7,7 +7,14 @@ interface UsePanZoomOptions {
 }
 
 export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
-  const { canvasState, setCenterTime, setMsPerPixel } = useMomentsStore();
+  const canvasState = useMomentsStore((state) => state.canvasState);
+  const setCenterTime = useMomentsStore((state) => state.setCenterTime);
+  const setMsPerPixel = useMomentsStore((state) => state.setMsPerPixel);
+  
+  // Provide defaults during hydration
+  const msPerPixel = canvasState?.msPerPixel ?? 36_000;
+  const centerTime = canvasState?.centerTime ?? Date.now();
+  
   const [isPanning, setIsPanning] = useState(false);
   const [isResizingMoment, setIsResizingMoment] = useState(false);
   const [isPinching, setIsPinching] = useState(false);
@@ -15,7 +22,7 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
   const lastTouchRef = useRef<{ x: number; y: number; centerTime: number } | null>(null);
   const pinchStartRef = useRef<{ distance: number; msPerPixel: number } | null>(null);
   const zoomAnimationRef = useRef<number | null>(null);
-  const targetMsPerPixelRef = useRef<number>(canvasState.msPerPixel);
+  const targetMsPerPixelRef = useRef<number>(msPerPixel);
   const verticalScrollRef = useRef<((deltaY: number) => void) | null>(null);
 
   // Allow external registration of vertical scroll handler
@@ -50,7 +57,7 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
     }
     
     const animate = () => {
-      const currentMsPerPixel = canvasState.msPerPixel;
+      const currentMsPerPixel = msPerPixel;
       const diff = targetMsPerPixel - currentMsPerPixel;
       
       // Very slow easing - only move 3% toward target each frame
@@ -65,7 +72,7 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
     };
     
     zoomAnimationRef.current = requestAnimationFrame(animate);
-  }, [canvasState.msPerPixel, setMsPerPixel]);
+  }, [msPerPixel, setMsPerPixel]);
 
   const handleMouseDown = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     // Don't start panning if resizing a moment
@@ -85,9 +92,9 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
         setIsPinching(true);
         pinchStartRef.current = {
           distance: getTouchDistance(e.touches),
-          msPerPixel: canvasState.msPerPixel,
+          msPerPixel: msPerPixel,
         };
-        targetMsPerPixelRef.current = canvasState.msPerPixel;
+        targetMsPerPixelRef.current = msPerPixel;
         return;
       }
       if (e.touches.length !== 1) return; // Only single touch for panning
@@ -104,10 +111,10 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
     panStartRef.current = {
       x: clientX,
       y: clientY,
-      centerTime: canvasState.centerTime,
+      centerTime: centerTime,
     };
-    lastTouchRef.current = { x: clientX, y: clientY, centerTime: canvasState.centerTime };
-  }, [canvasState.centerTime, canvasState.msPerPixel, isResizingMoment, getTouchDistance]);
+    lastTouchRef.current = { x: clientX, y: clientY, centerTime: centerTime };
+  }, [centerTime, msPerPixel, isResizingMoment, getTouchDistance]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     const isTouch = 'touches' in e;
@@ -155,7 +162,7 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
       clientY = e.clientY;
     }
     
-    const { msPerPixel } = canvasState;
+    const currentMsPerPixel = msPerPixel;
     
     if (isTouch && lastTouchRef.current) {
       const deltaX = clientX - lastTouchRef.current.x;
@@ -166,7 +173,7 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
       
       // Horizontal pan - timeline navigation
       if (Math.abs(deltaX) > 0.5) {
-        const timeDelta = deltaX * msPerPixel;
+        const timeDelta = deltaX * currentMsPerPixel;
         const newCenterTime = lastTouchRef.current.centerTime - timeDelta;
         setCenterTime(newCenterTime);
         lastTouchRef.current.centerTime = newCenterTime;
@@ -184,14 +191,14 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
     } else {
       // Mouse: horizontal drag for horizontal pan
       const deltaX = clientX - panStartRef.current.x;
-      const deltaTime = deltaX * msPerPixel;
+      const deltaTime = deltaX * currentMsPerPixel;
       setCenterTime(panStartRef.current.centerTime - deltaTime);
     }
-  }, [isPanning, isPinching, canvasState.msPerPixel, setCenterTime, isResizingMoment, getTouchDistance, animateZoom]);
+  }, [isPanning, isPinching, msPerPixel, setCenterTime, isResizingMoment, getTouchDistance, animateZoom]);
 
   const handleMouseUp = useCallback(() => {
     const wasPinching = isPinching;
-    const currentMsPerPixel = canvasState.msPerPixel;
+    const currentMsPerPixel = msPerPixel;
     
     setIsPanning(false);
     setIsPinching(false);
@@ -206,7 +213,7 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
       targetMsPerPixelRef.current = targetZoom;
       animateZoom(targetZoom);
     }
-  }, [isPinching, canvasState.msPerPixel, animateZoom]);
+  }, [isPinching, msPerPixel, animateZoom]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     // Don't handle wheel events while resizing
@@ -227,7 +234,7 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
       // Trackpad pinch: deltaY determines zoom direction
       // Positive deltaY = zoom out, negative = zoom in
       const zoomFactor = 1 + e.deltaY * 0.01;
-      const newMsPerPixel = canvasState.msPerPixel * zoomFactor;
+      const newMsPerPixel = msPerPixel * zoomFactor;
       
       // Clamp to valid zoom range
       const clampedMsPerPixel = Math.max(
@@ -240,10 +247,10 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
     } else {
       // Regular scroll: horizontal pan
       const panDelta = e.deltaX !== 0 ? e.deltaX : e.deltaY;
-      const timeDelta = panDelta * canvasState.msPerPixel * 0.5;
-      setCenterTime(canvasState.centerTime + timeDelta);
+      const timeDelta = panDelta * msPerPixel * 0.5;
+      setCenterTime(centerTime + timeDelta);
     }
-  }, [canvasState, setCenterTime, setMsPerPixel, isResizingMoment]);
+  }, [msPerPixel, centerTime, setCenterTime, setMsPerPixel, isResizingMoment]);
 
   return {
     isPanning,

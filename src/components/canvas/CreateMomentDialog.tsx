@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
+import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { useMomentsStore } from '@/stores/useMomentsStore';
 import type { Category } from '@/types/moment';
 import { format } from 'date-fns';
@@ -192,7 +193,11 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       <DialogContent 
         className="sm:max-w-xl max-h-[85vh] overflow-hidden p-4 flex flex-col"
         onCloseClick={handleDiscard}
+        aria-describedby={undefined}
       >
+        <VisuallyHidden.Root>
+          <DialogTitle>New Moment</DialogTitle>
+        </VisuallyHidden.Root>
         {formContent}
       </DialogContent>
     </Dialog>

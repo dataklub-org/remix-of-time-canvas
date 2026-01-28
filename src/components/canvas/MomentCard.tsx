@@ -26,9 +26,10 @@ const SMALL_LINE_HEIGHT = 13;
 const BUBBLE_SIZE = 26;
 const BUBBLE_EXPANDED_SIZE = 80;
 
-// Expanded card dimensions for hover
-const EXPANDED_CARD_WIDTH = 240;
-const EXPANDED_CARD_HEIGHT = 100;
+// Expanded card dimensions for hover preview
+const EXPANDED_CARD_WIDTH = 260;
+const EXPANDED_CARD_HEIGHT = 120;
+const HOVER_PREVIEW_OFFSET = 8;
 
 // No minimum duration constraint - width just needs to be positive
 const MIN_DURATION_MS = 0;
@@ -36,6 +37,13 @@ const MIN_DURATION_MS = 0;
 // Helper to measure text width (approximate)
 function measureTextWidth(text: string, fontSize: number): number {
   return text.length * fontSize * 0.55;
+}
+
+// Helper to truncate text to first line with max 40 chars
+function truncateFirstLine(text: string, maxChars: number = 40): string {
+  const firstLine = text.split('\n')[0];
+  if (firstLine.length <= maxChars) return firstLine;
+  return firstLine.substring(0, maxChars - 1) + '…';
 }
 
 export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timelineY, isGroupMoment = false, groupColor }: MomentCardProps) {
@@ -683,14 +691,14 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           </Group>
         )}
         
-        {/* Description - truncated based on available space */}
+        {/* Description - truncated to first line max 40 chars */}
         {cardWidth > 20 && cardHeight > 14 && (
           <Text
             x={Math.min(PADDING_X, cardWidth / 4)}
             y={cardHeight > 30 ? Math.min(12, cardHeight / 4) : Math.max(2, cardHeight / 2 - 6)}
             width={Math.max(1, cardWidth - Math.min(PADDING_X * 2, cardWidth / 2))}
             height={Math.max(12, cardHeight - 8)}
-            text={moment.description || 'Untitled moment'}
+            text={truncateFirstLine(moment.description || 'Untitled moment', 40)}
             fontSize={Math.max(8, Math.min(13, cardWidth / 8, cardHeight / 3))}
             fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
             fontStyle="600"
@@ -700,36 +708,7 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           />
         )}
         
-        {/* People - only show if card has enough space */}
-        {moment.people && cardHeight >= 48 && cardWidth > 60 && (
-          <Text
-            x={PADDING_X}
-            y={cardHeight < 64 ? Math.max(26, cardHeight - 24) : 32}
-            width={Math.max(10, cardWidth - (photoImage && cardHeight >= 50 ? 64 : 40))}
-            text={moment.people}
-            fontSize={cardHeight < 64 ? Math.max(8, Math.min(11, cardHeight / 6)) : 11}
-            fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
-            fill="#64748b"
-            ellipsis
-            wrap="none"
-          />
-        )}
-        
-        {/* Location - only show if card is tall enough */}
-        {/* Location - only show if card has enough space */}
-        {moment.location && cardHeight >= 64 && cardWidth > 60 && (
-          <Text
-            x={PADDING_X}
-            y={cardHeight < 84 ? Math.max(42, cardHeight - 20) : (moment.people ? 48 : 32)}
-            width={Math.max(10, cardWidth - (photoImage && cardHeight >= 50 ? 64 : 40))}
-            text={`📍 ${moment.location}`}
-            fontSize={cardHeight < 84 ? Math.max(8, Math.min(10, cardHeight / 8)) : 10}
-            fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
-            fill="#94a3b8"
-            ellipsis
-            wrap="none"
-          />
-        )}
+        {/* People and Location hidden on card - shown on hover preview */}
         
         {/* Memorable indicator (M in top right corner) - only show if card has space */}
         {cardWidth > 28 && cardHeight > 22 && (
@@ -763,32 +742,91 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           </Group>
         )}
         
-        {/* Photo preview below card on hover */}
-        {isHovered && photoImage && (
+        {/* Hover preview - full moment details */}
+        {isHovered && (
           <Group
-            x={(cardWidth - PHOTO_PREVIEW_WIDTH) / 2}
-            y={cardHeight + 8}
+            x={(cardWidth - EXPANDED_CARD_WIDTH) / 2}
+            y={cardHeight + HOVER_PREVIEW_OFFSET}
           >
+            {/* Preview card background */}
             <Rect
-              width={PHOTO_PREVIEW_WIDTH}
-              height={PHOTO_PREVIEW_HEIGHT}
+              width={EXPANDED_CARD_WIDTH}
+              height={EXPANDED_CARD_HEIGHT}
               fill="#ffffff"
-              cornerRadius={8}
-              shadowColor="rgba(0,0,0,0.15)"
-              shadowBlur={12}
-              shadowOffsetY={4}
+              cornerRadius={12}
+              shadowColor="rgba(0,0,0,0.18)"
+              shadowBlur={20}
+              shadowOffsetY={6}
             />
-            <Group clipFunc={(ctx) => {
-              ctx.roundRect(4, 4, PHOTO_PREVIEW_WIDTH - 8, PHOTO_PREVIEW_HEIGHT - 8, 6);
-            }}>
-              <KonvaImage
-                image={photoImage}
-                x={4}
-                y={4}
-                width={PHOTO_PREVIEW_WIDTH - 8}
-                height={PHOTO_PREVIEW_HEIGHT - 8}
+            
+            {/* Accent bar */}
+            <Rect
+              x={0}
+              y={0}
+              width={4}
+              height={EXPANDED_CARD_HEIGHT}
+              fill={accentColor}
+              cornerRadius={[12, 0, 0, 12]}
+            />
+            
+            {/* Full description with wrapping */}
+            <Text
+              x={16}
+              y={12}
+              width={photoImage ? EXPANDED_CARD_WIDTH - 80 : EXPANDED_CARD_WIDTH - 28}
+              text={moment.description || 'Untitled moment'}
+              fontSize={13}
+              fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+              fontStyle="600"
+              fill="#1a1f2e"
+              wrap="word"
+              lineHeight={1.3}
+            />
+            
+            {/* People */}
+            {moment.people && (
+              <Text
+                x={16}
+                y={EXPANDED_CARD_HEIGHT - 40}
+                width={EXPANDED_CARD_WIDTH - 32}
+                text={`👥 ${moment.people}`}
+                fontSize={11}
+                fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+                fill="#64748b"
+                ellipsis
+                wrap="none"
               />
-            </Group>
+            )}
+            
+            {/* Location */}
+            {moment.location && (
+              <Text
+                x={16}
+                y={EXPANDED_CARD_HEIGHT - 22}
+                width={EXPANDED_CARD_WIDTH - 32}
+                text={`📍 ${moment.location}`}
+                fontSize={11}
+                fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+                fill="#94a3b8"
+                ellipsis
+                wrap="none"
+              />
+            )}
+            
+            {/* Photo thumbnail in preview */}
+            {photoImage && (
+              <Group clipFunc={(ctx) => {
+                ctx.roundRect(EXPANDED_CARD_WIDTH - 60, 10, 50, 50, 6);
+              }}>
+                <KonvaImage
+                  image={photoImage}
+                  x={EXPANDED_CARD_WIDTH - 60}
+                  y={10}
+                  width={50}
+                  height={50}
+                />
+              </Group>
+            )}
           </Group>
         )}
         

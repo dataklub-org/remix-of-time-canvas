@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      connections: {
+        Row: {
+          connected_user_id: string
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          connected_user_id: string
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          connected_user_id?: string
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       moments: {
         Row: {
           category: Database["public"]["Enums"]["category_type"]

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
-import { useMomentsStore, OURLIFE_TIMELINE_ID } from '@/stores/useMomentsStore';
+import { useMomentsStore } from '@/stores/useMomentsStore';
 import { useGroups } from '@/hooks/useGroups';
 import { useAuth } from '@/hooks/useAuth';
 import type { Category } from '@/types/moment';
@@ -10,9 +10,7 @@ import { format } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MomentFormContent } from './MomentFormContent';
 import { getDefaultMomentWidth } from '@/utils/timeUtils';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users2 } from 'lucide-react';
+import { GroupShareSelector } from './GroupShareSelector';
 
 interface CreateMomentDialogProps {
   open: boolean;
@@ -39,22 +37,17 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   const [endTimeInput, setEndTimeInput] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
   const [moreDetailsOpen, setMoreDetailsOpen] = useState(false);
-  const [selectedGroupId, setSelectedGroupId] = useState<string>('mylife');
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
   
-  // Initialize date/time inputs and group selection when dialog opens
+  // Initialize date/time inputs when dialog opens
   useEffect(() => {
     if (open) {
       const date = new Date(timestamp);
       setDateInput(format(date, 'yyyy-MM-dd'));
       setTimeInput(format(date, 'HH:mm'));
-      // Pre-select based on active timeline
-      if (canvasState.activeTimelineId === OURLIFE_TIMELINE_ID && groups.length > 0) {
-        setSelectedGroupId(groups[0].id);
-      } else {
-        setSelectedGroupId('mylife');
-      }
+      setSelectedGroupIds([]);
     }
-  }, [open, timestamp, canvasState.activeTimelineId, groups]);
+  }, [open, timestamp]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,14 +84,15 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       width: initialWidth,
     };
     
-    if (selectedGroupId !== 'mylife' && isAuthenticated) {
-      // Create as a group moment
-      await addGroupMoment(selectedGroupId, momentData);
-      // Reload group moments to show in OurLife
+    // Always create in MyLife (personal timeline)
+    await addMoment(momentData);
+    
+    // Also share to selected groups if any
+    if (selectedGroupIds.length > 0 && isAuthenticated) {
+      for (const groupId of selectedGroupIds) {
+        await addGroupMoment(groupId, momentData);
+      }
       await loadGroupMoments();
-    } else {
-      // Create as a personal moment
-      await addMoment(momentData);
     }
     
     // Reset form
@@ -117,7 +111,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     setEndTimeInput('');
     setPhoto(null);
     setMoreDetailsOpen(false);
-    setSelectedGroupId('mylife');
+    setSelectedGroupIds([]);
   };
 
   // Autosave when clicking away (backdrop click)
@@ -153,11 +147,15 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
         width: initialWidth,
       };
       
-      if (selectedGroupId !== 'mylife' && isAuthenticated) {
-        await addGroupMoment(selectedGroupId, momentData);
+      // Always save to MyLife
+      await addMoment(momentData);
+      
+      // Also share to selected groups
+      if (selectedGroupIds.length > 0 && isAuthenticated) {
+        for (const groupId of selectedGroupIds) {
+          await addGroupMoment(groupId, momentData);
+        }
         await loadGroupMoments();
-      } else {
-        await addMoment(momentData);
       }
     }
     
@@ -171,32 +169,20 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     onOpenChange(false);
   };
 
-  // Group selector component
-  const groupSelector = isAuthenticated && groups.length > 0 ? (
-    <div className="space-y-1.5 mb-4">
-      <Label className="text-sm font-medium flex items-center gap-1.5">
-        <Users2 className="h-4 w-4" />
-        Share to
-      </Label>
-      <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
-        <SelectTrigger className="h-11">
-          <SelectValue placeholder="Select timeline" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="mylife">MyLife (Personal)</SelectItem>
-          {groups.map((group) => (
-            <SelectItem key={group.id} value={group.id}>
-              {group.name} (Group)
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+  // Group share section for create mode
+  const groupShareSection = isAuthenticated && groups.length > 0 ? (
+    <div className="space-y-2 pt-3 border-t border-border mt-3">
+      <GroupShareSelector
+        groups={groups}
+        selectedGroupIds={selectedGroupIds}
+        onSelectionChange={setSelectedGroupIds}
+        label="Also share to groups"
+      />
     </div>
   ) : null;
 
   const formContent = (
     <div className="flex flex-col h-full">
-      {groupSelector}
       <div className="flex-1 min-h-0">
         <MomentFormContent
           mode="create"
@@ -227,6 +213,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
           onSubmit={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
           autoFocusDescription
           isMobile={isMobile}
+          groupShareSection={groupShareSection}
         />
       </div>
     </div>

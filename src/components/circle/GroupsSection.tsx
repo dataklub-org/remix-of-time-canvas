@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Users2, Trash2, ChevronRight, Loader2, Check, X, Mail } from 'lucide-react';
+import { Plus, Users2, Trash2, ChevronRight, Loader2, Check, X, Mail, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Group, GroupMember, PendingInvitation } from '@/hooks/useGroups';
@@ -18,6 +18,7 @@ interface GroupsSectionProps {
   onGetMembers: (groupId: string) => Promise<GroupMember[]>;
   onAcceptInvitation: (membershipId: string, groupId: string) => Promise<void>;
   onDeclineInvitation: (membershipId: string) => Promise<void>;
+  onAddConnection?: (userId: string) => Promise<unknown>;
 }
 
 export function GroupsSection({
@@ -31,6 +32,7 @@ export function GroupsSection({
   onGetMembers,
   onAcceptInvitation,
   onDeclineInvitation,
+  onAddConnection,
 }: GroupsSectionProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -164,32 +166,58 @@ export function GroupsSection({
             Pending Invitations ({pendingInvitations.length})
           </h5>
           <div className="space-y-1">
-            {pendingInvitations.map((invitation) => (
-              <div
-                key={invitation.id}
-                className="flex items-center justify-between p-2 border rounded-lg bg-primary/5"
-              >
-                <span className="text-sm font-medium">{invitation.groupName}</span>
-                <div className="flex gap-1">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => onAcceptInvitation(invitation.id, invitation.groupId)}
-                    className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-100"
-                  >
-                    <Check className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => onDeclineInvitation(invitation.id)}
-                    className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
+            {pendingInvitations.map((invitation) => {
+              // Check if the inviter is already in connections
+              const isAlreadyConnected = connections.some(
+                conn => conn.connectedUserId === invitation.invitedBy
+              );
+              
+              return (
+                <div
+                  key={invitation.id}
+                  className="flex items-center justify-between p-2 border rounded-lg bg-primary/5"
+                >
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-sm font-medium">{invitation.groupName}</span>
+                    {invitation.inviterUsername && (
+                      <span className="text-xs text-muted-foreground">
+                        Invited by @{invitation.inviterUsername}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-1">
+                    {/* Add to Circle button - only show if inviter is not already connected */}
+                    {onAddConnection && invitation.invitedBy && !isAlreadyConnected && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => onAddConnection(invitation.invitedBy)}
+                        className="h-7 w-7 p-0 text-primary hover:text-primary hover:bg-primary/10"
+                        title={`Add @${invitation.inviterUsername || 'user'} to your circle`}
+                      >
+                        <UserPlus className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onAcceptInvitation(invitation.id, invitation.groupId)}
+                      className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-100"
+                    >
+                      <Check className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => onDeclineInvitation(invitation.id)}
+                      className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

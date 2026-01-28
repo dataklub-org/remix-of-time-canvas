@@ -191,6 +191,7 @@ export function MyCircle() {
             onGetMembers={getGroupMembers}
             onAcceptInvitation={acceptInvitation}
             onDeclineInvitation={declineInvitation}
+            onAddConnection={addConnection}
           />
         </div>
       </DialogContent>

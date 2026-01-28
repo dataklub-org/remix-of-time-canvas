@@ -7,11 +7,11 @@ import type { Moment, Category } from '@/types/moment';
 import { format } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MomentFormContent } from './MomentFormContent';
-import { ShareToGroupDialog } from './ShareToGroupDialog';
-import { useGroups } from '@/hooks/useGroups';
+import { useGroups, useShareMoment } from '@/hooks/useGroups';
 import { useAuth } from '@/hooks/useAuth';
+import { GroupShareSelector } from './GroupShareSelector';
 import { Button } from '@/components/ui/button';
-import { Share2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface EditMomentDialogProps {
   moment: Moment | null;
@@ -19,9 +19,10 @@ interface EditMomentDialogProps {
 }
 
 export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
-  const { updateMoment, deleteMoment, setCenterTime, setMsPerPixel } = useMomentsStore();
+  const { updateMoment, deleteMoment, setCenterTime, setMsPerPixel, loadGroupMoments } = useMomentsStore();
   const { user } = useAuth();
   const { groups } = useGroups(user?.id || null);
+  const { shareMomentToGroup } = useShareMoment(user?.id || null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const isMobile = useIsMobile();
   
@@ -36,20 +37,20 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   const [endDateInput, setEndDateInput] = useState('');
   const [endTimeInput, setEndTimeInput] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
-  const [moreDetailsOpen, setMoreDetailsOpen] = useState(true); // Start expanded for edit mode
+  const [moreDetailsOpen, setMoreDetailsOpen] = useState(true);
+  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  const [sharing, setSharing] = useState(false);
   
   // Autosave function
   const saveChanges = useCallback(async () => {
     if (!moment) return;
     
-    // Parse timestamp from date and time inputs
     if (!dateInput || !timeInput) return;
     
     const [year, month, day] = dateInput.split('-').map(Number);
     const [hours, minutes] = timeInput.split(':').map(Number);
     const parsedTimestamp = new Date(year, month - 1, day, hours, minutes).getTime();
     
-    // Calculate endTime from end date/time inputs
     let endTime: number | undefined;
     if (endDateInput && endTimeInput) {
       const [endYear, endMonth, endDay] = endDateInput.split('-').map(Number);
@@ -86,7 +87,6 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   useEffect(() => {
     if (moment) {
       setDescription(moment.description || '');
-      // Parse people string to array
       const peopleArray = moment.people 
         ? moment.people.split(',').map(p => p.trim()).filter(Boolean)
         : [];
@@ -98,8 +98,8 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       setPhoto(moment.photo || null);
       setDateInput(format(new Date(moment.timestamp), 'yyyy-MM-dd'));
       setTimeInput(format(new Date(moment.timestamp), 'HH:mm'));
+      setSelectedGroupIds([]);
       
-      // Set end date/time from endTime
       if (moment.endTime && moment.endTime > moment.timestamp) {
         setEndDateInput(format(new Date(moment.endTime), 'yyyy-MM-dd'));
         setEndTimeInput(format(new Date(moment.endTime), 'HH:mm'));
@@ -108,17 +108,15 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
         setEndTimeInput('');
       }
       
-      // Focus description field and place cursor at the end
       setTimeout(() => {
         if (descriptionRef.current) {
           descriptionRef.current.focus();
-          // Move cursor to end instead of selecting all
           const len = descriptionRef.current.value.length;
           descriptionRef.current.setSelectionRange(len, len);
         }
       }, 100);
     }
-  }, [moment?.id]); // Only trigger on moment id change, not on updates
+  }, [moment?.id]);
 
   if (!moment) return null;
 
@@ -128,33 +126,67 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   };
 
   const handleMemento = () => {
-    // Calculate center time (middle of moment if it has duration)
     const centerTime = moment.endTime 
       ? moment.timestamp + (moment.endTime - moment.timestamp) / 2 
       : moment.timestamp;
     setCenterTime(centerTime);
-    setMsPerPixel(36_000); // Hourly zoom level
+    setMsPerPixel(36_000);
     onClose();
   };
 
-  // Share button for the header
-  const shareButton = groups.length > 0 && moment ? (
-    <ShareToGroupDialog
-      moment={moment}
-      groups={groups}
-      userId={user?.id || null}
-      trigger={
+  const handleShareToGroups = async () => {
+    if (selectedGroupIds.length === 0 || !moment) return;
+    
+    setSharing(true);
+    try {
+      for (const groupId of selectedGroupIds) {
+        await shareMomentToGroup(groupId, {
+          id: moment.id,
+          timestamp: moment.timestamp,
+          endTime: moment.endTime,
+          y: moment.y,
+          width: moment.width,
+          height: moment.height,
+          description: moment.description,
+          people: moment.people,
+          location: moment.location,
+          category: moment.category,
+          memorable: moment.memorable,
+          photo: moment.photo,
+        });
+      }
+      await loadGroupMoments();
+      setSelectedGroupIds([]);
+      toast.success(`Shared to ${selectedGroupIds.length} group${selectedGroupIds.length > 1 ? 's' : ''}`);
+    } catch (error) {
+      console.error('Error sharing to groups:', error);
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  // Group share section for the form
+  const groupShareSection = groups.length > 0 ? (
+    <div className="space-y-3 pt-3 border-t border-border mt-3">
+      <GroupShareSelector
+        groups={groups}
+        selectedGroupIds={selectedGroupIds}
+        onSelectionChange={setSelectedGroupIds}
+        label="Share to groups"
+      />
+      {selectedGroupIds.length > 0 && (
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="flex items-center gap-1 text-xs"
+          onClick={handleShareToGroups}
+          disabled={sharing}
+          className="w-full"
         >
-          <Share2 className="h-4 w-4" />
-          Share
+          {sharing ? 'Sharing...' : `Share to ${selectedGroupIds.length} group${selectedGroupIds.length > 1 ? 's' : ''}`}
         </Button>
-      }
-    />
+      )}
+    </div>
   ) : null;
 
   const formContent = (
@@ -187,11 +219,10 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       onDelete={handleDelete}
       onMemento={handleMemento}
       descriptionRef={descriptionRef}
-      shareButton={shareButton}
+      groupShareSection={groupShareSection}
     />
   );
 
-  // Mobile: Use bottom sheet for better keyboard handling
   if (isMobile) {
     return (
       <Sheet open={!!moment} onOpenChange={() => onClose()}>
@@ -205,7 +236,6 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
     );
   }
 
-  // Desktop: Use dialog
   return (
     <Dialog open={!!moment} onOpenChange={() => onClose()}>
       <DialogContent 

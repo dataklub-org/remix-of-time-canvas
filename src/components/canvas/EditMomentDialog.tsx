@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
+import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { useMomentsStore } from '@/stores/useMomentsStore';
 import type { Moment, Category } from '@/types/moment';
 import { format } from 'date-fns';
@@ -207,7 +208,13 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   // Desktop: Use dialog
   return (
     <Dialog open={!!moment} onOpenChange={() => onClose()}>
-      <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-hidden p-4 flex flex-col">
+      <DialogContent 
+        className="sm:max-w-xl max-h-[85vh] overflow-hidden p-4 flex flex-col"
+        aria-describedby={undefined}
+      >
+        <VisuallyHidden.Root>
+          <DialogTitle>Edit Moment</DialogTitle>
+        </VisuallyHidden.Root>
         {formContent}
       </DialogContent>
     </Dialog>

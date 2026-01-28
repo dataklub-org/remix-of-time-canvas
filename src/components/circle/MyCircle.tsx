@@ -40,6 +40,7 @@ export function MyCircle() {
     getGroupMembers,
     acceptInvitation,
     declineInvitation,
+    updateGroupColor,
   } = useGroups(user?.id || null);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -192,6 +193,7 @@ export function MyCircle() {
             onAcceptInvitation={acceptInvitation}
             onDeclineInvitation={declineInvitation}
             onAddConnection={addConnection}
+            onUpdateGroupColor={updateGroupColor}
           />
         </div>
       </DialogContent>

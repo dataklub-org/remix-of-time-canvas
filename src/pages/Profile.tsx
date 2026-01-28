@@ -298,38 +298,27 @@ export default function Profile() {
                       <code className="text-sm font-mono truncate block">
                         {invite.code}
                       </code>
-                      <span className="text-xs text-muted-foreground">
-                        {invite.usedByUserId ? (
-                          <span className="text-green-600">Used</span>
-                        ) : (
-                          'Available'
-                        )}
-                      </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      {!invite.usedByUserId && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => copyInviteLink(invite.code)}
-                          >
-                            {copiedCode === invite.code ? (
-                              <Check className="h-4 w-4 text-green-600" />
-                            ) : (
-                              <Copy className="h-4 w-4" />
-                            )}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => deleteInviteCode(invite.id)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </>
-                      )}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => copyInviteLink(invite.code)}
+                      >
+                        {copiedCode === invite.code ? (
+                          <Check className="h-4 w-4 text-green-600" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteInviteCode(invite.id)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 ))}

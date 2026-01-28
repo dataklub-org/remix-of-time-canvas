@@ -37,6 +37,7 @@ export type Database = {
       }
       group_members: {
         Row: {
+          color: string | null
           group_id: string
           id: string
           joined_at: string
@@ -44,6 +45,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          color?: string | null
           group_id: string
           id?: string
           joined_at?: string
@@ -51,6 +53,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          color?: string | null
           group_id?: string
           id?: string
           joined_at?: string

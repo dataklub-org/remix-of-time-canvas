@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
+import { redeemInviteCode } from '@/hooks/useInviteCode';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -130,6 +131,9 @@ export default function CompleteProfile() {
         }
         return;
       }
+
+      // Try to redeem any pending invite code
+      await redeemInviteCode(userId);
 
       // Navigate to home
       navigate('/');

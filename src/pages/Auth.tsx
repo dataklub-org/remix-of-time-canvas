@@ -1,12 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { z } from 'zod';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Mail, Lock, Loader2, User, Check, X } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, Loader2, User, Check, X, Link2 } from 'lucide-react';
 import fractalito from '@/assets/fractalito-logo.png';
+import { toast } from 'sonner';
 
 const usernameSchema = z.string()
   .min(3, { message: "Username must be at least 3 characters" })
@@ -20,8 +22,11 @@ const authSchema = z.object({
 
 export default function Auth() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const inviteCode = searchParams.get('invite');
+  
   const { signIn, signUp, signInWithGoogle, isAuthenticated, loading, checkUsernameAvailable } = useAuth();
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(!!inviteCode); // Auto-switch to signup if invite code present
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -33,6 +38,47 @@ export default function Auth() {
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [inviterUsername, setInviterUsername] = useState<string | null>(null);
+
+  // Check invite code validity and get inviter info
+  useEffect(() => {
+    if (inviteCode) {
+      checkInviteCode(inviteCode);
+    }
+  }, [inviteCode]);
+
+  const checkInviteCode = async (code: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('invite_codes')
+        .select('inviter_user_id, used_by_user_id')
+        .eq('code', code)
+        .maybeSingle();
+
+      if (error || !data) {
+        toast.error('Invalid invite link');
+        return;
+      }
+
+      if (data.used_by_user_id) {
+        toast.error('This invite link has already been used');
+        return;
+      }
+
+      // Get inviter's username
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('user_id', data.inviter_user_id)
+        .maybeSingle();
+
+      if (profile?.username) {
+        setInviterUsername(profile.username);
+      }
+    } catch (err) {
+      console.error('Error checking invite code:', err);
+    }
+  };
 
   // Debounced username check
   useEffect(() => {
@@ -72,6 +118,10 @@ export default function Auth() {
     setError(null);
     setGoogleLoading(true);
     try {
+      // Store invite code before redirect if present
+      if (inviteCode) {
+        localStorage.setItem('pending_invite_code', inviteCode);
+      }
       const { error } = await signInWithGoogle();
       if (error) {
         setError(error.message);
@@ -125,6 +175,10 @@ export default function Auth() {
             setError(error.message);
           }
         } else {
+          // If there's an invite code, store it for later redemption after email confirmation
+          if (inviteCode) {
+            localStorage.setItem('pending_invite_code', inviteCode);
+          }
           setSuccessMessage('Check your email for a confirmation link!');
           setEmail('');
           setPassword('');
@@ -174,6 +228,16 @@ export default function Auth() {
       {/* Form */}
       <main className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-sm space-y-6">
+          {/* Invite banner */}
+          {inviteCode && inviterUsername && (
+            <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 flex items-center gap-2">
+              <Link2 className="h-4 w-4 text-primary shrink-0" />
+              <p className="text-sm text-primary">
+                You've been invited by <strong>@{inviterUsername}</strong>
+              </p>
+            </div>
+          )}
+          
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-bold text-foreground">
               {isSignUp ? 'Create an account' : 'Welcome back'}

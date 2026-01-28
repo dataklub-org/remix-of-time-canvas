@@ -82,20 +82,22 @@ export function useConnections(userId: string | null) {
     }
   }, [userId]);
 
-  // Search for users by username (uses public_usernames table for privacy)
+  // Search for users by exact username match (prevents user enumeration)
   const searchUsers = useCallback(async (query: string) => {
-    if (!query.trim() || query.length < 2) {
+    const trimmedQuery = query.trim().toLowerCase();
+    if (!trimmedQuery) {
       setSearchResults([]);
       return;
     }
 
     setSearching(true);
     try {
+      // Only return exact matches to prevent enumeration attacks
       const { data, error } = await supabase
         .from('public_usernames')
         .select('user_id, username')
-        .ilike('username', `%${query}%`)
-        .limit(10);
+        .ilike('username', trimmedQuery)
+        .limit(1);
 
       if (error) throw error;
 

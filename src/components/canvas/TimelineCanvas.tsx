@@ -202,6 +202,7 @@ export function TimelineCanvas() {
                 canvasHeight={canvasHeight}
                 onSelect={handleSelectMoment}
                 timelineY={timelineY + scrollOffset}
+                isGroupMoment={isOurLifeActive}
               />
             ))}
         </Layer>

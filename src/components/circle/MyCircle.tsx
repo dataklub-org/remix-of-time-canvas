@@ -33,10 +33,13 @@ export function MyCircle() {
 
   const {
     groups,
+    pendingInvitations,
     loading: groupsLoading,
     createGroup,
     deleteGroup,
     getGroupMembers,
+    acceptInvitation,
+    declineInvitation,
   } = useGroups(user?.id || null);
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -179,12 +182,15 @@ export function MyCircle() {
           {/* Groups section */}
           <GroupsSection
             groups={groups}
+            pendingInvitations={pendingInvitations}
             loading={groupsLoading}
             connections={connections}
             userId={user?.id || ''}
             onCreateGroup={createGroup}
             onDeleteGroup={deleteGroup}
             onGetMembers={getGroupMembers}
+            onAcceptInvitation={acceptInvitation}
+            onDeclineInvitation={declineInvitation}
           />
         </div>
       </DialogContent>

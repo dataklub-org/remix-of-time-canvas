@@ -10,6 +10,7 @@ interface MomentCardProps {
   canvasHeight: number;
   onSelect: (moment: Moment) => void;
   timelineY: number;
+  isGroupMoment?: boolean;
 }
 
 const MIN_CARD_WIDTH = 4; // Absolute minimum - just past starting point
@@ -36,8 +37,8 @@ function measureTextWidth(text: string, fontSize: number): number {
   return text.length * fontSize * 0.55;
 }
 
-export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timelineY }: MomentCardProps) {
-  const { canvasState, updateMomentY, updateMomentSize, updateMoment } = useMomentsStore();
+export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timelineY, isGroupMoment = false }: MomentCardProps) {
+  const { canvasState, updateMomentY, updateGroupMomentY, updateMomentSize, updateMoment } = useMomentsStore();
   const { centerTime, msPerPixel } = canvasState;
   
   // Check zoom level - show bubbles at month/year zoom
@@ -122,7 +123,12 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   const justFinishedResizingRef = useRef(false);
 
   const handleDragEnd = (e: any) => {
-    updateMomentY(moment.id, e.target.y());
+    const newY = e.target.y();
+    if (isGroupMoment) {
+      updateGroupMomentY(moment.id, newY);
+    } else {
+      updateMomentY(moment.id, newY);
+    }
   };
   
   const handleCardClick = useCallback(() => {
@@ -299,7 +305,12 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
               y: pos.y,
             })}
             onDragEnd={(e) => {
-              updateMomentY(moment.id, e.target.y());
+              const newY = e.target.y();
+              if (isGroupMoment) {
+                updateGroupMomentY(moment.id, newY);
+              } else {
+                updateMomentY(moment.id, newY);
+              }
             }}
             onClick={handleCardClick}
             onTap={() => {
@@ -465,7 +476,12 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
         onDragEnd={(e) => {
           // Update Y based on drag, accounting for bubble center offset
           const newY = e.target.y() - (moment.y < timelineY ? cardHeight / 2 : cardHeight / 2);
-          updateMomentY(moment.id, newY + moment.y - bubbleY);
+          const finalY = newY + moment.y - bubbleY;
+          if (isGroupMoment) {
+            updateGroupMomentY(moment.id, finalY);
+          } else {
+            updateMomentY(moment.id, finalY);
+          }
         }}
         onClick={handleCardClick}
         onTap={handleBubbleTap}

@@ -123,7 +123,7 @@ export default function Profile() {
   };
 
   const copyInviteLink = async (code: string) => {
-    const link = `${window.location.origin}/auth?invite=${code}`;
+    const link = `https://fractalito.com/auth?invite=${code}`;
     await navigator.clipboard.writeText(link);
     setCopiedCode(code);
     toast.success('Invite link copied!');
@@ -247,18 +247,20 @@ export default function Profile() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button
-              onClick={generateInviteCode}
-              disabled={generatingCode}
-              className="w-full"
-            >
-              {generatingCode ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : (
-                <Link2 className="h-4 w-4 mr-2" />
-              )}
-              Generate New Invite Link
-            </Button>
+            {inviteCodes.length === 0 && (
+              <Button
+                onClick={generateInviteCode}
+                disabled={generatingCode}
+                className="w-full"
+              >
+                {generatingCode ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Link2 className="h-4 w-4 mr-2" />
+                )}
+                Generate Invite Link
+              </Button>
+            )}
 
             {loadingCodes ? (
               <div className="flex justify-center py-4">

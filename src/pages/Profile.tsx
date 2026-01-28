@@ -38,7 +38,7 @@ export default function Profile() {
   const [loadingCodes, setLoadingCodes] = useState(false);
   const [generatingCode, setGeneratingCode] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
-  const [deleteStep, setDeleteStep] = useState<'initial' | 'confirm'>('initial');
+  const [deleteStep, setDeleteStep] = useState<'initial' | 'confirm-moments' | 'confirm-account'>('initial');
   const [isDeleting, setIsDeleting] = useState(false);
 
   // Redirect if not authenticated
@@ -178,6 +178,27 @@ export default function Profile() {
       console.error('Error deleting data:', error);
       toast.error('Failed to delete data');
     } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!user?.id) return;
+    setIsDeleting(true);
+    try {
+      // Call the database function to delete all user data
+      const { error: deleteDataError } = await supabase.rpc('delete_user_account');
+      
+      if (deleteDataError) throw deleteDataError;
+
+      // Sign out the user
+      await supabase.auth.signOut();
+      
+      toast.success('Your account has been deleted');
+      navigate('/auth');
+    } catch (error) {
+      console.error('Error deleting account:', error);
+      toast.error('Failed to delete account');
       setIsDeleting(false);
     }
   };
@@ -332,54 +353,102 @@ export default function Profile() {
               Irreversible actions that affect your data
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <AlertDialog open={deleteStep !== 'initial'} onOpenChange={(open) => !open && setDeleteStep('initial')}>
+          <CardContent className="space-y-4">
+            {/* Delete All Moments */}
+            <AlertDialog open={deleteStep === 'confirm-moments'} onOpenChange={(open) => !open && setDeleteStep('initial')}>
               <AlertDialogTrigger asChild>
                 <Button
-                  variant="destructive"
-                  className="w-full"
-                  onClick={() => setDeleteStep('confirm')}
+                  variant="outline"
+                  className="w-full border-destructive/50 text-destructive hover:bg-destructive/10"
+                  onClick={() => setDeleteStep('confirm-moments')}
                 >
                   <Trash2 className="h-4 w-4 mr-2" />
                   Delete All My Moments
                 </Button>
               </AlertDialogTrigger>
               
-              {/* First confirmation */}
-              {deleteStep === 'confirm' && (
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle className="flex items-center gap-2">
-                      <AlertTriangle className="h-5 w-5 text-destructive" />
-                      Are you sure?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete <strong>all moments from your personal MyLife timeline</strong>. 
-                      Group-shared moments will remain accessible to other group members.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleDeleteAllData();
-                      }}
-                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      disabled={isDeleting}
-                    >
-                      {isDeleting ? (
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                      ) : null}
-                      Yes, Delete Everything
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              )}
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                    Delete all moments?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete <strong>all moments from your personal MyLife timeline</strong>. 
+                    Group-shared moments will remain accessible to other group members.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleDeleteAllData();
+                    }}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : null}
+                    Yes, Delete All Moments
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            {/* Delete Account */}
+            <AlertDialog open={deleteStep === 'confirm-account'} onOpenChange={(open) => !open && setDeleteStep('initial')}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="destructive"
+                  className="w-full"
+                  onClick={() => setDeleteStep('confirm-account')}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete My Account
+                </Button>
+              </AlertDialogTrigger>
+              
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-destructive" />
+                    Delete your account?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription className="space-y-2">
+                    <p>This will permanently delete:</p>
+                    <ul className="list-disc list-inside text-sm space-y-1">
+                      <li>All your personal moments</li>
+                      <li>All group moments you shared</li>
+                      <li>Your profile and connections</li>
+                      <li>Groups you created</li>
+                      <li>Your invite codes</li>
+                    </ul>
+                    <p className="font-medium">You can create a new account with the same email afterward.</p>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleDeleteAccount();
+                    }}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : null}
+                    Yes, Delete My Account
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
             </AlertDialog>
             
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              This action cannot be undone. Group moments are preserved.
+            <p className="text-xs text-muted-foreground text-center">
+              These actions cannot be undone.
             </p>
           </CardContent>
         </Card>

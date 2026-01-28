@@ -6,6 +6,11 @@ import type { Moment, Category } from '@/types/moment';
 import { format } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MomentFormContent } from './MomentFormContent';
+import { ShareToGroupDialog } from './ShareToGroupDialog';
+import { useGroups } from '@/hooks/useGroups';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Share2 } from 'lucide-react';
 
 interface EditMomentDialogProps {
   moment: Moment | null;
@@ -14,6 +19,8 @@ interface EditMomentDialogProps {
 
 export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   const { updateMoment, deleteMoment, setCenterTime, setMsPerPixel } = useMomentsStore();
+  const { user } = useAuth();
+  const { groups } = useGroups(user?.id || null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const isMobile = useIsMobile();
   
@@ -129,6 +136,26 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
     onClose();
   };
 
+  // Share button for the header
+  const shareButton = groups.length > 0 && moment ? (
+    <ShareToGroupDialog
+      moment={moment}
+      groups={groups}
+      userId={user?.id || null}
+      trigger={
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="flex items-center gap-1 text-xs"
+        >
+          <Share2 className="h-4 w-4" />
+          Share
+        </Button>
+      }
+    />
+  ) : null;
+
   const formContent = (
     <MomentFormContent
       mode="edit"
@@ -159,6 +186,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       onDelete={handleDelete}
       onMemento={handleMemento}
       descriptionRef={descriptionRef}
+      shareButton={shareButton}
     />
   );
 

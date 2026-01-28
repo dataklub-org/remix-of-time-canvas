@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
-import { User, LogOut } from 'lucide-react';
+import { User, LogOut, Settings } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
@@ -32,6 +33,14 @@ export function AuthButton() {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="min-w-[160px]">
+          <DropdownMenuItem
+            onClick={() => navigate('/profile')}
+            className="cursor-pointer"
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Profile
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             onClick={handleSignOut}
             className="cursor-pointer text-destructive focus:text-destructive"

@@ -163,6 +163,36 @@ export type Database = {
         }
         Relationships: []
       }
+      invite_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string | null
+          id: string
+          inviter_user_id: string
+          used_at: string | null
+          used_by_user_id: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          inviter_user_id: string
+          used_at?: string | null
+          used_by_user_id?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          inviter_user_id?: string
+          used_at?: string | null
+          used_by_user_id?: string | null
+        }
+        Relationships: []
+      }
       moments: {
         Row: {
           category: Database["public"]["Enums"]["category_type"]

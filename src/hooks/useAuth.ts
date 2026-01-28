@@ -128,7 +128,8 @@ export function useAuth() {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: `${window.location.origin}/`,
+        // Redirect to complete-profile page to check if username is needed
+        redirectTo: `${window.location.origin}/complete-profile`,
       },
     });
     return { error };

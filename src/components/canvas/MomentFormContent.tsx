@@ -44,6 +44,7 @@ interface MomentFormContentProps {
   autoFocusDescription?: boolean;
   isMobile?: boolean;
   shareButton?: React.ReactNode;
+  groupShareSection?: React.ReactNode;
 }
 
 export function MomentFormContent({
@@ -79,6 +80,7 @@ export function MomentFormContent({
   autoFocusDescription = false,
   isMobile = false,
   shareButton,
+  groupShareSection,
 }: MomentFormContentProps) {
   const photoInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLDivElement>(null);
@@ -284,6 +286,9 @@ export function MomentFormContent({
               />
             </>
           )}
+          
+          {/* Group share section for edit mode */}
+          {groupShareSection}
         </div>
       </div>
 

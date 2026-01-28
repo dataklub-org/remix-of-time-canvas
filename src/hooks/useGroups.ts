@@ -26,6 +26,8 @@ export interface PendingInvitation {
   groupId: string;
   groupName: string;
   invitedAt: string;
+  invitedBy: string; // user_id of the group creator who invited
+  inviterUsername?: string;
 }
 
 export interface GroupMoment {
@@ -101,18 +103,33 @@ export function useGroups(userId: string | null) {
           id,
           group_id,
           joined_at,
-          groups!inner(name)
+          groups!inner(name, created_by)
         `)
         .eq('user_id', userId)
         .eq('status', 'pending');
 
       if (error) throw error;
 
+      // Fetch inviter usernames
+      const inviterIds = [...new Set((data || []).map((row: any) => row.groups?.created_by).filter(Boolean))];
+      let inviterMap = new Map<string, string>();
+      
+      if (inviterIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('public_usernames')
+          .select('user_id, username')
+          .in('user_id', inviterIds);
+        
+        inviterMap = new Map(profiles?.map(p => [p.user_id, p.username]) || []);
+      }
+
       const invitations: PendingInvitation[] = (data || []).map((row: any) => ({
         id: row.id,
         groupId: row.group_id,
         groupName: row.groups?.name || 'Unknown Group',
         invitedAt: row.joined_at,
+        invitedBy: row.groups?.created_by || '',
+        inviterUsername: inviterMap.get(row.groups?.created_by) || undefined,
       }));
 
       setPendingInvitations(invitations);

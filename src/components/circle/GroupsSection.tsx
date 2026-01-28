@@ -1,30 +1,36 @@
 import { useState } from 'react';
-import { Plus, Users2, Trash2, ChevronRight, Loader2 } from 'lucide-react';
+import { Plus, Users2, Trash2, ChevronRight, Loader2, Check, X, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Group, GroupMember } from '@/hooks/useGroups';
+import { Group, GroupMember, PendingInvitation } from '@/hooks/useGroups';
 import { Connection } from '@/hooks/useConnections';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
 interface GroupsSectionProps {
   groups: Group[];
+  pendingInvitations: PendingInvitation[];
   loading: boolean;
   connections: Connection[];
   userId: string;
   onCreateGroup: (name: string, memberIds: string[]) => Promise<Group | null>;
   onDeleteGroup: (groupId: string) => Promise<void>;
   onGetMembers: (groupId: string) => Promise<GroupMember[]>;
+  onAcceptInvitation: (membershipId: string, groupId: string) => Promise<void>;
+  onDeclineInvitation: (membershipId: string) => Promise<void>;
 }
 
 export function GroupsSection({
   groups,
+  pendingInvitations,
   loading,
   connections,
   userId,
   onCreateGroup,
   onDeleteGroup,
   onGetMembers,
+  onAcceptInvitation,
+  onDeclineInvitation,
 }: GroupsSectionProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -150,15 +156,53 @@ export function GroupsSection({
         </div>
       )}
 
+      {/* Pending Invitations */}
+      {pendingInvitations.length > 0 && (
+        <div className="space-y-2">
+          <h5 className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+            <Mail className="h-3.5 w-3.5" />
+            Pending Invitations ({pendingInvitations.length})
+          </h5>
+          <div className="space-y-1">
+            {pendingInvitations.map((invitation) => (
+              <div
+                key={invitation.id}
+                className="flex items-center justify-between p-2 border rounded-lg bg-primary/5"
+              >
+                <span className="text-sm font-medium">{invitation.groupName}</span>
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onAcceptInvitation(invitation.id, invitation.groupId)}
+                    className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-100"
+                  >
+                    <Check className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => onDeclineInvitation(invitation.id)}
+                    className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-4">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
         </div>
-      ) : groups.length === 0 ? (
+      ) : groups.length === 0 && pendingInvitations.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-4">
           No groups yet. Create one to start sharing moments!
         </p>
-      ) : (
+      ) : groups.length === 0 ? null : (
         <div className="space-y-1">
           {groups.map((group) => (
             <div key={group.id} className="border rounded-lg overflow-hidden">

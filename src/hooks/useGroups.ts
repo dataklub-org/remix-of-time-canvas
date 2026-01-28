@@ -15,9 +15,17 @@ export interface GroupMember {
   groupId: string;
   userId: string;
   joinedAt: string;
+  status: 'pending' | 'accepted';
   username?: string;
   displayName?: string;
   avatarUrl?: string;
+}
+
+export interface PendingInvitation {
+  id: string;
+  groupId: string;
+  groupName: string;
+  invitedAt: string;
 }
 
 export interface GroupMoment {
@@ -41,6 +49,7 @@ export interface GroupMoment {
 
 export function useGroups(userId: string | null) {
   const [groups, setGroups] = useState<Group[]>([]);
+  const [pendingInvitations, setPendingInvitations] = useState<PendingInvitation[]>([]);
   const [loading, setLoading] = useState(false);
 
   const fetchGroups = useCallback(async () => {
@@ -79,7 +88,73 @@ export function useGroups(userId: string | null) {
 
   useEffect(() => {
     fetchGroups();
+    fetchPendingInvitations();
   }, [fetchGroups]);
+
+  const fetchPendingInvitations = useCallback(async () => {
+    if (!userId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('group_members')
+        .select(`
+          id,
+          group_id,
+          joined_at,
+          groups!inner(name)
+        `)
+        .eq('user_id', userId)
+        .eq('status', 'pending');
+
+      if (error) throw error;
+
+      const invitations: PendingInvitation[] = (data || []).map((row: any) => ({
+        id: row.id,
+        groupId: row.group_id,
+        groupName: row.groups?.name || 'Unknown Group',
+        invitedAt: row.joined_at,
+      }));
+
+      setPendingInvitations(invitations);
+    } catch (error) {
+      console.error('Error fetching pending invitations:', error);
+    }
+  }, [userId]);
+
+  const acceptInvitation = async (membershipId: string, groupId: string) => {
+    try {
+      const { error } = await supabase
+        .from('group_members')
+        .update({ status: 'accepted' })
+        .eq('id', membershipId);
+
+      if (error) throw error;
+
+      setPendingInvitations(prev => prev.filter(inv => inv.id !== membershipId));
+      await fetchGroups(); // Refresh groups list
+      toast.success('Invitation accepted!');
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+      toast.error('Failed to accept invitation');
+    }
+  };
+
+  const declineInvitation = async (membershipId: string) => {
+    try {
+      const { error } = await supabase
+        .from('group_members')
+        .delete()
+        .eq('id', membershipId);
+
+      if (error) throw error;
+
+      setPendingInvitations(prev => prev.filter(inv => inv.id !== membershipId));
+      toast.success('Invitation declined');
+    } catch (error) {
+      console.error('Error declining invitation:', error);
+      toast.error('Failed to decline invitation');
+    }
+  };
 
   const createGroup = async (name: string, memberUserIds: string[]): Promise<Group | null> => {
     if (!userId) return null;
@@ -102,6 +177,7 @@ export function useGroups(userId: string | null) {
         const memberInserts = additionalMembers.map(uid => ({
           group_id: groupData.id,
           user_id: uid,
+          status: 'pending', // Invited members need to accept
         }));
 
         const { error: memberError } = await supabase
@@ -151,8 +227,9 @@ export function useGroups(userId: string | null) {
     try {
       const { data, error } = await supabase
         .from('group_members')
-        .select('id, group_id, user_id, joined_at')
-        .eq('group_id', groupId);
+        .select('id, group_id, user_id, joined_at, status')
+        .eq('group_id', groupId)
+        .eq('status', 'accepted'); // Only show accepted members
 
       if (error) throw error;
 
@@ -172,6 +249,7 @@ export function useGroups(userId: string | null) {
           groupId: m.group_id,
           userId: m.user_id,
           joinedAt: m.joined_at,
+          status: m.status as 'pending' | 'accepted',
           username: profile?.username,
           displayName: profile?.display_name,
           avatarUrl: profile?.avatar_url,
@@ -268,6 +346,7 @@ export function useGroups(userId: string | null) {
 
   return {
     groups,
+    pendingInvitations,
     loading,
     fetchGroups,
     createGroup,
@@ -276,6 +355,8 @@ export function useGroups(userId: string | null) {
     addMemberToGroup,
     removeMemberFromGroup,
     getGroupMoments,
+    acceptInvitation,
+    declineInvitation,
   };
 }
 

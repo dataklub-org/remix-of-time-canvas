@@ -2,12 +2,17 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
-import { useMomentsStore } from '@/stores/useMomentsStore';
+import { useMomentsStore, OURLIFE_TIMELINE_ID } from '@/stores/useMomentsStore';
+import { useGroups } from '@/hooks/useGroups';
+import { useAuth } from '@/hooks/useAuth';
 import type { Category } from '@/types/moment';
 import { format } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MomentFormContent } from './MomentFormContent';
 import { getDefaultMomentWidth } from '@/utils/timeUtils';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Users2 } from 'lucide-react';
 
 interface CreateMomentDialogProps {
   open: boolean;
@@ -17,7 +22,9 @@ interface CreateMomentDialogProps {
 }
 
 export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateMomentDialogProps) {
-  const { addMoment, canvasState } = useMomentsStore();
+  const { addMoment, addGroupMoment, canvasState, loadGroupMoments } = useMomentsStore();
+  const { user, isAuthenticated } = useAuth();
+  const { groups } = useGroups(user?.id || null);
   const isMobile = useIsMobile();
   
   const [description, setDescription] = useState('');
@@ -32,15 +39,22 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   const [endTimeInput, setEndTimeInput] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
   const [moreDetailsOpen, setMoreDetailsOpen] = useState(false);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>('mylife');
   
-  // Initialize date/time inputs when dialog opens
+  // Initialize date/time inputs and group selection when dialog opens
   useEffect(() => {
     if (open) {
       const date = new Date(timestamp);
       setDateInput(format(date, 'yyyy-MM-dd'));
       setTimeInput(format(date, 'HH:mm'));
+      // Pre-select based on active timeline
+      if (canvasState.activeTimelineId === OURLIFE_TIMELINE_ID && groups.length > 0) {
+        setSelectedGroupId(groups[0].id);
+      } else {
+        setSelectedGroupId('mylife');
+      }
     }
-  }, [open, timestamp]);
+  }, [open, timestamp, canvasState.activeTimelineId, groups]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,7 +78,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     // Calculate initial width based on current zoom level
     const initialWidth = getDefaultMomentWidth(canvasState.msPerPixel);
     
-    await addMoment({
+    const momentData = {
       timestamp: parsedTimestamp,
       endTime,
       y,
@@ -75,7 +89,17 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       memorable,
       photo: photo || undefined,
       width: initialWidth,
-    });
+    };
+    
+    if (selectedGroupId !== 'mylife' && isAuthenticated) {
+      // Create as a group moment
+      await addGroupMoment(selectedGroupId, momentData);
+      // Reload group moments to show in OurLife
+      await loadGroupMoments();
+    } else {
+      // Create as a personal moment
+      await addMoment(momentData);
+    }
     
     // Reset form
     resetForm();
@@ -93,6 +117,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     setEndTimeInput('');
     setPhoto(null);
     setMoreDetailsOpen(false);
+    setSelectedGroupId('mylife');
   };
 
   // Autosave when clicking away (backdrop click)
@@ -115,7 +140,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       // Calculate initial width based on current zoom level
       const initialWidth = getDefaultMomentWidth(canvasState.msPerPixel);
       
-      await addMoment({
+      const momentData = {
         timestamp: parsedTimestamp,
         endTime,
         y,
@@ -126,7 +151,14 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
         memorable,
         photo: photo || undefined,
         width: initialWidth,
-      });
+      };
+      
+      if (selectedGroupId !== 'mylife' && isAuthenticated) {
+        await addGroupMoment(selectedGroupId, momentData);
+        await loadGroupMoments();
+      } else {
+        await addMoment(momentData);
+      }
     }
     
     resetForm();
@@ -139,37 +171,65 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     onOpenChange(false);
   };
 
+  // Group selector component
+  const groupSelector = isAuthenticated && groups.length > 0 ? (
+    <div className="space-y-1.5 mb-4">
+      <Label className="text-sm font-medium flex items-center gap-1.5">
+        <Users2 className="h-4 w-4" />
+        Share to
+      </Label>
+      <Select value={selectedGroupId} onValueChange={setSelectedGroupId}>
+        <SelectTrigger className="h-11">
+          <SelectValue placeholder="Select timeline" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="mylife">MyLife (Personal)</SelectItem>
+          {groups.map((group) => (
+            <SelectItem key={group.id} value={group.id}>
+              {group.name} (Group)
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  ) : null;
+
   const formContent = (
-    <MomentFormContent
-      mode="create"
-      description={description}
-      setDescription={setDescription}
-      people={people}
-      setPeople={setPeople}
-      personInput={personInput}
-      setPersonInput={setPersonInput}
-      location={location}
-      setLocation={setLocation}
-      category={category}
-      setCategory={setCategory}
-      memorable={memorable}
-      setMemorable={setMemorable}
-      dateInput={dateInput}
-      setDateInput={setDateInput}
-      timeInput={timeInput}
-      setTimeInput={setTimeInput}
-      endDateInput={endDateInput}
-      setEndDateInput={setEndDateInput}
-      endTimeInput={endTimeInput}
-      setEndTimeInput={setEndTimeInput}
-      photo={photo}
-      setPhoto={setPhoto}
-      moreDetailsOpen={moreDetailsOpen}
-      setMoreDetailsOpen={setMoreDetailsOpen}
-      onSubmit={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
-      autoFocusDescription
-      isMobile={isMobile}
-    />
+    <div className="flex flex-col h-full">
+      {groupSelector}
+      <div className="flex-1 min-h-0">
+        <MomentFormContent
+          mode="create"
+          description={description}
+          setDescription={setDescription}
+          people={people}
+          setPeople={setPeople}
+          personInput={personInput}
+          setPersonInput={setPersonInput}
+          location={location}
+          setLocation={setLocation}
+          category={category}
+          setCategory={setCategory}
+          memorable={memorable}
+          setMemorable={setMemorable}
+          dateInput={dateInput}
+          setDateInput={setDateInput}
+          timeInput={timeInput}
+          setTimeInput={setTimeInput}
+          endDateInput={endDateInput}
+          setEndDateInput={setEndDateInput}
+          endTimeInput={endTimeInput}
+          setEndTimeInput={setEndTimeInput}
+          photo={photo}
+          setPhoto={setPhoto}
+          moreDetailsOpen={moreDetailsOpen}
+          setMoreDetailsOpen={setMoreDetailsOpen}
+          onSubmit={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
+          autoFocusDescription
+          isMobile={isMobile}
+        />
+      </div>
+    </div>
   );
 
   // Mobile: Use bottom sheet for better keyboard handling

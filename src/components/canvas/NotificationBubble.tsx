@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, X, Users, Share2, Check, CheckCheck, UserPlus } from 'lucide-react';
+import { Bell, X, Users, Share2, Check, CheckCheck, UserPlus, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -28,7 +28,9 @@ function NotificationItem({
   isConnected: (userId: string) => boolean;
 }) {
   const isInvite = notification.type === 'invite_joined';
-  const Icon = isInvite ? Users : Share2;
+  const isWelcome = notification.type === 'welcome_via_invite';
+  const isMomentShared = notification.type === 'moment_shared';
+  const Icon = isWelcome ? Sparkles : isInvite ? Users : Share2;
   const joinedUserId = notification.data?.joined_user_id as string | undefined;
   const alreadyConnected = joinedUserId ? isConnected(joinedUserId) : true;
 
@@ -43,7 +45,9 @@ function NotificationItem({
         <div
           className={cn(
             'p-2 rounded-full shrink-0',
-            isInvite ? 'bg-green-500/10 text-green-500' : 'bg-blue-500/10 text-blue-500'
+            isWelcome ? 'bg-purple-500/10 text-purple-500' :
+            isInvite ? 'bg-green-500/10 text-green-500' : 
+            'bg-blue-500/10 text-blue-500'
           )}
         >
           <Icon className="h-4 w-4" />

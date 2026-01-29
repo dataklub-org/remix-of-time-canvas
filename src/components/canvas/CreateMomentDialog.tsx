@@ -183,7 +183,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
 
   const formContent = (
     <div className="flex flex-col h-full">
-      <div className="flex-1 min-h-0">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         <MomentFormContent
           mode="create"
           description={description}
@@ -225,7 +225,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       <Sheet open={open} onOpenChange={(isOpen) => !isOpen && handleAutosave()}>
         <SheetContent 
           side="bottom" 
-          className="max-h-[85dvh] h-auto rounded-t-2xl px-6 pt-4 pb-safe flex flex-col"
+          className="h-[85dvh] max-h-[85dvh] rounded-t-2xl px-6 pt-4 flex flex-col"
           style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 1rem)' }}
           onCloseClick={handleDiscard}
         >

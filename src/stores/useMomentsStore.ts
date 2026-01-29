@@ -6,15 +6,18 @@ import { supabase } from '@/integrations/supabase/client';
 
 const DEFAULT_TIMELINE_ID = 'mylife';
 const OURLIFE_TIMELINE_ID = 'ourlife';
+const BABYLIFE_TIMELINE_ID = 'babylife';
 
 const DEFAULT_TIMELINES: Timeline[] = [
   { id: DEFAULT_TIMELINE_ID, name: 'MyLife', type: 'mylife', isDefault: true },
   { id: OURLIFE_TIMELINE_ID, name: 'OurLife', type: 'ourlife' },
+  { id: BABYLIFE_TIMELINE_ID, name: 'BabyLife', type: 'babylife' },
 ];
 
 interface MomentsStore {
   moments: Moment[];
   groupMoments: Moment[]; // Moments from all groups user belongs to
+  babyMoments: Moment[]; // Moments from all babies user has access to
   timelines: Timeline[];
   canvasState: CanvasState;
   isAuthenticated: boolean;
@@ -26,6 +29,7 @@ interface MomentsStore {
   setAuthenticated: (isAuth: boolean, userId: string | null) => void;
   loadUserData: () => Promise<void>;
   loadGroupMoments: () => Promise<void>;
+  loadBabyMoments: () => Promise<void>;
   clearUserData: () => void;
   
   // Moment actions
@@ -97,6 +101,7 @@ export const useMomentsStore = create<MomentsStore>()(
     (set, get) => ({
       moments: [],
       groupMoments: [],
+      babyMoments: [],
       timelines: DEFAULT_TIMELINES,
       canvasState: {
         centerTime: Date.now(),
@@ -113,6 +118,7 @@ export const useMomentsStore = create<MomentsStore>()(
         if (isAuth && userId) {
           get().loadUserData();
           get().loadGroupMoments();
+          get().loadBabyMoments();
         } else {
           get().clearUserData();
         }
@@ -199,10 +205,62 @@ export const useMomentsStore = create<MomentsStore>()(
         }
       },
 
+      loadBabyMoments: async () => {
+        const { userId } = get();
+        if (!userId) return;
+
+        try {
+          // Get all babies user has access to
+          const { data: babies, error: babiesError } = await supabase
+            .from('babies')
+            .select('id');
+
+          if (babiesError) throw babiesError;
+          if (!babies || babies.length === 0) {
+            set({ babyMoments: [] });
+            return;
+          }
+
+          const babyIds = babies.map(b => b.id);
+
+          // Fetch all moments from those babies
+          const { data: bMoments, error: momentsError } = await supabase
+            .from('baby_moments')
+            .select('*')
+            .in('baby_id', babyIds)
+            .order('start_time', { ascending: false });
+
+          if (momentsError) throw momentsError;
+
+          const localBabyMoments = (bMoments || []).map((row: any): Moment => ({
+            id: row.id,
+            timelineId: BABYLIFE_TIMELINE_ID,
+            timestamp: row.start_time,
+            endTime: row.end_time || undefined,
+            y: row.y_position,
+            width: row.width || undefined,
+            height: row.height || undefined,
+            description: row.description,
+            people: row.people || '',
+            location: row.location || '',
+            category: row.category as Category,
+            memorable: row.memorable || false,
+            photo: row.photo_url || undefined,
+            createdAt: new Date(row.shared_at).getTime(),
+            updatedAt: new Date(row.shared_at).getTime(),
+            groupId: row.baby_id, // Store baby_id in groupId for filtering
+          }));
+          set({ babyMoments: localBabyMoments });
+        } catch (error) {
+          console.error('Error loading baby moments:', error);
+        }
+      },
+
       clearUserData: () => {
         set({ 
           moments: [], 
           groupMoments: [],
+          babyMoments: [],
           userId: null, 
           userTimelineId: null,
           isAuthenticated: false,
@@ -568,4 +626,4 @@ export const useMomentsStore = create<MomentsStore>()(
   )
 );
 
-export { DEFAULT_TIMELINE_ID, OURLIFE_TIMELINE_ID };
+export { DEFAULT_TIMELINE_ID, OURLIFE_TIMELINE_ID, BABYLIFE_TIMELINE_ID };

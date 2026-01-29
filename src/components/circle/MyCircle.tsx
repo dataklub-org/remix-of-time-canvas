@@ -16,6 +16,7 @@ import { useGroups } from '@/hooks/useGroups';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { GroupsSection } from './GroupsSection';
+import { BabiesSection } from './BabiesSection';
 import { Separator } from '@/components/ui/separator';
 
 export function MyCircle() {
@@ -194,6 +195,14 @@ export function MyCircle() {
             onDeclineInvitation={declineInvitation}
             onAddConnection={addConnection}
             onUpdateGroupColor={updateGroupColor}
+          />
+
+          <Separator />
+
+          {/* Babies section */}
+          <BabiesSection
+            userId={user?.id || ''}
+            connections={connections}
           />
         </div>
       </DialogContent>

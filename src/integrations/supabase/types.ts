@@ -14,6 +14,158 @@ export type Database = {
   }
   public: {
     Tables: {
+      babies: {
+        Row: {
+          created_at: string
+          created_by: string
+          date_of_birth: string
+          id: string
+          name: string
+          place_of_birth: string | null
+          time_of_birth: string | null
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          date_of_birth: string
+          id?: string
+          name: string
+          place_of_birth?: string | null
+          time_of_birth?: string | null
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          date_of_birth?: string
+          id?: string
+          name?: string
+          place_of_birth?: string | null
+          time_of_birth?: string | null
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      baby_access: {
+        Row: {
+          baby_id: string
+          created_at: string
+          id: string
+          invited_by: string
+          permission: Database["public"]["Enums"]["angel_permission"] | null
+          role: Database["public"]["Enums"]["baby_access_role"]
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          baby_id: string
+          created_at?: string
+          id?: string
+          invited_by: string
+          permission?: Database["public"]["Enums"]["angel_permission"] | null
+          role?: Database["public"]["Enums"]["baby_access_role"]
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          baby_id?: string
+          created_at?: string
+          id?: string
+          invited_by?: string
+          permission?: Database["public"]["Enums"]["angel_permission"] | null
+          role?: Database["public"]["Enums"]["baby_access_role"]
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "baby_access_baby_id_fkey"
+            columns: ["baby_id"]
+            isOneToOne: false
+            referencedRelation: "babies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      baby_moments: {
+        Row: {
+          baby_id: string
+          category: Database["public"]["Enums"]["category_type"]
+          description: string
+          end_time: number | null
+          height: number | null
+          id: string
+          location: string | null
+          memorable: boolean | null
+          original_moment_id: string | null
+          people: string | null
+          photo_url: string | null
+          shared_at: string
+          shared_by: string
+          start_time: number
+          width: number | null
+          y_position: number
+        }
+        Insert: {
+          baby_id: string
+          category?: Database["public"]["Enums"]["category_type"]
+          description: string
+          end_time?: number | null
+          height?: number | null
+          id?: string
+          location?: string | null
+          memorable?: boolean | null
+          original_moment_id?: string | null
+          people?: string | null
+          photo_url?: string | null
+          shared_at?: string
+          shared_by: string
+          start_time: number
+          width?: number | null
+          y_position?: number
+        }
+        Update: {
+          baby_id?: string
+          category?: Database["public"]["Enums"]["category_type"]
+          description?: string
+          end_time?: number | null
+          height?: number | null
+          id?: string
+          location?: string | null
+          memorable?: boolean | null
+          original_moment_id?: string | null
+          people?: string | null
+          photo_url?: string | null
+          shared_at?: string
+          shared_by?: string
+          start_time?: number
+          width?: number | null
+          y_position?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "baby_moments_baby_id_fkey"
+            columns: ["baby_id"]
+            isOneToOne: false
+            referencedRelation: "babies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "baby_moments_original_moment_id_fkey"
+            columns: ["original_moment_id"]
+            isOneToOne: false
+            referencedRelation: "moments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       connections: {
         Row: {
           connected_user_id: string
@@ -383,7 +535,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_contribute_to_baby: {
+        Args: { _baby_id: string; _user_id: string }
+        Returns: boolean
+      }
       delete_user_account: { Args: never; Returns: undefined }
+      has_baby_access: {
+        Args: { _baby_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_group_member: {
         Args: { _group_id: string; _user_id: string }
         Returns: boolean
@@ -398,6 +558,8 @@ export type Database = {
       redeem_invite_code: { Args: { invite_code: string }; Returns: boolean }
     }
     Enums: {
+      angel_permission: "view" | "contribute"
+      baby_access_role: "parent" | "angel"
       category_type: "business" | "personal"
     }
     CompositeTypes: {
@@ -526,6 +688,8 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      angel_permission: ["view", "contribute"],
+      baby_access_role: ["parent", "angel"],
       category_type: ["business", "personal"],
     },
   },

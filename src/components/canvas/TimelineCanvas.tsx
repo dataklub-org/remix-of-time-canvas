@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Stage, Layer, Rect } from 'react-konva';
 import { Plus, MessageSquare } from 'lucide-react';
+import { NotificationBubble } from './NotificationBubble';
 import { useCanvasSize } from '@/hooks/useCanvasSize';
 import { usePanZoom } from '@/hooks/usePanZoom';
 import { useMomentsStore, OURLIFE_TIMELINE_ID } from '@/stores/useMomentsStore';
@@ -226,9 +227,10 @@ export function TimelineCanvas() {
       {/* Navigation controls */}
       <NavigationControls />
       
-      {/* Branding logo - top left */}
-      <div className="absolute top-4 left-4 z-10">
+      {/* Branding logo & Notification - top left */}
+      <div className="absolute top-4 left-4 z-10 flex items-center gap-3">
         <img src={fractalito} alt="fractalito" className="h-5 w-auto" />
+        <NotificationBubble />
       </div>
       
       {/* Auth button & My Circle - top right */}

@@ -198,10 +198,11 @@ export function TimelineCanvas() {
           {/* Time axis */}
           <TimeAxis width={width} height={canvasHeight} timelineY={timelineY + scrollOffset} />
           
-          {/* Moment cards - filter by memorable on weekly/monthly/yearly views */}
+          {/* Moment cards - filter by memorable on weekly/monthly/yearly views only */}
           {activeTimelineMoments
             .filter((moment) => {
               const zoomLevel = getZoomLevel(canvasState.msPerPixel);
+              // Only filter at week/month/year - show all moments at 6h and 1d levels
               if (zoomLevel === 'week' || zoomLevel === 'month' || zoomLevel === 'year') {
                 return moment.memorable === true;
               }

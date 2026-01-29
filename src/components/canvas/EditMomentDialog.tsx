@@ -228,7 +228,8 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       <Sheet open={!!moment} onOpenChange={() => onClose()}>
         <SheetContent 
           side="bottom" 
-          className="h-[85dvh] rounded-t-2xl px-6 pt-4 pb-4 flex flex-col"
+          className="max-h-[85dvh] h-auto rounded-t-2xl px-6 pt-4 pb-safe flex flex-col"
+          style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 1rem)' }}
         >
           {formContent}
         </SheetContent>

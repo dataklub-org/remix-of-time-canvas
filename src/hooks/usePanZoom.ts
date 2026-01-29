@@ -206,14 +206,15 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
     lastTouchRef.current = null;
     pinchStartRef.current = null;
     
-    // Snap to nearest zoom level after pinch ends
+    // Snap to nearest zoom level after pinch ends and sync store
     if (wasPinching) {
       const currentIndex = getZoomLevelIndex(currentMsPerPixel);
       const targetZoom = ZOOM_LEVELS[currentIndex].msPerPixel;
       targetMsPerPixelRef.current = targetZoom;
-      animateZoom(targetZoom);
+      // Immediately set the snapped zoom level to keep store in sync
+      setMsPerPixel(targetZoom);
     }
-  }, [isPinching, msPerPixel, animateZoom]);
+  }, [isPinching, msPerPixel, setMsPerPixel]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     // Don't handle wheel events while resizing

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, X, Users, Share2, Check, CheckCheck } from 'lucide-react';
+import { Bell, X, Users, Share2, Check, CheckCheck, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -9,20 +9,28 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications, type Notification } from '@/hooks/useNotifications';
 import { useAuth } from '@/hooks/useAuth';
+import { useConnections } from '@/hooks/useConnections';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 function NotificationItem({
   notification,
   onMarkAsRead,
   onDelete,
+  onAddToCircle,
+  isConnected,
 }: {
   notification: Notification;
   onMarkAsRead: (id: string) => void;
   onDelete: (id: string) => void;
+  onAddToCircle: (userId: string) => Promise<void>;
+  isConnected: (userId: string) => boolean;
 }) {
   const isInvite = notification.type === 'invite_joined';
   const Icon = isInvite ? Users : Share2;
+  const joinedUserId = notification.data?.joined_user_id as string | undefined;
+  const alreadyConnected = joinedUserId ? isConnected(joinedUserId) : true;
 
   return (
     <div
@@ -43,9 +51,25 @@ function NotificationItem({
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-foreground">{notification.title}</p>
           <p className="text-xs text-muted-foreground mt-0.5">{notification.message}</p>
-          <p className="text-[10px] text-muted-foreground/60 mt-1">
-            {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-          </p>
+          <div className="flex items-center gap-2 mt-1.5">
+            <p className="text-[10px] text-muted-foreground/60">
+              {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+            </p>
+            {isInvite && joinedUserId && !alreadyConnected && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-5 text-[10px] px-2 gap-1"
+                onClick={() => onAddToCircle(joinedUserId)}
+              >
+                <UserPlus className="h-3 w-3" />
+                Add to Circle
+              </Button>
+            )}
+            {isInvite && alreadyConnected && joinedUserId && (
+              <span className="text-[10px] text-green-600">Already in Circle</span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           {!notification.read && (
@@ -76,7 +100,23 @@ export function NotificationBubble() {
   const { user, isAuthenticated } = useAuth();
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } =
     useNotifications(user?.id || null);
+  const { connections, addConnection } = useConnections(user?.id || null);
   const [open, setOpen] = useState(false);
+  const [addedUsers, setAddedUsers] = useState<Set<string>>(new Set());
+
+  const isConnected = (userId: string) => {
+    return connections.some(c => c.connectedUserId === userId) || addedUsers.has(userId);
+  };
+
+  const handleAddToCircle = async (userId: string) => {
+    try {
+      await addConnection(userId);
+      setAddedUsers(prev => new Set(prev).add(userId));
+      toast.success('Added to your Circle!');
+    } catch (error) {
+      toast.error('Failed to add to Circle');
+    }
+  };
 
   if (!isAuthenticated) return null;
 
@@ -127,6 +167,8 @@ export function NotificationBubble() {
                 notification={notification}
                 onMarkAsRead={markAsRead}
                 onDelete={deleteNotification}
+                onAddToCircle={handleAddToCircle}
+                isConnected={isConnected}
               />
             ))
           )}

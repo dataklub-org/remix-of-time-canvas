@@ -83,18 +83,24 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
     let clientY: number;
     if ('touches' in e) {
       // Two finger touch = pinch gesture
-      if (e.touches.length === 2) {
+      if (e.touches.length >= 2) {
         // Cancel any ongoing zoom animation
         if (zoomAnimationRef.current) {
           cancelAnimationFrame(zoomAnimationRef.current);
           zoomAnimationRef.current = null;
         }
+        // Stop panning if we were panning
+        setIsPanning(false);
+        panStartRef.current = null;
+        lastTouchRef.current = null;
+        
         setIsPinching(true);
         pinchStartRef.current = {
           distance: getTouchDistance(e.touches),
           msPerPixel: msPerPixel,
         };
         targetMsPerPixelRef.current = msPerPixel;
+        e.preventDefault();
         return;
       }
       if (e.touches.length !== 1) return; // Only single touch for panning
@@ -119,9 +125,31 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
   const handleMouseMove = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     const isTouch = 'touches' in e;
     
-    // Handle pinch zoom
-    if (isTouch && isPinching && e.touches.length === 2 && pinchStartRef.current) {
+    // Handle pinch zoom - check for 2 fingers during move as well (user may add second finger)
+    if (isTouch && e.touches.length >= 2) {
       e.preventDefault();
+      
+      // If we weren't already pinching, start now
+      if (!isPinching || !pinchStartRef.current) {
+        // Cancel any ongoing zoom animation
+        if (zoomAnimationRef.current) {
+          cancelAnimationFrame(zoomAnimationRef.current);
+          zoomAnimationRef.current = null;
+        }
+        // Stop panning
+        setIsPanning(false);
+        panStartRef.current = null;
+        lastTouchRef.current = null;
+        
+        setIsPinching(true);
+        pinchStartRef.current = {
+          distance: getTouchDistance(e.touches),
+          msPerPixel: msPerPixel,
+        };
+        targetMsPerPixelRef.current = msPerPixel;
+        return;
+      }
+      
       const currentDistance = getTouchDistance(e.touches);
       const scale = currentDistance / pinchStartRef.current.distance;
       

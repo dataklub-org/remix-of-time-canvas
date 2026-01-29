@@ -4,6 +4,7 @@ import { Sheet, SheetContent } from '@/components/ui/sheet';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import { useMomentsStore } from '@/stores/useMomentsStore';
 import { useGroups } from '@/hooks/useGroups';
+import { useBabies, useShareMomentToBaby } from '@/hooks/useBabies';
 import { useAuth } from '@/hooks/useAuth';
 import type { Category } from '@/types/moment';
 import { format } from 'date-fns';
@@ -11,6 +12,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { MomentFormContent } from './MomentFormContent';
 import { getDefaultMomentWidth } from '@/utils/timeUtils';
 import { GroupShareSelector } from './GroupShareSelector';
+import { BabyShareSelector } from './BabyShareSelector';
 
 interface CreateMomentDialogProps {
   open: boolean;
@@ -23,6 +25,8 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   const { addMoment, addGroupMoment, canvasState, loadGroupMoments } = useMomentsStore();
   const { user, isAuthenticated } = useAuth();
   const { groups } = useGroups(user?.id || null);
+  const { babies } = useBabies(user?.id || null);
+  const { shareMomentToBaby } = useShareMomentToBaby(user?.id || null);
   const isMobile = useIsMobile();
   
   const [description, setDescription] = useState('');
@@ -38,6 +42,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
   const [photo, setPhoto] = useState<string | null>(null);
   const [moreDetailsOpen, setMoreDetailsOpen] = useState(false);
   const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
+  const [selectedBabyIds, setSelectedBabyIds] = useState<string[]>([]);
   
   // Initialize date/time inputs when dialog opens
   useEffect(() => {
@@ -46,6 +51,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       setDateInput(format(date, 'yyyy-MM-dd'));
       setTimeInput(format(date, 'HH:mm'));
       setSelectedGroupIds([]);
+      setSelectedBabyIds([]);
     }
   }, [open, timestamp]);
 
@@ -94,6 +100,13 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
       }
       await loadGroupMoments();
     }
+
+    // Also share to selected babies if any
+    if (selectedBabyIds.length > 0 && isAuthenticated) {
+      for (const babyId of selectedBabyIds) {
+        await shareMomentToBaby(babyId, momentData);
+      }
+    }
     
     // Reset form
     resetForm();
@@ -112,6 +125,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     setPhoto(null);
     setMoreDetailsOpen(false);
     setSelectedGroupIds([]);
+    setSelectedBabyIds([]);
   };
 
   // Autosave when clicking away (backdrop click)
@@ -157,6 +171,13 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
         }
         await loadGroupMoments();
       }
+
+      // Also share to selected babies
+      if (selectedBabyIds.length > 0 && isAuthenticated) {
+        for (const babyId of selectedBabyIds) {
+          await shareMomentToBaby(babyId, momentData);
+        }
+      }
     }
     
     resetForm();
@@ -169,15 +190,25 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
     onOpenChange(false);
   };
 
-  // Group share section for create mode
-  const groupShareSection = isAuthenticated && groups.length > 0 ? (
-    <div className="space-y-2 pt-3 border-t border-border mt-3">
-      <GroupShareSelector
-        groups={groups}
-        selectedGroupIds={selectedGroupIds}
-        onSelectionChange={setSelectedGroupIds}
-        label="Also share to groups"
-      />
+  // Share section for create mode (groups and babies)
+  const shareSection = isAuthenticated && (groups.length > 0 || babies.length > 0) ? (
+    <div className="space-y-3 pt-3 border-t border-border mt-3">
+      {groups.length > 0 && (
+        <GroupShareSelector
+          groups={groups}
+          selectedGroupIds={selectedGroupIds}
+          onSelectionChange={setSelectedGroupIds}
+          label="Share to groups"
+        />
+      )}
+      {babies.length > 0 && (
+        <BabyShareSelector
+          babies={babies}
+          selectedBabyIds={selectedBabyIds}
+          onSelectionChange={setSelectedBabyIds}
+          label="Share to baby timeline"
+        />
+      )}
     </div>
   ) : null;
 
@@ -213,7 +244,7 @@ export function CreateMomentDialog({ open, onOpenChange, timestamp, y }: CreateM
           onSubmit={() => handleSubmit({ preventDefault: () => {} } as React.FormEvent)}
           autoFocusDescription
           isMobile={isMobile}
-          groupShareSection={groupShareSection}
+          groupShareSection={shareSection}
         />
       </div>
     </div>

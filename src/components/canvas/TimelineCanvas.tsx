@@ -4,9 +4,10 @@ import { Plus, MessageSquare } from 'lucide-react';
 import { NotificationBubble } from './NotificationBubble';
 import { useCanvasSize } from '@/hooks/useCanvasSize';
 import { usePanZoom } from '@/hooks/usePanZoom';
-import { useMomentsStore, OURLIFE_TIMELINE_ID } from '@/stores/useMomentsStore';
+import { useMomentsStore, OURLIFE_TIMELINE_ID, BABYLIFE_TIMELINE_ID } from '@/stores/useMomentsStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useGroups } from '@/hooks/useGroups';
+import { useBabies } from '@/hooks/useBabies';
 import { TimeAxis } from './TimeAxis';
 import { MomentCard } from './MomentCard';
 import { CreateMomentDialog } from './CreateMomentDialog';
@@ -27,9 +28,10 @@ const DEFAULT_MS_PER_PIXEL = 36_000;
 
 export function TimelineCanvas() {
   const { width, height: viewportHeight } = useCanvasSize();
-  const { moments, groupMoments, canvasState, setAuthenticated } = useMomentsStore();
+  const { moments, groupMoments, babyMoments, canvasState, setAuthenticated } = useMomentsStore();
   const { user, isAuthenticated } = useAuth();
   const { groups } = useGroups(user?.id || null);
+  const { babies } = useBabies(user?.id || null);
   const { isPanning, handleMouseDown, handleMouseMove, handleMouseUp, handleWheel, setVerticalScrollHandler } = usePanZoom({ canvasWidth: width });
   const initialMsPerPixelRef = useRef(canvasState.msPerPixel);
   const [showVision, setShowVision] = useState(true);
@@ -52,15 +54,20 @@ export function TimelineCanvas() {
   
   // Determine which moments to show based on active timeline
   const isOurLifeActive = canvasState.activeTimelineId === OURLIFE_TIMELINE_ID;
+  const isBabyLifeActive = canvasState.activeTimelineId === BABYLIFE_TIMELINE_ID;
   
   const activeTimelineMoments = useMemo(() => {
     if (isOurLifeActive) {
       // Show all group moments for OurLife
       return groupMoments;
     }
+    if (isBabyLifeActive) {
+      // Show all baby moments for BabyLife
+      return babyMoments;
+    }
     // For MyLife, show user's personal moments
     return moments;
-  }, [moments, groupMoments, isOurLifeActive]);
+  }, [moments, groupMoments, babyMoments, isOurLifeActive, isBabyLifeActive]);
   
   // Calculate dynamic canvas height based on moment positions
   const { canvasHeight, timelineY, scrollOffset } = useMemo(() => {
@@ -217,7 +224,7 @@ export function TimelineCanvas() {
                 canvasHeight={canvasHeight}
                 onSelect={handleSelectMoment}
                 timelineY={timelineY + scrollOffset}
-                isGroupMoment={isOurLifeActive}
+                isGroupMoment={isOurLifeActive || isBabyLifeActive}
                 groupColor={moment.groupId ? groupColorMap.get(moment.groupId) : undefined}
               />
             ))}

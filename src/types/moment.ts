@@ -1,6 +1,6 @@
 export type Category = 'business' | 'personal';
 
-export type TimelineType = 'mylife' | 'ourlife';
+export type TimelineType = 'mylife' | 'ourlife' | 'babylife';
 
 export interface Timeline {
   id: string;

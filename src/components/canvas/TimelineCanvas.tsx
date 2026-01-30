@@ -240,7 +240,8 @@ export function TimelineCanvas() {
                 canvasHeight={canvasHeight}
                 onSelect={handleSelectMoment}
                 timelineY={timelineY + scrollOffset}
-                isGroupMoment={isOurLifeActive || isBabyLifeActive}
+                isGroupMoment={isOurLifeActive}
+                isBabyMoment={isBabyLifeActive}
                 groupColor={moment.groupId ? groupColorMap.get(moment.groupId) : undefined}
               />
             ))}

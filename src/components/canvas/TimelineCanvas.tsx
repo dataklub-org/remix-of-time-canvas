@@ -74,7 +74,8 @@ export function TimelineCanvas() {
   
   // Calculate dynamic canvas height based on moment positions
   // On mobile, push timeline higher by adjusting the baseline
-  const mobileTimelineOffset = isMobile ? -60 : 0;
+  // Push timeline to 1/3 from bottom on mobile (2/3 from top)
+  const mobileTimelineOffset = isMobile ? (viewportHeight / 3) - (viewportHeight / 2) : 0;
   
   const { canvasHeight, timelineY, scrollOffset } = useMemo(() => {
     if (activeTimelineMoments.length === 0) {

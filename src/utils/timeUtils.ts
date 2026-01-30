@@ -47,12 +47,13 @@ export function getTimeUnit(msPerPixel: number): '5min' | '10min' | '30min' | 'h
 }
 
 // Get zoom level category (for filtering moments)
-export function getZoomLevel(msPerPixel: number): 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year' {
+export function getZoomLevel(msPerPixel: number): 'minute' | 'hour' | '6hour' | 'day' | 'week' | 'month' | 'year' {
   const unit = getTimeUnit(msPerPixel);
   if (unit === 'year') return 'year';
   if (unit === 'month') return 'month';
   if (unit === 'week') return 'week';
-  if (unit === 'day' || unit === '6hour') return 'day';
+  if (unit === 'day') return 'day';
+  if (unit === '6hour') return '6hour';
   if (unit === 'hour') return 'hour';
   return 'minute';
 }

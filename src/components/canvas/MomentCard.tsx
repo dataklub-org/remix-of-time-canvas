@@ -11,6 +11,7 @@ interface MomentCardProps {
   onSelect: (moment: Moment) => void;
   timelineY: number;
   isGroupMoment?: boolean;
+  isBabyMoment?: boolean;
   groupColor?: string; // User-defined color for this group
 }
 
@@ -46,8 +47,8 @@ function truncateFirstLine(text: string, maxChars: number = 40): string {
   return firstLine.substring(0, maxChars - 1) + '…';
 }
 
-export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timelineY, isGroupMoment = false, groupColor }: MomentCardProps) {
-  const { canvasState, updateMomentY, updateGroupMomentY, updateMomentSize, updateMoment } = useMomentsStore();
+export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timelineY, isGroupMoment = false, isBabyMoment = false, groupColor }: MomentCardProps) {
+  const { canvasState, updateMomentY, updateGroupMomentY, updateBabyMomentY, updateMomentSize, updateMoment } = useMomentsStore();
   const { centerTime, msPerPixel } = canvasState;
   
   // Check zoom level - show bubbles at month/year zoom
@@ -138,7 +139,9 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
 
   const handleDragEnd = (e: any) => {
     const newY = e.target.y();
-    if (isGroupMoment) {
+    if (isBabyMoment) {
+      updateBabyMomentY(moment.id, newY);
+    } else if (isGroupMoment) {
       updateGroupMomentY(moment.id, newY);
     } else {
       updateMomentY(moment.id, newY);
@@ -491,7 +494,9 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           // Update Y based on drag, accounting for bubble center offset
           const newY = e.target.y() - (moment.y < timelineY ? cardHeight / 2 : cardHeight / 2);
           const finalY = newY + moment.y - bubbleY;
-          if (isGroupMoment) {
+          if (isBabyMoment) {
+            updateBabyMomentY(moment.id, finalY);
+          } else if (isGroupMoment) {
             updateGroupMomentY(moment.id, finalY);
           } else {
             updateMomentY(moment.id, finalY);

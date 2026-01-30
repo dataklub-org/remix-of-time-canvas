@@ -39,6 +39,7 @@ interface MomentsStore {
   deleteMoment: (id: string) => Promise<void>;
   updateMomentY: (id: string, y: number) => void;
   updateGroupMomentY: (id: string, y: number) => void;
+  updateBabyMomentY: (id: string, y: number) => void;
   updateMomentSize: (id: string, width: number, height: number) => void;
   
   // Timeline actions
@@ -531,6 +532,28 @@ export const useMomentsStore = create<MomentsStore>()(
           .eq('id', id)
           .then(({ error }) => {
             if (error) console.error('Error syncing group moment Y position:', error);
+          });
+      },
+
+      updateBabyMomentY: (id, y) => {
+        const state = get();
+        const movingMoment = state.babyMoments.find((m) => m.id === id);
+        if (!movingMoment) return;
+
+        // Update local state
+        set({
+          babyMoments: state.babyMoments.map((m) =>
+            m.id === id ? { ...m, y, updatedAt: Date.now() } : m
+          ),
+        });
+
+        // Sync to Supabase baby_moments table
+        supabase
+          .from('baby_moments')
+          .update({ y_position: y })
+          .eq('id', id)
+          .then(({ error }) => {
+            if (error) console.error('Error syncing baby moment Y position:', error);
           });
       },
 

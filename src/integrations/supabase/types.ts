@@ -539,6 +539,32 @@ export type Database = {
         Args: { _baby_id: string; _user_id: string }
         Returns: boolean
       }
+      create_baby: {
+        Args: {
+          p_date_of_birth: string
+          p_name: string
+          p_place_of_birth?: string
+          p_time_of_birth?: string
+          p_username: string
+        }
+        Returns: {
+          created_at: string
+          created_by: string
+          date_of_birth: string
+          id: string
+          name: string
+          place_of_birth: string | null
+          time_of_birth: string | null
+          updated_at: string
+          username: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "babies"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       delete_user_account: { Args: never; Returns: undefined }
       has_baby_access: {
         Args: { _baby_id: string; _user_id: string }

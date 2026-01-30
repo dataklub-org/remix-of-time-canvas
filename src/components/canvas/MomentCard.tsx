@@ -51,12 +51,12 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
   const { canvasState, updateMomentY, updateGroupMomentY, updateBabyMomentY, updateMomentSize, updateMoment } = useMomentsStore();
   const { centerTime, msPerPixel } = canvasState;
   
-  // Check zoom level - show bubbles at month/year zoom
-  // Memorable moments show as cards at 6h/day/week, only bubbles at month/year
+  // Check zoom level - show bubbles at day zoom and higher
+  // Moments stay as boxes at 6h and below, turn into bubbles at day level
   const zoomLevel = getZoomLevel(msPerPixel);
   const isHighZoom = zoomLevel === 'month' || zoomLevel === 'year';
   const isMediumZoom = zoomLevel === 'day' || zoomLevel === 'week';
-  // Bubble mode: always for month/year, or for non-memorable at day/week
+  // Bubble mode: at day level and above (memorable stays as card at day/week, bubbles at month/year)
   const isBubbleMode = isHighZoom || (isMediumZoom && !moment.memorable);
   
   // Detect mobile device

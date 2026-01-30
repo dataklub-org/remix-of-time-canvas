@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Baby, Plus, Trash2, Loader2, UserPlus, Crown, Heart, Palette } from 'lucide-react';
+import { Baby, Plus, Trash2, Loader2, UserPlus, Crown, Heart, Palette, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,6 +28,7 @@ import type { Baby as BabyType, BabyAccessRole, AngelPermission } from '@/types/
 import { Connection } from '@/hooks/useConnections';
 import { cn } from '@/lib/utils';
 import { BABY_COLOR_PALETTE, DEFAULT_BABY_COLOR } from '@/utils/colorPalette';
+import { BabyAccessManager, ConfirmParentDialog } from './BabyAccessManager';
 
 interface BabiesSectionProps {
   userId: string;
@@ -47,6 +48,8 @@ export function BabiesSection({ userId, connections, defaultExpanded = false }: 
     declineInvitation,
     updateBabyColor,
     isParent,
+    getBabyAccess,
+    revokeAccess,
   } = useBabies(userId);
 
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
@@ -103,6 +106,8 @@ export function BabiesSection({ userId, connections, defaultExpanded = false }: 
               connections={connections}
               currentUserId={userId}
               canEditColor={isParent(baby)}
+              getBabyAccess={getBabyAccess}
+              revokeAccess={revokeAccess}
             />
           ))}
         </div>
@@ -248,6 +253,8 @@ function BabyItem({
   connections,
   currentUserId,
   canEditColor,
+  getBabyAccess,
+  revokeAccess,
 }: {
   baby: BabyType;
   onDelete: (id: string) => Promise<boolean>;
@@ -256,6 +263,8 @@ function BabyItem({
   connections: Connection[];
   currentUserId: string;
   canEditColor: boolean;
+  getBabyAccess: (babyId: string) => Promise<import('@/types/baby').BabyAccess[]>;
+  revokeAccess: (accessId: string) => Promise<boolean>;
 }) {
   const [showInvite, setShowInvite] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');
@@ -263,10 +272,24 @@ function BabyItem({
   const [permission, setPermission] = useState<AngelPermission>('view');
   const [inviting, setInviting] = useState(false);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
+  const [accessManagerOpen, setAccessManagerOpen] = useState(false);
+  const [confirmParentOpen, setConfirmParentOpen] = useState(false);
+  const [selectedUsername, setSelectedUsername] = useState('');
 
   const isCreator = baby.createdBy === currentUserId;
   const ageText = getAgeText(baby.dateOfBirth);
   const babyColor = baby.color || DEFAULT_BABY_COLOR;
+
+  const handleInviteClick = () => {
+    if (role === 'parent' && selectedUserId) {
+      // Find the username for confirmation dialog
+      const conn = connections.find(c => c.connectedUserId === selectedUserId);
+      setSelectedUsername(conn?.username || 'this person');
+      setConfirmParentOpen(true);
+    } else {
+      handleInvite();
+    }
+  };
 
   const handleInvite = async () => {
     if (!selectedUserId) return;
@@ -275,6 +298,7 @@ function BabyItem({
     if (success) {
       setShowInvite(false);
       setSelectedUserId('');
+      setConfirmParentOpen(false);
     }
     setInviting(false);
   };
@@ -298,6 +322,18 @@ function BabyItem({
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {/* View access list - only for parents */}
+          {canEditColor && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-7 p-0"
+              onClick={() => setAccessManagerOpen(true)}
+              title="View parents & angels"
+            >
+              <Users className="h-3.5 w-3.5" />
+            </Button>
+          )}
           {/* Color picker - only for parents */}
           {canEditColor && (
             <Popover open={colorPickerOpen} onOpenChange={setColorPickerOpen}>
@@ -426,7 +462,7 @@ function BabyItem({
           <Button
             size="sm"
             className="w-full"
-            onClick={handleInvite}
+            onClick={handleInviteClick}
             disabled={!selectedUserId || inviting}
           >
             {inviting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
@@ -434,6 +470,27 @@ function BabyItem({
           </Button>
         </div>
       )}
+
+      {/* Access Manager Dialog */}
+      <BabyAccessManager
+        open={accessManagerOpen}
+        onOpenChange={setAccessManagerOpen}
+        babyName={baby.name}
+        babyId={baby.id}
+        currentUserId={currentUserId}
+        getBabyAccess={getBabyAccess}
+        revokeAccess={revokeAccess}
+      />
+
+      {/* Confirm Parent Dialog */}
+      <ConfirmParentDialog
+        open={confirmParentOpen}
+        onOpenChange={setConfirmParentOpen}
+        username={selectedUsername}
+        babyName={baby.name}
+        onConfirm={handleInvite}
+        confirming={inviting}
+      />
     </div>
   );
 }

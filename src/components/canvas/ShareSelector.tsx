@@ -110,7 +110,7 @@ export function ShareSelector({
               )}
               <span className="flex items-center gap-1.5 text-sm">
                 {item.type === 'baby' ? (
-                  <BabyIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                  <BabyIcon className="h-3.5 w-3.5 text-baby" />
                 ) : null}
                 {item.name}
               </span>

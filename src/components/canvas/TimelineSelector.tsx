@@ -62,20 +62,18 @@ export function TimelineSelector({ onOpenBabiesSection }: TimelineSelectorProps)
         OurLife
       </button>
 
-      {/* BabyLife tab - always visible for authenticated users */}
-      {isAuthenticated && (
-        <button
-          onClick={() => handleTimelineSelect(BABYLIFE_TIMELINE_ID)}
-          className={cn(
-            "px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200",
-            isBabyLifeActive
-              ? "bg-black text-white shadow-sm"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-          )}
-        >
-          BabyLife
-        </button>
-      )}
+      {/* BabyLife tab - always visible */}
+      <button
+        onClick={() => handleTimelineSelect(BABYLIFE_TIMELINE_ID)}
+        className={cn(
+          "px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200",
+          isBabyLifeActive
+            ? "bg-black text-white shadow-sm"
+            : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+        )}
+      >
+        BabyLife
+      </button>
     </div>
   );
 }

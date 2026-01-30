@@ -45,6 +45,11 @@
     /* Category accents */
     --category-business: 215 80% 55%;
     --category-personal: 25 85% 60%;
+    
+    /* Baby palette - soft pastels */
+    --baby-primary: 199 89% 70%;
+    --baby-secondary: 199 80% 85%;
+    --baby-accent: 199 75% 60%;
 
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
@@ -94,6 +99,11 @@
     /* Category accents - dark mode */
     --category-business: 215 70% 50%;
     --category-personal: 25 75% 55%;
+    
+    /* Baby palette - dark mode */
+    --baby-primary: 199 80% 65%;
+    --baby-secondary: 199 60% 30%;
+    --baby-accent: 199 70% 55%;
 
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;

@@ -155,8 +155,8 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
       const currentDistance = getTouchDistance(e.touches);
       const scale = currentDistance / pinchStartRef.current.distance;
       
-      // Invert scale for pinch-in to zoom-in behavior
-      // Scale < 1 means fingers moved closer = zoom in = lower msPerPixel
+      // Scale > 1 means fingers spread apart = zoom in = lower msPerPixel (more detail)
+      // Scale < 1 means fingers moved closer = zoom out = higher msPerPixel (less detail)
       const newMsPerPixel = pinchStartRef.current.msPerPixel / scale;
       
       // Clamp to valid zoom levels
@@ -166,7 +166,7 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
       );
       
       // Directly update msPerPixel during pinch for responsiveness
-      // Also update the pinch start reference so zooming out works correctly
+      // Update the pinch start reference continuously for smooth zooming
       setMsPerPixel(clampedMsPerPixel);
       pinchStartRef.current = {
         distance: currentDistance,

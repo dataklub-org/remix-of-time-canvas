@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Baby, Plus, Trash2, Loader2, UserPlus, Crown, Heart } from 'lucide-react';
+import { Baby, Plus, Trash2, Loader2, UserPlus, Crown, Heart, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,10 +18,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import { useBabies, PendingBabyInvitation } from '@/hooks/useBabies';
 import type { Baby as BabyType, BabyAccessRole, AngelPermission } from '@/types/baby';
 import { Connection } from '@/hooks/useConnections';
 import { cn } from '@/lib/utils';
+import { BABY_COLOR_PALETTE, DEFAULT_BABY_COLOR } from '@/utils/colorPalette';
 
 interface BabiesSectionProps {
   userId: string;
@@ -39,6 +45,8 @@ export function BabiesSection({ userId, connections, defaultExpanded = false }: 
     inviteUser,
     acceptInvitation,
     declineInvitation,
+    updateBabyColor,
+    isParent,
   } = useBabies(userId);
 
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
@@ -91,8 +99,10 @@ export function BabiesSection({ userId, connections, defaultExpanded = false }: 
               baby={baby}
               onDelete={deleteBaby}
               onInvite={inviteUser}
+              onUpdateColor={updateBabyColor}
               connections={connections}
               currentUserId={userId}
+              canEditColor={isParent(baby)}
             />
           ))}
         </div>
@@ -234,23 +244,29 @@ function BabyItem({
   baby,
   onDelete,
   onInvite,
+  onUpdateColor,
   connections,
   currentUserId,
+  canEditColor,
 }: {
   baby: BabyType;
   onDelete: (id: string) => Promise<boolean>;
   onInvite: (babyId: string, userId: string, role: BabyAccessRole, permission?: AngelPermission) => Promise<boolean>;
+  onUpdateColor: (babyId: string, color: string | null) => Promise<boolean>;
   connections: Connection[];
   currentUserId: string;
+  canEditColor: boolean;
 }) {
   const [showInvite, setShowInvite] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [role, setRole] = useState<BabyAccessRole>('angel');
   const [permission, setPermission] = useState<AngelPermission>('view');
   const [inviting, setInviting] = useState(false);
+  const [colorPickerOpen, setColorPickerOpen] = useState(false);
 
   const isCreator = baby.createdBy === currentUserId;
   const ageText = getAgeText(baby.dateOfBirth);
+  const babyColor = baby.color || DEFAULT_BABY_COLOR;
 
   const handleInvite = async () => {
     if (!selectedUserId) return;
@@ -267,8 +283,12 @@ function BabyItem({
     <div className="p-3 border rounded-lg space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-full bg-baby-secondary flex items-center justify-center">
-            <Baby className="h-4 w-4 text-baby-accent" />
+          {/* Color indicator */}
+          <div 
+            className="h-8 w-8 rounded-full flex items-center justify-center"
+            style={{ backgroundColor: babyColor }}
+          >
+            <Baby className="h-4 w-4 text-white drop-shadow-sm" />
           </div>
           <div>
             <p className="font-medium text-sm">{baby.name}</p>
@@ -278,6 +298,53 @@ function BabyItem({
           </div>
         </div>
         <div className="flex items-center gap-1">
+          {/* Color picker - only for parents */}
+          {canEditColor && (
+            <Popover open={colorPickerOpen} onOpenChange={setColorPickerOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-7 p-0"
+                >
+                  <Palette className="h-3.5 w-3.5" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-2 z-50 bg-popover" align="end">
+                <div className="grid grid-cols-5 gap-1.5">
+                  {BABY_COLOR_PALETTE.map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => {
+                        onUpdateColor(baby.id, color);
+                        setColorPickerOpen(false);
+                      }}
+                      className={cn(
+                        "w-6 h-6 rounded-full border-2 transition-all",
+                        baby.color === color 
+                          ? "border-foreground scale-110" 
+                          : "border-transparent hover:scale-110"
+                      )}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+                {baby.color && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      onUpdateColor(baby.id, null);
+                      setColorPickerOpen(false);
+                    }}
+                    className="w-full mt-2 text-xs h-7"
+                  >
+                    Reset to default
+                  </Button>
+                )}
+              </PopoverContent>
+            </Popover>
+          )}
           {isCreator && (
             <>
               <Button

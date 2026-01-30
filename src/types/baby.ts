@@ -9,6 +9,7 @@ export interface Baby {
   dateOfBirth: Date;
   timeOfBirth?: string; // HH:mm format
   placeOfBirth?: string;
+  color?: string; // Custom color for baby timeline
   createdBy: string;
   createdAt: Date;
   updatedAt: Date;

@@ -16,6 +16,7 @@ export type Database = {
     Tables: {
       babies: {
         Row: {
+          color: string | null
           created_at: string
           created_by: string
           date_of_birth: string
@@ -27,6 +28,7 @@ export type Database = {
           username: string
         }
         Insert: {
+          color?: string | null
           created_at?: string
           created_by: string
           date_of_birth: string
@@ -38,6 +40,7 @@ export type Database = {
           username: string
         }
         Update: {
+          color?: string | null
           created_at?: string
           created_by?: string
           date_of_birth?: string
@@ -548,6 +551,7 @@ export type Database = {
           p_username: string
         }
         Returns: {
+          color: string | null
           created_at: string
           created_by: string
           date_of_birth: string

@@ -4,12 +4,14 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Users2, Baby as BabyIcon, Loader2 } from 'lucide-react';
 import { Group } from '@/hooks/useGroups';
 import type { Baby } from '@/types/baby';
+import { DEFAULT_BABY_COLOR, DEFAULT_GROUP_COLOR } from '@/utils/colorPalette';
 
 interface ShareItem {
   id: string;
   name: string;
   type: 'group' | 'baby';
   memberCount?: number;
+  color?: string;
 }
 
 interface ShareSelectorProps {
@@ -40,11 +42,13 @@ export function ShareSelector({
       name: g.name,
       type: 'group' as const,
       memberCount: g.memberCount,
+      color: g.color || undefined,
     })),
     ...babies.map((b) => ({
       id: b.id,
       name: b.name,
       type: 'baby' as const,
+      color: b.color || undefined,
     })),
   ];
 
@@ -109,9 +113,16 @@ export function ShareSelector({
                 />
               )}
               <span className="flex items-center gap-1.5 text-sm">
-                {item.type === 'baby' ? (
-                  <BabyIcon className="h-3.5 w-3.5 text-baby" />
-                ) : null}
+                {/* Color indicator */}
+                <div 
+                  className="w-3 h-3 rounded-full shrink-0"
+                  style={{ 
+                    backgroundColor: item.color || (item.type === 'baby' ? DEFAULT_BABY_COLOR : DEFAULT_GROUP_COLOR) 
+                  }}
+                />
+                {item.type === 'baby' && (
+                  <BabyIcon className="h-3.5 w-3.5 text-white drop-shadow-sm" style={{ marginLeft: '-14px', marginRight: '6px' }} />
+                )}
                 {item.name}
               </span>
               {item.type === 'group' && item.memberCount !== undefined && (

@@ -37,6 +37,7 @@ export function useBabies(userId: string | null) {
         dateOfBirth: new Date(b.date_of_birth),
         timeOfBirth: b.time_of_birth || undefined,
         placeOfBirth: b.place_of_birth || undefined,
+        color: b.color || undefined,
         createdBy: b.created_by,
         createdAt: new Date(b.created_at),
         updatedAt: new Date(b.updated_at),
@@ -161,6 +162,7 @@ export function useBabies(userId: string | null) {
     dateOfBirth: Date;
     timeOfBirth: string | null;
     placeOfBirth: string | null;
+    color: string | null;
   }>): Promise<boolean> => {
     try {
       const supabaseUpdates: any = {};
@@ -170,6 +172,7 @@ export function useBabies(userId: string | null) {
       }
       if (updates.timeOfBirth !== undefined) supabaseUpdates.time_of_birth = updates.timeOfBirth;
       if (updates.placeOfBirth !== undefined) supabaseUpdates.place_of_birth = updates.placeOfBirth;
+      if (updates.color !== undefined) supabaseUpdates.color = updates.color;
 
       const { error } = await supabase
         .from('babies')
@@ -350,6 +353,37 @@ export function useBabies(userId: string | null) {
     return true; // Simplified - real check done via can_contribute_to_baby RPC
   };
 
+  // Check if user is a parent of the baby (can change settings like color)
+  const isParent = (baby: Baby): boolean => {
+    // Creator is always a parent
+    if (baby.createdBy === userId) return true;
+    // Otherwise would need to fetch baby_access, but RLS will enforce this anyway
+    return false;
+  };
+
+  const updateBabyColor = async (babyId: string, color: string | null): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('babies')
+        .update({ color })
+        .eq('id', babyId);
+
+      if (error) throw error;
+
+      setBabies(prev => prev.map(b => 
+        b.id === babyId 
+          ? { ...b, color: color || undefined, updatedAt: new Date() }
+          : b
+      ));
+
+      return true;
+    } catch (error) {
+      console.error('Error updating baby color:', error);
+      toast.error('Failed to update color');
+      return false;
+    }
+  };
+
   return {
     babies,
     pendingInvitations,
@@ -357,6 +391,7 @@ export function useBabies(userId: string | null) {
     fetchBabies,
     createBaby,
     updateBaby,
+    updateBabyColor,
     deleteBaby,
     inviteUser,
     acceptInvitation,
@@ -364,6 +399,7 @@ export function useBabies(userId: string | null) {
     getBabyAccess,
     revokeAccess,
     canContribute,
+    isParent,
   };
 }
 

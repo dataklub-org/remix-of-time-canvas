@@ -11,20 +11,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-
-// Predefined color palette for groups
-const GROUP_COLORS = [
-  '#3b82f6', // blue
-  '#f59e0b', // amber
-  '#10b981', // emerald
-  '#ef4444', // red
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#06b6d4', // cyan
-  '#f97316', // orange
-  '#84cc16', // lime
-  '#6366f1', // indigo
-];
+import { COLOR_PALETTE, DEFAULT_GROUP_COLOR } from '@/utils/colorPalette';
 
 interface GroupsSectionProps {
   groups: Group[];
@@ -264,7 +251,7 @@ export function GroupsSection({
                   {/* Color indicator */}
                   <div 
                     className="w-3 h-3 rounded-full shrink-0"
-                    style={{ backgroundColor: group.color || '#9ca3af' }}
+                    style={{ backgroundColor: group.color || DEFAULT_GROUP_COLOR }}
                   />
                   <ChevronRight 
                     className={cn(
@@ -303,7 +290,7 @@ export function GroupsSection({
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="grid grid-cols-5 gap-1.5">
-                          {GROUP_COLORS.map((color) => (
+                          {COLOR_PALETTE.map((color) => (
                             <button
                               key={color}
                               onClick={() => {

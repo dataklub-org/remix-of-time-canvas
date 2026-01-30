@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { redeemInviteCode } from '@/hooks/useInviteCode';
+import { redeemGroupInviteCode } from '@/hooks/useGroupInviteCode';
 
 interface UserProfile {
   username: string;
@@ -43,9 +44,10 @@ export function useAuth() {
         if (session?.user) {
           setTimeout(() => {
             fetchProfile(session.user.id);
-            // Redeem any pending invite code on SIGNED_IN event
+            // Redeem any pending invite codes on SIGNED_IN event
             if (event === 'SIGNED_IN') {
               redeemInviteCode(session.user.id);
+              redeemGroupInviteCode(session.user.id);
             }
           }, 0);
         } else {

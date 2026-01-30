@@ -8,6 +8,7 @@ import { useMomentsStore, OURLIFE_TIMELINE_ID, BABYLIFE_TIMELINE_ID } from '@/st
 import { useAuth } from '@/hooks/useAuth';
 import { useGroups } from '@/hooks/useGroups';
 import { useBabies } from '@/hooks/useBabies';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { TimeAxis } from './TimeAxis';
 import { MomentCard } from './MomentCard';
 import { CreateMomentDialog } from './CreateMomentDialog';
@@ -16,6 +17,7 @@ import { NavigationControls } from './NavigationControls';
 import { FeedbackPopup } from './FeedbackPopup';
 import { TimelineSelector } from './TimelineSelector';
 import { AuthButton } from './AuthButton';
+import { JumpToDateButton } from './JumpToDateButton';
 import { MyCircle } from '@/components/circle/MyCircle';
 import { xToTime, getZoomLevel } from '@/utils/timeUtils';
 import { Button } from '@/components/ui/button';
@@ -32,6 +34,7 @@ export function TimelineCanvas() {
   const { user, isAuthenticated } = useAuth();
   const { groups } = useGroups(user?.id || null);
   const { babies } = useBabies(user?.id || null);
+  const isMobile = useIsMobile();
   const { isPanning, handleMouseDown, handleMouseMove, handleMouseUp, handleWheel, setVerticalScrollHandler } = usePanZoom({ canvasWidth: width });
   const initialMsPerPixelRef = useRef(canvasState.msPerPixel);
   const [showVision, setShowVision] = useState(true);
@@ -70,9 +73,13 @@ export function TimelineCanvas() {
   }, [moments, groupMoments, babyMoments, isOurLifeActive, isBabyLifeActive]);
   
   // Calculate dynamic canvas height based on moment positions
+  // On mobile, push timeline higher by adjusting the baseline
+  const mobileTimelineOffset = isMobile ? -60 : 0;
+  
   const { canvasHeight, timelineY, scrollOffset } = useMemo(() => {
     if (activeTimelineMoments.length === 0) {
-      return { canvasHeight: viewportHeight, timelineY: viewportHeight / 2, scrollOffset: 0 };
+      const baseTimelineY = viewportHeight / 2 + mobileTimelineOffset;
+      return { canvasHeight: viewportHeight, timelineY: baseTimelineY, scrollOffset: 0 };
     }
     
     let minY = Infinity;
@@ -87,8 +94,8 @@ export function TimelineCanvas() {
     // Calculate required height with padding
     const requiredHeight = Math.max(viewportHeight, maxY - minY + PADDING * 2);
     
-    // Keep timeline centered in viewport, but allow scrolling
-    const timelinePos = viewportHeight / 2;
+    // Keep timeline centered in viewport (with mobile offset), but allow scrolling
+    const timelinePos = viewportHeight / 2 + mobileTimelineOffset;
     
     // Calculate how much we need to scroll to show all content
     const contentTop = Math.min(0, minY - PADDING);
@@ -100,7 +107,7 @@ export function TimelineCanvas() {
       timelineY: timelinePos - contentTop,
       scrollOffset: contentTop
     };
-  }, [activeTimelineMoments, viewportHeight]);
+  }, [activeTimelineMoments, viewportHeight, mobileTimelineOffset]);
   
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createPosition, setCreatePosition] = useState({ timestamp: Date.now(), y: 0 });
@@ -184,7 +191,7 @@ export function TimelineCanvas() {
 
   return (
     <div 
-      className="w-full h-full bg-[hsl(var(--canvas-bg))] overflow-auto touch-none"
+      className="w-full h-full bg-[hsl(var(--canvas-bg))] overflow-hidden"
       onMouseDown={handleMouseDown as any}
       onMouseMove={handleMouseMove as any}
       onMouseUp={handleMouseUp}
@@ -279,6 +286,11 @@ export function TimelineCanvas() {
       
       {/* Feedback popup */}
       <FeedbackPopup open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+      
+      {/* Jump to Date button - above Add moment on right */}
+      <div className="absolute right-4 bottom-32 md:bottom-16 flex flex-col gap-2 z-10">
+        <JumpToDateButton />
+      </div>
       
       {/* Add moment button - bottom right */}
       <Button

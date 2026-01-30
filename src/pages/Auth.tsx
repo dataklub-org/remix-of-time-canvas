@@ -6,9 +6,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Mail, Lock, Loader2, User, Check, X, Link2 } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, Loader2, User, Check, X, Link2, Users2 } from 'lucide-react';
 import fractalito from '@/assets/fractalito-logo.png';
 import { toast } from 'sonner';
+import { validateGroupInviteCode } from '@/hooks/useGroupInviteCode';
 
 const usernameSchema = z.string()
   .min(3, { message: "Username must be at least 3 characters" })
@@ -24,9 +25,10 @@ export default function Auth() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const inviteCode = searchParams.get('invite');
+  const groupInviteCode = searchParams.get('group_invite');
   
   const { signIn, signUp, signInWithGoogle, isAuthenticated, loading, checkUsernameAvailable } = useAuth();
-  const [isSignUp, setIsSignUp] = useState(!!inviteCode); // Auto-switch to signup if invite code present
+  const [isSignUp, setIsSignUp] = useState(!!inviteCode || !!groupInviteCode); // Auto-switch to signup if invite code present
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -39,13 +41,29 @@ export default function Auth() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [inviterUsername, setInviterUsername] = useState<string | null>(null);
+  const [groupInviteInfo, setGroupInviteInfo] = useState<{ groupName: string; inviterUsername?: string } | null>(null);
 
   // Check invite code validity and get inviter info
   useEffect(() => {
     if (inviteCode) {
       checkInviteCode(inviteCode);
     }
-  }, [inviteCode]);
+    if (groupInviteCode) {
+      checkGroupInviteCode(groupInviteCode);
+    }
+  }, [inviteCode, groupInviteCode]);
+
+  const checkGroupInviteCode = async (code: string) => {
+    const result = await validateGroupInviteCode(code);
+    if (result.isValid && result.groupName) {
+      setGroupInviteInfo({
+        groupName: result.groupName,
+        inviterUsername: result.inviterUsername,
+      });
+    } else {
+      toast.error('Invalid or expired group invite link');
+    }
+  };
 
   const checkInviteCode = async (code: string) => {
     try {
@@ -117,6 +135,9 @@ export default function Auth() {
       if (inviteCode) {
         localStorage.setItem('pending_invite_code', inviteCode);
       }
+      if (groupInviteCode) {
+        localStorage.setItem('pending_group_invite_code', groupInviteCode);
+      }
       const { error } = await signInWithGoogle();
       if (error) {
         setError(error.message);
@@ -174,6 +195,9 @@ export default function Auth() {
           if (inviteCode) {
             localStorage.setItem('pending_invite_code', inviteCode);
           }
+          if (groupInviteCode) {
+            localStorage.setItem('pending_group_invite_code', groupInviteCode);
+          }
           setSuccessMessage('Check your email for a confirmation link!');
           setEmail('');
           setPassword('');
@@ -229,6 +253,19 @@ export default function Auth() {
               <Link2 className="h-4 w-4 text-primary shrink-0" />
               <p className="text-sm text-primary">
                 You've been invited by <strong>@{inviterUsername}</strong>
+              </p>
+            </div>
+          )}
+          
+          {/* Group invite banner */}
+          {groupInviteCode && groupInviteInfo && (
+            <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center gap-2">
+              <Users2 className="h-4 w-4 text-green-600 shrink-0" />
+              <p className="text-sm text-green-600">
+                You've been invited to join <strong>"{groupInviteInfo.groupName}"</strong>
+                {groupInviteInfo.inviterUsername && (
+                  <> by <strong>@{groupInviteInfo.inviterUsername}</strong></>
+                )}
               </p>
             </div>
           )}

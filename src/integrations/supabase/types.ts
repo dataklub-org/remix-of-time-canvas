@@ -190,6 +190,41 @@ export type Database = {
         }
         Relationships: []
       }
+      group_invite_codes: {
+        Row: {
+          code: string
+          created_at: string
+          expires_at: string | null
+          group_id: string
+          id: string
+          inviter_user_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          expires_at?: string | null
+          group_id: string
+          id?: string
+          inviter_user_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          expires_at?: string | null
+          group_id?: string
+          id?: string
+          inviter_user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_invite_codes_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       group_members: {
         Row: {
           color: string | null
@@ -585,7 +620,20 @@ export type Database = {
           username: string
         }[]
       }
+      redeem_group_invite_code: {
+        Args: { invite_code: string }
+        Returns: boolean
+      }
       redeem_invite_code: { Args: { invite_code: string }; Returns: boolean }
+      validate_group_invite_code: {
+        Args: { code_to_validate: string }
+        Returns: {
+          group_id: string
+          group_name: string
+          inviter_username: string
+          is_valid: boolean
+        }[]
+      }
       validate_invite_code: {
         Args: { code_to_validate: string }
         Returns: {

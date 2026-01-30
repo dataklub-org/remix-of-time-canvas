@@ -32,9 +32,10 @@ import { cn } from '@/lib/utils';
 interface BabiesSectionProps {
   userId: string;
   connections: Connection[];
+  defaultExpanded?: boolean;
 }
 
-export function BabiesSection({ userId, connections }: BabiesSectionProps) {
+export function BabiesSection({ userId, connections, defaultExpanded = false }: BabiesSectionProps) {
   const {
     babies,
     pendingInvitations,
@@ -46,7 +47,7 @@ export function BabiesSection({ userId, connections }: BabiesSectionProps) {
     declineInvitation,
   } = useBabies(userId);
 
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   return (
     <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>

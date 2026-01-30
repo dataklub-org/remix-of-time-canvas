@@ -4,7 +4,11 @@ import { useMomentsStore, DEFAULT_TIMELINE_ID, OURLIFE_TIMELINE_ID, BABYLIFE_TIM
 import { useAuth } from '@/hooks/useAuth';
 import { useBabies } from '@/hooks/useBabies';
 
-export function TimelineSelector() {
+interface TimelineSelectorProps {
+  onOpenBabiesSection?: () => void;
+}
+
+export function TimelineSelector({ onOpenBabiesSection }: TimelineSelectorProps) {
   const navigate = useNavigate();
   const { canvasState, setActiveTimeline } = useMomentsStore();
   const { isAuthenticated, user } = useAuth();
@@ -20,11 +24,15 @@ export function TimelineSelector() {
       navigate('/auth');
       return;
     }
+    
+    // BabyLife: if no babies, redirect to add baby section
+    if (timelineId === BABYLIFE_TIMELINE_ID && babies.length === 0) {
+      onOpenBabiesSection?.();
+      return;
+    }
+    
     setActiveTimeline(timelineId);
   };
-
-  // Only show BabyLife tab if user has babies
-  const showBabyLife = isAuthenticated && babies.length > 0;
 
   return (
     <div className="flex items-center gap-1 bg-background/80 backdrop-blur-sm rounded-full px-1 py-1 shadow-sm border border-border/50">
@@ -54,8 +62,8 @@ export function TimelineSelector() {
         OurLife
       </button>
 
-      {/* BabyLife tab - only shown when user has babies */}
-      {showBabyLife && (
+      {/* BabyLife tab - always visible for authenticated users */}
+      {isAuthenticated && (
         <button
           onClick={() => handleTimelineSelect(BABYLIFE_TIMELINE_ID)}
           className={cn(

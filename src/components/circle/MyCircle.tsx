@@ -19,7 +19,13 @@ import { GroupsSection } from './GroupsSection';
 import { BabiesSection } from './BabiesSection';
 import { Separator } from '@/components/ui/separator';
 
-export function MyCircle() {
+interface MyCircleProps {
+  externalOpen?: boolean;
+  onExternalOpenChange?: (open: boolean) => void;
+  defaultBabiesExpanded?: boolean;
+}
+
+export function MyCircle({ externalOpen, onExternalOpenChange, defaultBabiesExpanded = false }: MyCircleProps) {
   const { user, isAuthenticated } = useAuth();
   const {
     connections,
@@ -45,7 +51,11 @@ export function MyCircle() {
   } = useGroups(user?.id || null);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  
+  // Use external control if provided, otherwise internal
+  const open = externalOpen !== undefined ? externalOpen : internalOpen;
+  const setOpen = onExternalOpenChange || setInternalOpen;
 
   const handleSearchChange = (value: string) => {
     setSearchQuery(value);
@@ -203,6 +213,7 @@ export function MyCircle() {
           <BabiesSection
             userId={user?.id || ''}
             connections={connections}
+            defaultExpanded={defaultBabiesExpanded}
           />
         </div>
       </DialogContent>

@@ -107,6 +107,22 @@ export function TimelineCanvas() {
   const [selectedMoment, setSelectedMoment] = useState<Moment | null>(null);
   const [scrollY, setScrollY] = useState(0);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [myCircleOpen, setMyCircleOpen] = useState(false);
+  const [babiesSectionExpanded, setBabiesSectionExpanded] = useState(false);
+
+  // Handler to open MyCircle with Babies section expanded
+  const handleOpenBabiesSection = useCallback(() => {
+    setBabiesSectionExpanded(true);
+    setMyCircleOpen(true);
+  }, []);
+
+  // Reset babies expanded state when MyCircle closes
+  const handleMyCircleOpenChange = useCallback((open: boolean) => {
+    setMyCircleOpen(open);
+    if (!open) {
+      setBabiesSectionExpanded(false);
+    }
+  }, []);
 
   // Register vertical scroll handler for touch panning
   useEffect(() => {
@@ -242,7 +258,11 @@ export function TimelineCanvas() {
       
       {/* Auth button & My Circle - top right */}
       <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
-        <MyCircle />
+        <MyCircle 
+          externalOpen={myCircleOpen} 
+          onExternalOpenChange={handleMyCircleOpenChange}
+          defaultBabiesExpanded={babiesSectionExpanded}
+        />
         <AuthButton />
       </div>
       
@@ -271,7 +291,7 @@ export function TimelineCanvas() {
       
       {/* Timeline selector - centered, below logo/feedback */}
       <div className="absolute top-12 left-1/2 transform -translate-x-1/2 z-10">
-        <TimelineSelector />
+        <TimelineSelector onOpenBabiesSection={handleOpenBabiesSection} />
       </div>
       
       {/* Vision statement - centered between selector and timeline, hidden when logged in */}

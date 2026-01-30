@@ -142,8 +142,13 @@ export function useBabies(userId: string | null) {
       return newBaby;
     } catch (error: any) {
       console.error('Error creating baby:', error);
-      if (error.code === '23505' || error.message?.includes('duplicate')) {
-        toast.error('This username is already taken');
+      if (error.code === '23505') {
+        // Check if it's a username duplicate or something else
+        if (error.details?.includes('username') || error.message?.includes('username')) {
+          toast.error('This username is already taken');
+        } else {
+          toast.error('Failed to create baby timeline');
+        }
       } else {
         toast.error('Failed to create baby timeline');
       }

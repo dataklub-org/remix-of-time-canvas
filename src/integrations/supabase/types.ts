@@ -556,6 +556,13 @@ export type Database = {
         }[]
       }
       redeem_invite_code: { Args: { invite_code: string }; Returns: boolean }
+      validate_invite_code: {
+        Args: { code_to_validate: string }
+        Returns: {
+          inviter_username: string
+          is_valid: boolean
+        }[]
+      }
     }
     Enums: {
       angel_permission: "view" | "contribute"

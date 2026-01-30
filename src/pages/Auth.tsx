@@ -49,31 +49,26 @@ export default function Auth() {
 
   const checkInviteCode = async (code: string) => {
     try {
+      // Use secure RPC function to validate invite code (works for unauthenticated users)
       const { data, error } = await supabase
-        .from('invite_codes')
-        .select('inviter_user_id, used_by_user_id')
-        .eq('code', code)
-        .maybeSingle();
+        .rpc('validate_invite_code', { code_to_validate: code });
 
-      if (error || !data) {
+      if (error) {
+        console.error('Error validating invite code:', error);
         toast.error('Invalid invite link');
         return;
       }
 
-      if (data.used_by_user_id) {
-        toast.error('This invite link has already been used');
+      // RPC returns array, get first result
+      const result = Array.isArray(data) ? data[0] : data;
+      
+      if (!result || !result.is_valid) {
+        toast.error('Invalid or expired invite link');
         return;
       }
 
-      // Get inviter's username
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('username')
-        .eq('user_id', data.inviter_user_id)
-        .maybeSingle();
-
-      if (profile?.username) {
-        setInviterUsername(profile.username);
+      if (result.inviter_username) {
+        setInviterUsername(result.inviter_username);
       }
     } catch (err) {
       console.error('Error checking invite code:', err);

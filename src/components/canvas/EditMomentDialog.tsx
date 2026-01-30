@@ -8,9 +8,9 @@ import { format } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { MomentFormContent } from './MomentFormContent';
 import { useGroups, useShareMoment } from '@/hooks/useGroups';
+import { useBabies, useShareMomentToBaby } from '@/hooks/useBabies';
 import { useAuth } from '@/hooks/useAuth';
-import { GroupShareSelector } from './GroupShareSelector';
-import { Button } from '@/components/ui/button';
+import { ShareSelector } from './ShareSelector';
 import { toast } from 'sonner';
 
 interface EditMomentDialogProps {
@@ -22,7 +22,9 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   const { updateMoment, deleteMoment, setCenterTime, setMsPerPixel, loadGroupMoments } = useMomentsStore();
   const { user } = useAuth();
   const { groups } = useGroups(user?.id || null);
+  const { babies } = useBabies(user?.id || null);
   const { shareMomentToGroup } = useShareMoment(user?.id || null);
+  const { shareMomentToBaby } = useShareMomentToBaby(user?.id || null);
   const descriptionRef = useRef<HTMLTextAreaElement>(null);
   const isMobile = useIsMobile();
   
@@ -38,8 +40,8 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
   const [endTimeInput, setEndTimeInput] = useState('');
   const [photo, setPhoto] = useState<string | null>(null);
   const [moreDetailsOpen, setMoreDetailsOpen] = useState(true);
-  const [selectedGroupIds, setSelectedGroupIds] = useState<string[]>([]);
-  const [sharing, setSharing] = useState(false);
+  const [sharedGroupIds, setSharedGroupIds] = useState<Set<string>>(new Set());
+  const [sharedBabyIds, setSharedBabyIds] = useState<Set<string>>(new Set());
   
   // Autosave function
   const saveChanges = useCallback(async () => {
@@ -98,7 +100,8 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       setPhoto(moment.photo || null);
       setDateInput(format(new Date(moment.timestamp), 'yyyy-MM-dd'));
       setTimeInput(format(new Date(moment.timestamp), 'HH:mm'));
-      setSelectedGroupIds([]);
+      setSharedGroupIds(new Set());
+      setSharedBabyIds(new Set());
       
       if (moment.endTime && moment.endTime > moment.timestamp) {
         setEndDateInput(format(new Date(moment.endTime), 'yyyy-MM-dd'));
@@ -134,58 +137,65 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
     onClose();
   };
 
-  const handleShareToGroups = async () => {
-    if (selectedGroupIds.length === 0 || !moment) return;
+  const handleShareToGroup = async (groupId: string) => {
+    if (!moment) return;
     
-    setSharing(true);
-    try {
-      for (const groupId of selectedGroupIds) {
-        await shareMomentToGroup(groupId, {
-          id: moment.id,
-          timestamp: moment.timestamp,
-          endTime: moment.endTime,
-          y: moment.y,
-          width: moment.width,
-          height: moment.height,
-          description: moment.description,
-          people: moment.people,
-          location: moment.location,
-          category: moment.category,
-          memorable: moment.memorable,
-          photo: moment.photo,
-        });
-      }
+    const success = await shareMomentToGroup(groupId, {
+      id: moment.id,
+      timestamp: moment.timestamp,
+      endTime: moment.endTime,
+      y: moment.y,
+      width: moment.width,
+      height: moment.height,
+      description: moment.description,
+      people: moment.people,
+      location: moment.location,
+      category: moment.category,
+      memorable: moment.memorable,
+      photo: moment.photo,
+    });
+    
+    if (success) {
+      setSharedGroupIds(prev => new Set([...prev, groupId]));
       await loadGroupMoments();
-      setSelectedGroupIds([]);
-      toast.success(`Shared to ${selectedGroupIds.length} group${selectedGroupIds.length > 1 ? 's' : ''}`);
-    } catch (error) {
-      console.error('Error sharing to groups:', error);
-    } finally {
-      setSharing(false);
     }
   };
 
-  // Group share section for the form
-  const groupShareSection = groups.length > 0 ? (
-    <div className="space-y-3 pt-3 border-t border-border mt-3">
-      <GroupShareSelector
+  const handleShareToBaby = async (babyId: string) => {
+    if (!moment) return;
+    
+    const success = await shareMomentToBaby(babyId, {
+      id: moment.id,
+      timestamp: moment.timestamp,
+      endTime: moment.endTime,
+      y: moment.y,
+      width: moment.width,
+      height: moment.height,
+      description: moment.description,
+      people: moment.people,
+      location: moment.location,
+      category: moment.category,
+      memorable: moment.memorable,
+      photo: moment.photo,
+    });
+    
+    if (success) {
+      setSharedBabyIds(prev => new Set([...prev, babyId]));
+      toast.success('Shared to baby timeline!');
+    }
+  };
+
+  // Share section for the form
+  const shareSection = (groups.length > 0 || babies.length > 0) ? (
+    <div className="pt-3 border-t border-border mt-3">
+      <ShareSelector
         groups={groups}
-        selectedGroupIds={selectedGroupIds}
-        onSelectionChange={setSelectedGroupIds}
-        label="Share to groups"
+        babies={babies}
+        sharedGroupIds={sharedGroupIds}
+        sharedBabyIds={sharedBabyIds}
+        onShareToGroup={handleShareToGroup}
+        onShareToBaby={handleShareToBaby}
       />
-      {selectedGroupIds.length > 0 && (
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={handleShareToGroups}
-          disabled={sharing}
-          className="w-full"
-        >
-          {sharing ? 'Sharing...' : `Share to ${selectedGroupIds.length} group${selectedGroupIds.length > 1 ? 's' : ''}`}
-        </Button>
-      )}
     </div>
   ) : null;
 
@@ -219,7 +229,7 @@ export function EditMomentDialog({ moment, onClose }: EditMomentDialogProps) {
       onDelete={handleDelete}
       onMemento={handleMemento}
       descriptionRef={descriptionRef}
-      groupShareSection={groupShareSection}
+      groupShareSection={shareSection}
     />
   );
 

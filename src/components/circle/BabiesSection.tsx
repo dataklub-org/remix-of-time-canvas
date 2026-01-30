@@ -1,13 +1,8 @@
 import { useState } from 'react';
-import { Baby, Plus, Trash2, Loader2, UserPlus, ChevronDown, ChevronUp, Crown, Heart } from 'lucide-react';
+import { Baby, Plus, Trash2, Loader2, UserPlus, Crown, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible';
 import {
   Dialog,
   DialogContent,
@@ -26,7 +21,6 @@ import {
 import { useBabies, PendingBabyInvitation } from '@/hooks/useBabies';
 import type { Baby as BabyType, BabyAccessRole, AngelPermission } from '@/types/baby';
 import { Connection } from '@/hooks/useConnections';
-import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
 interface BabiesSectionProps {
@@ -50,69 +44,60 @@ export function BabiesSection({ userId, connections, defaultExpanded = false }: 
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   return (
-    <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <CollapsibleTrigger asChild>
-          <Button variant="ghost" size="sm" className="gap-2 p-0 hover:bg-transparent">
-            <Baby className="h-4 w-4" />
-            <span className="font-medium">Babies</span>
-            {babies.length > 0 && (
-              <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-                {babies.length}
-              </span>
-            )}
-            {isExpanded ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </Button>
-        </CollapsibleTrigger>
+        <div className="flex items-center gap-2">
+          <Baby className="h-4 w-4 text-baby" />
+          <span className="font-medium">Babies</span>
+          {babies.length > 0 && (
+            <span className="text-xs bg-baby/20 text-baby-accent px-1.5 py-0.5 rounded-full">
+              {babies.length}
+            </span>
+          )}
+        </div>
         <CreateBabyDialog onCreateBaby={createBaby} />
       </div>
 
-      <CollapsibleContent className="pt-2">
-        {/* Pending invitations */}
-        {pendingInvitations.length > 0 && (
-          <div className="mb-4 space-y-2">
-            <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-              Pending Invitations
-            </h5>
-            {pendingInvitations.map((inv) => (
-              <PendingInvitationItem
-                key={inv.id}
-                invitation={inv}
-                onAccept={() => acceptInvitation(inv.id)}
-                onDecline={() => declineInvitation(inv.id)}
-              />
-            ))}
-          </div>
-        )}
+      {/* Pending invitations */}
+      {pendingInvitations.length > 0 && (
+        <div className="space-y-2">
+          <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Pending Invitations
+          </h5>
+          {pendingInvitations.map((inv) => (
+            <PendingInvitationItem
+              key={inv.id}
+              invitation={inv}
+              onAccept={() => acceptInvitation(inv.id)}
+              onDecline={() => declineInvitation(inv.id)}
+            />
+          ))}
+        </div>
+      )}
 
-        {loading ? (
-          <div className="flex justify-center py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-          </div>
-        ) : babies.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            Create a baby timeline to track their early years.
-          </p>
-        ) : (
-          <div className="space-y-2">
-            {babies.map((baby) => (
-              <BabyItem
-                key={baby.id}
-                baby={baby}
-                onDelete={deleteBaby}
-                onInvite={inviteUser}
-                connections={connections}
-                currentUserId={userId}
-              />
-            ))}
-          </div>
-        )}
-      </CollapsibleContent>
-    </Collapsible>
+      {loading ? (
+        <div className="flex justify-center py-4">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      ) : babies.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-4">
+          Create a baby timeline to track their early years.
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {babies.map((baby) => (
+            <BabyItem
+              key={baby.id}
+              baby={baby}
+              onDelete={deleteBaby}
+              onInvite={inviteUser}
+              connections={connections}
+              currentUserId={userId}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -282,8 +267,8 @@ function BabyItem({
     <div className="p-3 border rounded-lg space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-full bg-pink-100 flex items-center justify-center">
-            <Baby className="h-4 w-4 text-pink-600" />
+          <div className="h-8 w-8 rounded-full bg-baby-secondary flex items-center justify-center">
+            <Baby className="h-4 w-4 text-baby-accent" />
           </div>
           <div>
             <p className="font-medium text-sm">{baby.name}</p>
@@ -399,9 +384,9 @@ function PendingInvitationItem({
   const RoleIcon = roleIcon;
 
   return (
-    <div className="p-3 border rounded-lg bg-pink-50/50 space-y-2">
+    <div className="p-3 border rounded-lg bg-baby-secondary/30 space-y-2">
       <div className="flex items-center gap-2">
-        <Baby className="h-4 w-4 text-pink-600" />
+        <Baby className="h-4 w-4 text-baby-accent" />
         <div className="flex-1">
           <p className="text-sm font-medium">{invitation.babyName}</p>
           <p className="text-xs text-muted-foreground">

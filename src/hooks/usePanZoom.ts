@@ -82,6 +82,9 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
     let clientX: number;
     let clientY: number;
     if ('touches' in e) {
+      // Prevent default to stop page scrolling
+      e.preventDefault();
+      
       // Two finger touch = pinch gesture
       if (e.touches.length >= 2) {
         // Cancel any ongoing zoom animation
@@ -100,7 +103,6 @@ export function usePanZoom({ canvasWidth }: UsePanZoomOptions) {
           msPerPixel: msPerPixel,
         };
         targetMsPerPixelRef.current = msPerPixel;
-        e.preventDefault();
         return;
       }
       if (e.touches.length !== 1) return; // Only single touch for panning

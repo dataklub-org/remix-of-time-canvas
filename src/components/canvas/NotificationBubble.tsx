@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, X, Users, Share2, Check, CheckCheck, UserPlus, Sparkles } from 'lucide-react';
+import { Bell, X, Users, Share2, Check, CheckCheck, UserPlus, Sparkles, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -10,6 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications, type Notification } from '@/hooks/useNotifications';
 import { useAuth } from '@/hooks/useAuth';
 import { useConnections } from '@/hooks/useConnections';
+import { useMomentsStore, OURLIFE_TIMELINE_ID } from '@/stores/useMomentsStore';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -20,12 +21,14 @@ function NotificationItem({
   onDelete,
   onAddToCircle,
   isConnected,
+  onNavigateToMoment,
 }: {
   notification: Notification;
   onMarkAsRead: (id: string) => void;
   onDelete: (id: string) => void;
   onAddToCircle: (userId: string) => Promise<void>;
   isConnected: (userId: string) => boolean;
+  onNavigateToMoment: (momentId: string, groupId: string) => void;
 }) {
   const isInvite = notification.type === 'invite_joined';
   const isWelcome = notification.type === 'welcome_via_invite';
@@ -33,13 +36,22 @@ function NotificationItem({
   const Icon = isWelcome ? Sparkles : isInvite ? Users : Share2;
   const joinedUserId = notification.data?.joined_user_id as string | undefined;
   const alreadyConnected = joinedUserId ? isConnected(joinedUserId) : true;
+  const momentId = notification.data?.moment_id as string | undefined;
+  const groupId = notification.data?.group_id as string | undefined;
+  const canNavigate = isMomentShared && momentId && groupId;
 
   return (
     <div
       className={cn(
         'p-3 border-b border-border last:border-0 transition-colors',
-        !notification.read && 'bg-primary/5'
+        !notification.read && 'bg-primary/5',
+        canNavigate && 'cursor-pointer hover:bg-muted/50'
       )}
+      onClick={() => {
+        if (canNavigate) {
+          onNavigateToMoment(momentId, groupId);
+        }
+      }}
     >
       <div className="flex items-start gap-3">
         <div
@@ -64,7 +76,10 @@ function NotificationItem({
                 variant="outline"
                 size="sm"
                 className="h-5 text-[10px] px-2 gap-1"
-                onClick={() => onAddToCircle(joinedUserId)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddToCircle(joinedUserId);
+                }}
               >
                 <UserPlus className="h-3 w-3" />
                 Add to Circle
@@ -72,6 +87,12 @@ function NotificationItem({
             )}
             {isInvite && alreadyConnected && joinedUserId && (
               <span className="text-[10px] text-green-600">Already in Circle</span>
+            )}
+            {canNavigate && (
+              <span className="text-[10px] text-blue-500 flex items-center gap-0.5">
+                <ExternalLink className="h-2.5 w-2.5" />
+                View moment
+              </span>
             )}
           </div>
         </div>
@@ -81,7 +102,10 @@ function NotificationItem({
               variant="ghost"
               size="icon"
               className="h-6 w-6"
-              onClick={() => onMarkAsRead(notification.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMarkAsRead(notification.id);
+              }}
             >
               <Check className="h-3 w-3" />
             </Button>
@@ -90,7 +114,10 @@ function NotificationItem({
             variant="ghost"
             size="icon"
             className="h-6 w-6 text-muted-foreground hover:text-destructive"
-            onClick={() => onDelete(notification.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(notification.id);
+            }}
           >
             <X className="h-3 w-3" />
           </Button>
@@ -105,6 +132,7 @@ export function NotificationBubble() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, deleteNotification } =
     useNotifications(user?.id || null);
   const { connections, addConnection } = useConnections(user?.id || null);
+  const { setActiveTimeline, setCenterTime, groupMoments, loadGroupMoments } = useMomentsStore();
   const [open, setOpen] = useState(false);
   const [addedUsers, setAddedUsers] = useState<Set<string>>(new Set());
 
@@ -120,6 +148,23 @@ export function NotificationBubble() {
     } catch (error) {
       toast.error('Failed to add to Circle');
     }
+  };
+
+  const handleNavigateToMoment = async (momentId: string, groupId: string) => {
+    // Ensure group moments are loaded
+    await loadGroupMoments();
+    
+    // Switch to OurLife timeline
+    setActiveTimeline(OURLIFE_TIMELINE_ID);
+    
+    // Find the moment and navigate to its timestamp
+    const moment = groupMoments.find(m => m.id === momentId);
+    if (moment) {
+      setCenterTime(moment.timestamp);
+    }
+    
+    // Close the popover
+    setOpen(false);
   };
 
   if (!isAuthenticated) return null;
@@ -173,6 +218,7 @@ export function NotificationBubble() {
                 onDelete={deleteNotification}
                 onAddToCircle={handleAddToCircle}
                 isConnected={isConnected}
+                onNavigateToMoment={handleNavigateToMoment}
               />
             ))
           )}

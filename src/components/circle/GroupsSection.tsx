@@ -12,6 +12,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { COLOR_PALETTE, DEFAULT_GROUP_COLOR } from '@/utils/colorPalette';
+import { GroupInviteLink } from '@/components/canvas/GroupInviteLink';
 
 interface GroupsSectionProps {
   groups: Group[];
@@ -346,7 +347,7 @@ export function GroupsSection({
                       <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                     </div>
                   ) : (
-                    <div className="space-y-1">
+                    <div className="space-y-2">
                       {groupMembers.map((member) => (
                         <div
                           key={member.id}
@@ -366,6 +367,12 @@ export function GroupsSection({
                           </span>
                         </div>
                       ))}
+                      
+                      {/* Group invite link section */}
+                      <div className="pt-2 border-t mt-2">
+                        <p className="text-xs text-muted-foreground mb-2">Invite others to join:</p>
+                        <GroupInviteLink groupId={group.id} userId={userId} />
+                      </div>
                     </div>
                   )}
                 </div>

@@ -114,18 +114,14 @@ export function useBabies(userId: string | null) {
     if (!userId) return null;
 
     try {
-      const { data: babyData, error } = await supabase
-        .from('babies')
-        .insert({
-          created_by: userId,
-          name: data.name,
-          username: data.username,
-          date_of_birth: data.dateOfBirth.toISOString().split('T')[0],
-          time_of_birth: data.timeOfBirth || null,
-          place_of_birth: data.placeOfBirth || null,
-        })
-        .select()
-        .single();
+      // Use the secure RPC function to create baby (bypasses RLS issues)
+      const { data: babyData, error } = await supabase.rpc('create_baby', {
+        p_name: data.name,
+        p_username: data.username,
+        p_date_of_birth: data.dateOfBirth.toISOString().split('T')[0],
+        p_time_of_birth: data.timeOfBirth || null,
+        p_place_of_birth: data.placeOfBirth || null,
+      });
 
       if (error) throw error;
 
@@ -146,7 +142,7 @@ export function useBabies(userId: string | null) {
       return newBaby;
     } catch (error: any) {
       console.error('Error creating baby:', error);
-      if (error.code === '23505') {
+      if (error.code === '23505' || error.message?.includes('duplicate')) {
         toast.error('This username is already taken');
       } else {
         toast.error('Failed to create baby timeline');

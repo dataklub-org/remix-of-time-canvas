@@ -52,6 +52,8 @@ function NotificationItem({
   const momentId = notification.data?.moment_id as string | undefined;
   const canNavigate = isMomentShared && momentId && groupId;
   const canAddToGroup = isGroupInviteUsed && joinedUserId && groupId && !isAddedToGroup(notification.id);
+  // Show "Add to Circle" for both personal invites AND group invites
+  const canAddToCircle = (isInvite || isGroupInviteUsed) && joinedUserId && !alreadyConnected;
 
   return (
     <div
@@ -86,21 +88,21 @@ function NotificationItem({
             <p className="text-[10px] text-muted-foreground/60">
               {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
             </p>
-            {isInvite && joinedUserId && !alreadyConnected && (
+            {canAddToCircle && (
               <Button
                 variant="outline"
                 size="sm"
                 className="h-5 text-[10px] px-2 gap-1"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onAddToCircle(joinedUserId);
+                  onAddToCircle(joinedUserId!);
                 }}
               >
                 <UserPlus className="h-3 w-3" />
                 Add to Circle
               </Button>
             )}
-            {isInvite && alreadyConnected && joinedUserId && (
+            {(isInvite || isGroupInviteUsed) && alreadyConnected && joinedUserId && (
               <span className="text-[10px] text-green-600">Already in Circle</span>
             )}
             {canAddToGroup && (

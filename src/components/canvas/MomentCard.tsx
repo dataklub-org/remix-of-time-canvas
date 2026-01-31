@@ -27,10 +27,12 @@ const SMALL_LINE_HEIGHT = 13;
 const BUBBLE_SIZE = 26;
 const BUBBLE_EXPANDED_SIZE = 80;
 
-// Expanded card dimensions for hover preview
-const EXPANDED_CARD_WIDTH = 260;
-const EXPANDED_CARD_HEIGHT = 120;
-const HOVER_PREVIEW_OFFSET = 8;
+// Hover preview - dynamic sizing based on content
+const HOVER_PREVIEW_MIN_WIDTH = 180;
+const HOVER_PREVIEW_MAX_WIDTH = 280;
+const HOVER_PREVIEW_PADDING = 14;
+const HOVER_PREVIEW_LINE_HEIGHT = 18;
+const HOVER_PREVIEW_OFFSET = 10;
 
 // No minimum duration constraint - width just needs to be positive
 const MIN_DURATION_MS = 0;
@@ -266,9 +268,9 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
     const showExpanded = isHovered || (isMobile && isExpanded);
     
     if (showExpanded) {
-      // Expanded card dimensions
-      const hoverCardWidth = Math.max(cardWidth, EXPANDED_CARD_WIDTH);
-      const hoverCardHeight = Math.max(cardHeight, EXPANDED_CARD_HEIGHT);
+      // Expanded card dimensions - calculate based on content
+      const hoverCardWidth = Math.max(cardWidth, HOVER_PREVIEW_MAX_WIDTH);
+      const hoverCardHeight = Math.max(cardHeight, 100);
       const hoverCardX = bubbleX - hoverCardWidth / 2;
       const hoverCardY = moment.y;
       const isAboveTimeline = hoverCardY + hoverCardHeight < timelineY;
@@ -747,93 +749,129 @@ export function MomentCard({ moment, canvasWidth, canvasHeight, onSelect, timeli
           </Group>
         )}
         
-        {/* Hover preview - full moment details */}
-        {isHovered && (
-          <Group
-            x={(cardWidth - EXPANDED_CARD_WIDTH) / 2}
-            y={cardHeight + HOVER_PREVIEW_OFFSET}
-          >
-            {/* Preview card background */}
-            <Rect
-              width={EXPANDED_CARD_WIDTH}
-              height={EXPANDED_CARD_HEIGHT}
-              fill="#ffffff"
-              cornerRadius={12}
-              shadowColor="rgba(0,0,0,0.18)"
-              shadowBlur={20}
-              shadowOffsetY={6}
-            />
-            
-            {/* Accent bar */}
-            <Rect
-              x={0}
-              y={0}
-              width={4}
-              height={EXPANDED_CARD_HEIGHT}
-              fill={accentColor}
-              cornerRadius={[12, 0, 0, 12]}
-            />
-            
-            {/* Full description with wrapping */}
-            <Text
-              x={16}
-              y={12}
-              width={photoImage ? EXPANDED_CARD_WIDTH - 80 : EXPANDED_CARD_WIDTH - 28}
-              text={moment.description || 'Untitled moment'}
-              fontSize={13}
-              fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
-              fontStyle="600"
-              fill="#1a1f2e"
-              wrap="word"
-              lineHeight={1.3}
-            />
-            
-            {/* People */}
-            {moment.people && (
-              <Text
-                x={16}
-                y={EXPANDED_CARD_HEIGHT - 40}
-                width={EXPANDED_CARD_WIDTH - 32}
-                text={`👥 ${moment.people}`}
-                fontSize={11}
-                fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
-                fill="#64748b"
-                ellipsis
-                wrap="none"
+        {/* Hover preview - floating tooltip with content-adaptive sizing */}
+        {isHovered && (() => {
+          const desc = moment.description || 'Untitled moment';
+          const hasPeopleInfo = !!moment.people;
+          const hasLocationInfo = !!moment.location;
+          const hasPhotoInfo = !!photoImage;
+          
+          // Calculate content-based dimensions
+          const previewWidth = hasPhotoInfo 
+            ? HOVER_PREVIEW_MAX_WIDTH 
+            : Math.min(HOVER_PREVIEW_MAX_WIDTH, Math.max(HOVER_PREVIEW_MIN_WIDTH, measureTextWidth(desc, 13) + HOVER_PREVIEW_PADDING * 2 + 8));
+          
+          // Estimate text lines (rough calculation)
+          const textWidth = hasPhotoInfo ? previewWidth - 70 : previewWidth - HOVER_PREVIEW_PADDING * 2;
+          const charsPerLine = Math.floor(textWidth / 7);
+          const descLines = Math.ceil(desc.length / charsPerLine);
+          
+          // Calculate height based on content
+          let previewHeight = HOVER_PREVIEW_PADDING * 2; // top + bottom padding
+          previewHeight += Math.min(descLines, 4) * HOVER_PREVIEW_LINE_HEIGHT; // description (max 4 lines)
+          if (hasPeopleInfo) previewHeight += 18;
+          if (hasLocationInfo) previewHeight += 18;
+          
+          // If photo, ensure minimum height to fit thumbnail
+          if (hasPhotoInfo) previewHeight = Math.max(previewHeight, 70);
+          
+          // Position - center below card, but stay within canvas bounds
+          const previewX = Math.max(
+            -cardLeft + 8, 
+            Math.min((cardWidth - previewWidth) / 2, canvasWidth - cardLeft - previewWidth - 8)
+          );
+          
+          return (
+            <Group
+              x={previewX}
+              y={cardHeight + HOVER_PREVIEW_OFFSET}
+            >
+              {/* Floating card with soft shadow - modern tooltip style */}
+              <Rect
+                width={previewWidth}
+                height={previewHeight}
+                fill="#ffffff"
+                cornerRadius={10}
+                shadowColor="rgba(0,0,0,0.16)"
+                shadowBlur={16}
+                shadowOffsetY={4}
               />
-            )}
-            
-            {/* Location */}
-            {moment.location && (
-              <Text
-                x={16}
-                y={EXPANDED_CARD_HEIGHT - 22}
-                width={EXPANDED_CARD_WIDTH - 32}
-                text={`📍 ${moment.location}`}
-                fontSize={11}
-                fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
-                fill="#94a3b8"
-                ellipsis
-                wrap="none"
+              
+              {/* Subtle top accent line */}
+              <Rect
+                x={0}
+                y={0}
+                width={previewWidth}
+                height={3}
+                fill={accentColor}
+                cornerRadius={[10, 10, 0, 0]}
               />
-            )}
-            
-            {/* Photo thumbnail in preview */}
-            {photoImage && (
-              <Group clipFunc={(ctx) => {
-                ctx.roundRect(EXPANDED_CARD_WIDTH - 60, 10, 50, 50, 6);
-              }}>
-                <KonvaImage
-                  image={photoImage}
-                  x={EXPANDED_CARD_WIDTH - 60}
-                  y={10}
-                  width={50}
-                  height={50}
-                />
-              </Group>
-            )}
-          </Group>
-        )}
+              
+              {/* Photo thumbnail on the right */}
+              {hasPhotoInfo && (
+                <Group clipFunc={(ctx) => {
+                  ctx.roundRect(previewWidth - 54, 10, 44, 44, 6);
+                }}>
+                  <KonvaImage
+                    image={photoImage}
+                    x={previewWidth - 54}
+                    y={10}
+                    width={44}
+                    height={44}
+                  />
+                </Group>
+              )}
+              
+              {/* Description - wrapped text */}
+              <Text
+                x={HOVER_PREVIEW_PADDING}
+                y={HOVER_PREVIEW_PADDING}
+                width={hasPhotoInfo ? previewWidth - 70 : previewWidth - HOVER_PREVIEW_PADDING * 2}
+                text={desc}
+                fontSize={13}
+                fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+                fontStyle="500"
+                fill="#1f2937"
+                wrap="word"
+                lineHeight={1.35}
+                height={Math.min(descLines, 4) * HOVER_PREVIEW_LINE_HEIGHT}
+                ellipsis
+              />
+              
+              {/* Metadata section - people & location */}
+              {(hasPeopleInfo || hasLocationInfo) && (
+                <Group y={previewHeight - (hasPeopleInfo && hasLocationInfo ? 36 : 20)}>
+                  {hasPeopleInfo && (
+                    <Text
+                      x={HOVER_PREVIEW_PADDING}
+                      y={0}
+                      width={previewWidth - HOVER_PREVIEW_PADDING * 2}
+                      text={`👥 ${moment.people}`}
+                      fontSize={11}
+                      fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+                      fill="#6b7280"
+                      ellipsis
+                      wrap="none"
+                    />
+                  )}
+                  {hasLocationInfo && (
+                    <Text
+                      x={HOVER_PREVIEW_PADDING}
+                      y={hasPeopleInfo ? 16 : 0}
+                      width={previewWidth - HOVER_PREVIEW_PADDING * 2}
+                      text={`📍 ${moment.location}`}
+                      fontSize={11}
+                      fontFamily="'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
+                      fill="#9ca3af"
+                      ellipsis
+                      wrap="none"
+                    />
+                  )}
+                </Group>
+              )}
+            </Group>
+          );
+        })()}
         
         {/* Resize handle (bottom-right corner) - larger hit area */}
         <Group

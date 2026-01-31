@@ -30,7 +30,7 @@ function NotificationItem({
   onMarkAsRead: (id: string) => void;
   onDelete: (id: string) => void;
   onAddToCircle: (userId: string) => Promise<void>;
-  onAddToGroup: (userId: string, groupId: string) => Promise<void>;
+  onAddToGroup: (userId: string, groupId: string, notificationId: string) => Promise<void>;
   isConnected: (userId: string) => boolean;
   isAddedToGroup: (notificationId: string) => boolean;
   onNavigateToMoment: (momentId: string, groupId: string) => void;
@@ -112,7 +112,7 @@ function NotificationItem({
                 className="h-5 text-[10px] px-2 gap-1 bg-orange-500/10 border-orange-500/30 text-orange-600 hover:bg-orange-500/20"
                 onClick={(e) => {
                   e.stopPropagation();
-                  onAddToGroup(joinedUserId!, groupId!);
+                  onAddToGroup(joinedUserId!, groupId!, notification.id);
                 }}
               >
                 <Users className="h-3 w-3" />
@@ -189,7 +189,7 @@ export function NotificationBubble() {
     }
   };
 
-  const handleAddToGroup = async (userId: string, groupId: string) => {
+  const handleAddToGroup = async (userId: string, groupId: string, notificationId: string) => {
     try {
       const { error } = await supabase
         .from('group_members')
@@ -201,19 +201,14 @@ export function NotificationBubble() {
       
       if (error) throw error;
       
-      // Find the notification and mark it
-      const notification = notifications.find(
-        n => n.type === 'group_invite_used' && 
-             n.data?.joined_user_id === userId && 
-             n.data?.group_id === groupId
-      );
-      if (notification) {
-        setAddedToGroupNotifications(prev => new Set(prev).add(notification.id));
-      }
+      // Mark notification as processed immediately
+      setAddedToGroupNotifications(prev => new Set(prev).add(notificationId));
       
       toast.success('Added to group!');
     } catch (error: any) {
       if (error?.code === '23505') {
+        // Still mark as processed since user is already in group
+        setAddedToGroupNotifications(prev => new Set(prev).add(notificationId));
         toast.info('Already a group member');
       } else {
         toast.error('Failed to add to group');

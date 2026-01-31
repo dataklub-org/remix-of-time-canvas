@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 export interface Notification {
   id: string;
   user_id: string;
-  type: 'invite_joined' | 'moment_shared' | 'welcome_via_invite';
+  type: 'invite_joined' | 'moment_shared' | 'welcome_via_invite' | 'group_invite_used' | 'group_member_added';
   title: string;
   message: string;
   data: Record<string, unknown>;

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bell, X, Users, Share2, Check, CheckCheck, UserPlus, Sparkles, ExternalLink } from 'lucide-react';
+import { Bell, X, Users, Share2, Check, CheckCheck, UserPlus, Sparkles, ExternalLink, UserRoundPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -11,6 +11,7 @@ import { useNotifications, type Notification } from '@/hooks/useNotifications';
 import { useAuth } from '@/hooks/useAuth';
 import { useConnections } from '@/hooks/useConnections';
 import { useMomentsStore, OURLIFE_TIMELINE_ID } from '@/stores/useMomentsStore';
+import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -20,25 +21,37 @@ function NotificationItem({
   onMarkAsRead,
   onDelete,
   onAddToCircle,
+  onAddToGroup,
   isConnected,
+  isAddedToGroup,
   onNavigateToMoment,
 }: {
   notification: Notification;
   onMarkAsRead: (id: string) => void;
   onDelete: (id: string) => void;
   onAddToCircle: (userId: string) => Promise<void>;
+  onAddToGroup: (userId: string, groupId: string) => Promise<void>;
   isConnected: (userId: string) => boolean;
+  isAddedToGroup: (notificationId: string) => boolean;
   onNavigateToMoment: (momentId: string, groupId: string) => void;
 }) {
   const isInvite = notification.type === 'invite_joined';
   const isWelcome = notification.type === 'welcome_via_invite';
   const isMomentShared = notification.type === 'moment_shared';
-  const Icon = isWelcome ? Sparkles : isInvite ? Users : Share2;
+  const isGroupInviteUsed = notification.type === 'group_invite_used';
+  const isGroupMemberAdded = notification.type === 'group_member_added';
+  
+  const Icon = isWelcome ? Sparkles : 
+               isGroupInviteUsed ? UserRoundPlus :
+               isGroupMemberAdded ? Users :
+               isInvite ? Users : Share2;
+  
   const joinedUserId = notification.data?.joined_user_id as string | undefined;
+  const groupId = notification.data?.group_id as string | undefined;
   const alreadyConnected = joinedUserId ? isConnected(joinedUserId) : true;
   const momentId = notification.data?.moment_id as string | undefined;
-  const groupId = notification.data?.group_id as string | undefined;
   const canNavigate = isMomentShared && momentId && groupId;
+  const canAddToGroup = isGroupInviteUsed && joinedUserId && groupId && !isAddedToGroup(notification.id);
 
   return (
     <div
@@ -58,6 +71,8 @@ function NotificationItem({
           className={cn(
             'p-2 rounded-full shrink-0',
             isWelcome ? 'bg-purple-500/10 text-purple-500' :
+            isGroupInviteUsed ? 'bg-orange-500/10 text-orange-500' :
+            isGroupMemberAdded ? 'bg-green-500/10 text-green-500' :
             isInvite ? 'bg-green-500/10 text-green-500' : 
             'bg-blue-500/10 text-blue-500'
           )}
@@ -87,6 +102,23 @@ function NotificationItem({
             )}
             {isInvite && alreadyConnected && joinedUserId && (
               <span className="text-[10px] text-green-600">Already in Circle</span>
+            )}
+            {canAddToGroup && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-5 text-[10px] px-2 gap-1 bg-orange-500/10 border-orange-500/30 text-orange-600 hover:bg-orange-500/20"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddToGroup(joinedUserId!, groupId!);
+                }}
+              >
+                <Users className="h-3 w-3" />
+                Add to Group
+              </Button>
+            )}
+            {isGroupInviteUsed && isAddedToGroup(notification.id) && (
+              <span className="text-[10px] text-green-600">Added to group</span>
             )}
             {canNavigate && (
               <span className="text-[10px] text-blue-500 flex items-center gap-0.5">
@@ -135,9 +167,14 @@ export function NotificationBubble() {
   const { setActiveTimeline, setCenterTime, groupMoments, loadGroupMoments } = useMomentsStore();
   const [open, setOpen] = useState(false);
   const [addedUsers, setAddedUsers] = useState<Set<string>>(new Set());
+  const [addedToGroupNotifications, setAddedToGroupNotifications] = useState<Set<string>>(new Set());
 
   const isConnected = (userId: string) => {
     return connections.some(c => c.connectedUserId === userId) || addedUsers.has(userId);
+  };
+
+  const isAddedToGroup = (notificationId: string) => {
+    return addedToGroupNotifications.has(notificationId);
   };
 
   const handleAddToCircle = async (userId: string) => {
@@ -147,6 +184,38 @@ export function NotificationBubble() {
       toast.success('Added to your Circle!');
     } catch (error) {
       toast.error('Failed to add to Circle');
+    }
+  };
+
+  const handleAddToGroup = async (userId: string, groupId: string) => {
+    try {
+      const { error } = await supabase
+        .from('group_members')
+        .insert({
+          group_id: groupId,
+          user_id: userId,
+          status: 'accepted'
+        });
+      
+      if (error) throw error;
+      
+      // Find the notification and mark it
+      const notification = notifications.find(
+        n => n.type === 'group_invite_used' && 
+             n.data?.joined_user_id === userId && 
+             n.data?.group_id === groupId
+      );
+      if (notification) {
+        setAddedToGroupNotifications(prev => new Set(prev).add(notification.id));
+      }
+      
+      toast.success('Added to group!');
+    } catch (error: any) {
+      if (error?.code === '23505') {
+        toast.info('Already a group member');
+      } else {
+        toast.error('Failed to add to group');
+      }
     }
   };
 
@@ -217,7 +286,9 @@ export function NotificationBubble() {
                 onMarkAsRead={markAsRead}
                 onDelete={deleteNotification}
                 onAddToCircle={handleAddToCircle}
+                onAddToGroup={handleAddToGroup}
                 isConnected={isConnected}
+                isAddedToGroup={isAddedToGroup}
                 onNavigateToMoment={handleNavigateToMoment}
               />
             ))

@@ -10,6 +10,11 @@ import { ArrowLeft, Mail, Lock, Loader2, User, Check, X, Link2, Users2 } from 'l
 import fractalito from '@/assets/fractalito-logo.png';
 import { toast } from 'sonner';
 import { validateGroupInviteCode } from '@/hooks/useGroupInviteCode';
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from '@/components/ui/input-otp';
 
 const usernameSchema = z.string()
   .min(3, { message: "Username must be at least 3 characters" })
@@ -27,8 +32,8 @@ export default function Auth() {
   const inviteCode = searchParams.get('invite');
   const groupInviteCode = searchParams.get('group_invite');
   
-  const { signIn, signUp, signInWithGoogle, isAuthenticated, loading, checkUsernameAvailable } = useAuth();
-  const [isSignUp, setIsSignUp] = useState(!!inviteCode || !!groupInviteCode); // Auto-switch to signup if invite code present
+  const { signIn, signInWithGoogle, isAuthenticated, loading, checkUsernameAvailable } = useAuth();
+  const [isSignUp, setIsSignUp] = useState(!!inviteCode || !!groupInviteCode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -42,6 +47,13 @@ export default function Auth() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [inviterUsername, setInviterUsername] = useState<string | null>(null);
   const [groupInviteInfo, setGroupInviteInfo] = useState<{ groupName: string; inviterUsername?: string } | null>(null);
+  
+  // OTP verification state
+  const [showOtpInput, setShowOtpInput] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [pendingUsername, setPendingUsername] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   // Check invite code validity and get inviter info
   useEffect(() => {
@@ -52,6 +64,14 @@ export default function Auth() {
       checkGroupInviteCode(groupInviteCode);
     }
   }, [inviteCode, groupInviteCode]);
+
+  // Resend cooldown timer
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
 
   const checkGroupInviteCode = async (code: string) => {
     const result = await validateGroupInviteCode(code);
@@ -67,7 +87,6 @@ export default function Auth() {
 
   const checkInviteCode = async (code: string) => {
     try {
-      // Use secure RPC function to validate invite code (works for unauthenticated users)
       const { data, error } = await supabase
         .rpc('validate_invite_code', { code_to_validate: code });
 
@@ -77,7 +96,6 @@ export default function Auth() {
         return;
       }
 
-      // RPC returns array, get first result
       const result = Array.isArray(data) ? data[0] : data;
       
       if (!result || !result.is_valid) {
@@ -95,7 +113,7 @@ export default function Auth() {
 
   // Debounced username check
   useEffect(() => {
-    if (!isSignUp || !username) {
+    if (!isSignUp || !username || showOtpInput) {
       setUsernameAvailable(null);
       setUsernameError(null);
       return;
@@ -118,7 +136,7 @@ export default function Auth() {
     }, 500);
 
     return () => clearTimeout(timeout);
-  }, [username, isSignUp, checkUsernameAvailable]);
+  }, [username, isSignUp, checkUsernameAvailable, showOtpInput]);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -131,7 +149,6 @@ export default function Auth() {
     setError(null);
     setGoogleLoading(true);
     try {
-      // Store invite code before redirect if present
       if (inviteCode) {
         localStorage.setItem('pending_invite_code', inviteCode);
       }
@@ -149,11 +166,7 @@ export default function Auth() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccessMessage(null);
-
+  const handleSignUp = async () => {
     // Validate input
     const validation = authSchema.safeParse({ email, password });
     if (!validation.success) {
@@ -161,64 +174,203 @@ export default function Auth() {
       return;
     }
 
-    if (isSignUp) {
-      const usernameValidation = usernameSchema.safeParse(username);
-      if (!usernameValidation.success) {
-        setError(usernameValidation.error.errors[0].message);
-        return;
-      }
-      
-      if (!usernameAvailable) {
-        setError('Please choose an available username');
-        return;
-      }
-      
-      if (password !== confirmPassword) {
-        setError("Passwords don't match");
-        return;
-      }
+    const usernameValidation = usernameSchema.safeParse(username);
+    if (!usernameValidation.success) {
+      setError(usernameValidation.error.errors[0].message);
+      return;
+    }
+    
+    if (!usernameAvailable) {
+      setError('Please choose an available username');
+      return;
+    }
+    
+    if (password !== confirmPassword) {
+      setError("Passwords don't match");
+      return;
     }
 
     setSubmitting(true);
+    setError(null);
 
     try {
-      if (isSignUp) {
-        const { error } = await signUp(email, password, username);
-        if (error) {
-          if (error.message.includes('already registered')) {
-            setError('This email is already registered. Please sign in instead.');
-          } else {
-            setError(error.message);
-          }
-        } else {
-          // If there's an invite code, store it for later redemption after email confirmation
-          if (inviteCode) {
-            localStorage.setItem('pending_invite_code', inviteCode);
-          }
-          if (groupInviteCode) {
-            localStorage.setItem('pending_group_invite_code', groupInviteCode);
-          }
-          setSuccessMessage('Check your email for a confirmation link!');
-          setEmail('');
-          setPassword('');
-          setConfirmPassword('');
-          setUsername('');
-        }
-      } else {
-        const { error } = await signIn(email, password);
-        if (error) {
-          if (error.message.includes('Invalid login')) {
-            setError('Invalid email or password');
-          } else {
-            setError(error.message);
-          }
-        }
+      // First check if username is still available
+      const isAvailable = await checkUsernameAvailable(username);
+      if (!isAvailable) {
+        setError('Username is already taken');
+        setSubmitting(false);
+        return;
       }
+
+      // Sign up with OTP (email code)
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+        },
+      });
+
+      if (error) {
+        if (error.message.includes('already registered')) {
+          setError('This email is already registered. Please sign in instead.');
+        } else {
+          setError(error.message);
+        }
+        setSubmitting(false);
+        return;
+      }
+
+      // Store pending data for after verification
+      setPendingUsername(username);
+      if (inviteCode) {
+        localStorage.setItem('pending_invite_code', inviteCode);
+      }
+      if (groupInviteCode) {
+        localStorage.setItem('pending_group_invite_code', groupInviteCode);
+      }
+
+      // Send OTP code
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false, // User already created above
+        },
+      });
+
+      if (otpError) {
+        setError(otpError.message);
+        setSubmitting(false);
+        return;
+      }
+
+      // Show OTP input
+      setShowOtpInput(true);
+      setResendCooldown(60);
+      setSuccessMessage('We sent a 6-digit code to your email');
     } catch (err) {
       setError('An unexpected error occurred');
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otpCode.length !== 6) {
+      setError('Please enter the 6-digit code');
+      return;
+    }
+
+    setVerifyingOtp(true);
+    setError(null);
+
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token: otpCode,
+        type: 'email',
+      });
+
+      if (error) {
+        setError('Invalid or expired code. Please try again.');
+        setVerifyingOtp(false);
+        return;
+      }
+
+      if (data.user) {
+        // Create profile with username
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            user_id: data.user.id,
+            username: pendingUsername.toLowerCase(),
+          });
+
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+          // Profile might already exist if user was partially created
+          if (!profileError.message.includes('duplicate')) {
+            toast.error('Failed to create profile');
+          }
+        }
+
+        toast.success('Account verified successfully!');
+        navigate('/');
+      }
+    } catch (err) {
+      setError('Verification failed. Please try again.');
+    } finally {
+      setVerifyingOtp(false);
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (resendCooldown > 0) return;
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          shouldCreateUser: false,
+        },
+      });
+
+      if (error) {
+        setError(error.message);
+      } else {
+        setResendCooldown(60);
+        toast.success('New code sent to your email');
+      }
+    } catch (err) {
+      setError('Failed to resend code');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccessMessage(null);
+
+    if (isSignUp) {
+      await handleSignUp();
+    } else {
+      // Sign in flow
+      const validation = authSchema.safeParse({ email, password });
+      if (!validation.success) {
+        setError(validation.error.errors[0].message);
+        return;
+      }
+
+      setSubmitting(true);
+      try {
+        const { error } = await signIn(email, password);
+        if (error) {
+          if (error.message.includes('Invalid login')) {
+            setError('Invalid email or password');
+          } else if (error.message.includes('Email not confirmed')) {
+            setError('Please verify your email first');
+          } else {
+            setError(error.message);
+          }
+        }
+      } catch (err) {
+        setError('An unexpected error occurred');
+      } finally {
+        setSubmitting(false);
+      }
+    }
+  };
+
+  const handleBackFromOtp = () => {
+    setShowOtpInput(false);
+    setOtpCode('');
+    setError(null);
+    setSuccessMessage(null);
   };
 
   if (loading) {
@@ -236,7 +388,7 @@ export default function Auth() {
         <Button
           variant="ghost"
           size="icon"
-          onClick={() => navigate('/')}
+          onClick={showOtpInput ? handleBackFromOtp : () => navigate('/')}
           className="rounded-full"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -248,7 +400,7 @@ export default function Auth() {
       <main className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-sm space-y-6">
           {/* Invite banner */}
-          {inviteCode && inviterUsername && (
+          {inviteCode && inviterUsername && !showOtpInput && (
             <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 flex items-center gap-2">
               <Link2 className="h-4 w-4 text-primary shrink-0" />
               <p className="text-sm text-primary">
@@ -258,7 +410,7 @@ export default function Auth() {
           )}
           
           {/* Group invite banner */}
-          {groupInviteCode && groupInviteInfo && (
+          {groupInviteCode && groupInviteInfo && !showOtpInput && (
             <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center gap-2">
               <Users2 className="h-4 w-4 text-green-600 shrink-0" />
               <p className="text-sm text-green-600">
@@ -269,194 +421,264 @@ export default function Auth() {
               </p>
             </div>
           )}
-          
-          <div className="text-center space-y-2">
-            <h1 className="text-2xl font-bold text-foreground">
-              {isSignUp ? 'Create an account' : 'Welcome back'}
-            </h1>
-            <p className="text-muted-foreground text-sm">
-              {isSignUp
-                ? 'Sign up to start your timeline journey'
-                : 'Sign in to continue your journey'}
-            </p>
-          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
-                  required
-                />
+          {/* OTP Verification View */}
+          {showOtpInput ? (
+            <div className="space-y-6">
+              <div className="text-center space-y-2">
+                <h1 className="text-2xl font-bold text-foreground">
+                  Verify your email
+                </h1>
+                <p className="text-muted-foreground text-sm">
+                  Enter the 6-digit code sent to <strong>{email}</strong>
+                </p>
+              </div>
+
+              <div className="flex justify-center">
+                <InputOTP
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={setOtpCode}
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+
+              {error && (
+                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                  <p className="text-sm text-destructive text-center">{error}</p>
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                  <p className="text-sm text-green-600 dark:text-green-400 text-center">{successMessage}</p>
+                </div>
+              )}
+
+              <Button
+                onClick={handleVerifyOtp}
+                className="w-full rounded-full"
+                disabled={verifyingOtp || otpCode.length !== 6}
+              >
+                {verifyingOtp ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  'Verify & Create Account'
+                )}
+              </Button>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={handleResendCode}
+                  disabled={resendCooldown > 0 || submitting}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                >
+                  {resendCooldown > 0 
+                    ? `Resend code in ${resendCooldown}s` 
+                    : "Didn't receive the code? Resend"}
+                </button>
               </div>
             </div>
+          ) : (
+            <>
+              <div className="text-center space-y-2">
+                <h1 className="text-2xl font-bold text-foreground">
+                  {isSignUp ? 'Create an account' : 'Welcome back'}
+                </h1>
+                <p className="text-muted-foreground text-sm">
+                  {isSignUp
+                    ? 'Sign up to start your timeline journey'
+                    : 'Sign in to continue your journey'}
+                </p>
+              </div>
 
-            {isSignUp && (
-              <div className="space-y-2">
-                <Label htmlFor="username">Username</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="username"
-                    type="text"
-                    placeholder="your_username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                    className="pl-10 pr-10"
-                    required
-                  />
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                    {checkingUsername && (
-                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                    )}
-                    {!checkingUsername && usernameAvailable === true && (
-                      <Check className="h-4 w-4 text-green-500" />
-                    )}
-                    {!checkingUsername && usernameAvailable === false && (
-                      <X className="h-4 w-4 text-destructive" />
-                    )}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="you@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
                   </div>
                 </div>
-                {usernameError && (
-                  <p className="text-xs text-destructive">{usernameError}</p>
-                )}
-                {!checkingUsername && usernameAvailable === false && !usernameError && (
-                  <p className="text-xs text-destructive">Username is taken</p>
-                )}
-              </div>
-            )}
 
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
-                  required
-                />
-              </div>
-            </div>
+                {isSignUp && (
+                  <div className="space-y-2">
+                    <Label htmlFor="username">Username</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="username"
+                        type="text"
+                        placeholder="your_username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                        className="pl-10 pr-10"
+                        required
+                      />
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {checkingUsername && (
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        )}
+                        {!checkingUsername && usernameAvailable === true && (
+                          <Check className="h-4 w-4 text-green-500" />
+                        )}
+                        {!checkingUsername && usernameAvailable === false && (
+                          <X className="h-4 w-4 text-destructive" />
+                        )}
+                      </div>
+                    </div>
+                    {usernameError && (
+                      <p className="text-xs text-destructive">{usernameError}</p>
+                    )}
+                    {!checkingUsername && usernameAvailable === false && !usernameError && (
+                      <p className="text-xs text-destructive">Username is taken</p>
+                    )}
+                  </div>
+                )}
 
-            {isSignUp && (
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="confirmPassword"
-                    type="password"
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
                 </div>
+
+                {isSignUp && (
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword">Confirm Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        placeholder="••••••••"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {error && (
+                  <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <p className="text-sm text-destructive">{error}</p>
+                  </div>
+                )}
+
+                {successMessage && (
+                  <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                    <p className="text-sm text-green-600 dark:text-green-400">{successMessage}</p>
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  className="w-full rounded-full"
+                  disabled={submitting}
+                >
+                  {submitting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : isSignUp ? (
+                    'Sign Up'
+                  ) : (
+                    'Sign In'
+                  )}
+                </Button>
+
+                <div className="relative my-4">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      Or continue with
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full rounded-full"
+                  onClick={handleGoogleSignIn}
+                  disabled={googleLoading || submitting}
+                >
+                  {googleLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <>
+                      <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24">
+                        <path
+                          fill="currentColor"
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                        />
+                        <path
+                          fill="currentColor"
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                        />
+                        <path
+                          fill="currentColor"
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                        />
+                        <path
+                          fill="currentColor"
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                        />
+                      </svg>
+                      Continue with Google
+                    </>
+                  )}
+                </Button>
+              </form>
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSignUp(!isSignUp);
+                    setError(null);
+                    setSuccessMessage(null);
+                    setUsername('');
+                    setUsernameAvailable(null);
+                    setUsernameError(null);
+                  }}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {isSignUp
+                    ? 'Already have an account? Sign in'
+                    : "Don't have an account? Sign up"}
+                </button>
               </div>
-            )}
-
-            {error && (
-              <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                <p className="text-sm text-destructive">{error}</p>
-              </div>
-            )}
-
-            {successMessage && (
-              <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                <p className="text-sm text-green-600 dark:text-green-400">{successMessage}</p>
-              </div>
-            )}
-
-            <Button
-              type="submit"
-              className="w-full rounded-full"
-              disabled={submitting}
-            >
-              {submitting ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : isSignUp ? (
-                'Sign Up'
-              ) : (
-                'Sign In'
-              )}
-            </Button>
-
-            <div className="relative my-4">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  Or continue with
-                </span>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full rounded-full"
-              onClick={handleGoogleSignIn}
-              disabled={googleLoading || submitting}
-            >
-              {googleLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24">
-                    <path
-                      fill="currentColor"
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    />
-                    <path
-                      fill="currentColor"
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    />
-                    <path
-                      fill="currentColor"
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                    />
-                    <path
-                      fill="currentColor"
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                    />
-                  </svg>
-                  Continue with Google
-                </>
-              )}
-            </Button>
-          </form>
-
-          <div className="text-center">
-            <button
-              type="button"
-              onClick={() => {
-                setIsSignUp(!isSignUp);
-                setError(null);
-                setSuccessMessage(null);
-                setUsername('');
-                setUsernameAvailable(null);
-                setUsernameError(null);
-              }}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {isSignUp
-                ? 'Already have an account? Sign in'
-                : "Don't have an account? Sign up"}
-            </button>
-          </div>
+            </>
+          )}
         </div>
       </main>
     </div>

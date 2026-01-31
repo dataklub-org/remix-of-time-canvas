@@ -275,7 +275,7 @@ export function NotificationBubble() {
             </Button>
           )}
         </div>
-        <ScrollArea className="max-h-80">
+        <ScrollArea className="max-h-80 overflow-y-auto">
           {notifications.length === 0 ? (
             <div className="p-6 text-center text-sm text-muted-foreground">
               No notifications yet

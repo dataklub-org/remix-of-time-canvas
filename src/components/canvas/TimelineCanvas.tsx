@@ -260,13 +260,13 @@ export function TimelineCanvas() {
       <NavigationControls />
       
       {/* Branding logo & Notification - top left */}
-      <div className="absolute top-4 left-4 z-10 flex items-center gap-3">
+      <div className="absolute top-4 left-4 z-10 flex items-center gap-3 h-8">
         <img src={fractalito} alt="fractalito" className="h-5 w-auto" />
         <NotificationBubble />
       </div>
       
       {/* Auth button & My Circle - top right */}
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2 h-8">
         <MyCircle 
           externalOpen={myCircleOpen} 
           onExternalOpenChange={handleMyCircleOpenChange}
@@ -303,8 +303,8 @@ export function TimelineCanvas() {
         Add Moment
       </Button>
       
-      {/* Timeline selector - centered, below logo/feedback */}
-      <div className="absolute top-12 left-1/2 transform -translate-x-1/2 z-10">
+      {/* Timeline selector - centered, 20% from top */}
+      <div className="absolute left-1/2 transform -translate-x-1/2 z-10" style={{ top: '20%' }}>
         <TimelineSelector onOpenBabiesSection={handleOpenBabiesSection} />
       </div>
       

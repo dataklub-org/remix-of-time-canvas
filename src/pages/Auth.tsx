@@ -53,6 +53,9 @@ export default function Auth() {
   const [otpCode, setOtpCode] = useState('');
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [pendingUsername, setPendingUsername] = useState('');
+  const [pendingOtpCode, setPendingOtpCode] = useState('');
+  const [pendingEmail, setPendingEmail] = useState('');
+  const [pendingPassword, setPendingPassword] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
 
   // Check invite code validity and get inviter info
@@ -166,6 +169,24 @@ export default function Auth() {
     }
   };
 
+  // Generate a 6-digit OTP code
+  const generateOtpCode = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  };
+
+  // Send OTP via edge function
+  const sendOtpEmail = async (toEmail: string, code: string) => {
+    const response = await supabase.functions.invoke('send-otp-email', {
+      body: { email: toEmail, code },
+    });
+    
+    if (response.error) {
+      throw new Error(response.error.message || 'Failed to send verification email');
+    }
+    
+    return response.data;
+  };
+
   const handleSignUp = async () => {
     // Validate input
     const validation = authSchema.safeParse({ email, password });
@@ -202,27 +223,16 @@ export default function Auth() {
         return;
       }
 
-      // Sign up with OTP (email code)
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-        },
-      });
-
-      if (error) {
-        if (error.message.includes('already registered')) {
-          setError('This email is already registered. Please sign in instead.');
-        } else {
-          setError(error.message);
-        }
-        setSubmitting(false);
-        return;
-      }
+      // Generate OTP and send via edge function
+      const code = generateOtpCode();
+      await sendOtpEmail(email, code);
 
       // Store pending data for after verification
+      setPendingOtpCode(code);
+      setPendingEmail(email);
+      setPendingPassword(password);
       setPendingUsername(username);
+      
       if (inviteCode) {
         localStorage.setItem('pending_invite_code', inviteCode);
       }
@@ -230,26 +240,13 @@ export default function Auth() {
         localStorage.setItem('pending_group_invite_code', groupInviteCode);
       }
 
-      // Send OTP code
-      const { error: otpError } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: false, // User already created above
-        },
-      });
-
-      if (otpError) {
-        setError(otpError.message);
-        setSubmitting(false);
-        return;
-      }
-
       // Show OTP input
       setShowOtpInput(true);
       setResendCooldown(60);
       setSuccessMessage('We sent a 6-digit code to your email');
-    } catch (err) {
-      setError('An unexpected error occurred');
+    } catch (err: any) {
+      console.error('Signup error:', err);
+      setError(err.message || 'Failed to send verification email');
     } finally {
       setSubmitting(false);
     }
@@ -261,23 +258,49 @@ export default function Auth() {
       return;
     }
 
+    // Verify the OTP code matches
+    if (otpCode !== pendingOtpCode) {
+      setError('Invalid code. Please try again.');
+      return;
+    }
+
     setVerifyingOtp(true);
     setError(null);
 
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email,
-        token: otpCode,
-        type: 'email',
+      // Now create the actual account
+      const { data, error } = await supabase.auth.signUp({
+        email: pendingEmail,
+        password: pendingPassword,
+        options: {
+          // Skip email confirmation since we already verified
+          data: {
+            email_verified: true,
+          },
+        },
       });
 
       if (error) {
-        setError('Invalid or expired code. Please try again.');
+        if (error.message.includes('already registered')) {
+          setError('This email is already registered. Please sign in instead.');
+        } else {
+          setError(error.message);
+        }
         setVerifyingOtp(false);
         return;
       }
 
       if (data.user) {
+        // Sign in the user since signUp might not auto-login
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: pendingEmail,
+          password: pendingPassword,
+        });
+
+        if (signInError) {
+          console.error('Auto sign-in error:', signInError);
+        }
+
         // Create profile with username
         const { error: profileError } = await supabase
           .from('profiles')
@@ -288,17 +311,17 @@ export default function Auth() {
 
         if (profileError) {
           console.error('Error creating profile:', profileError);
-          // Profile might already exist if user was partially created
           if (!profileError.message.includes('duplicate')) {
             toast.error('Failed to create profile');
           }
         }
 
-        toast.success('Account verified successfully!');
+        toast.success('Account created successfully!');
         navigate('/');
       }
     } catch (err) {
-      setError('Verification failed. Please try again.');
+      console.error('Verification error:', err);
+      setError('Account creation failed. Please try again.');
     } finally {
       setVerifyingOtp(false);
     }
@@ -311,21 +334,16 @@ export default function Auth() {
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email,
-        options: {
-          shouldCreateUser: false,
-        },
-      });
-
-      if (error) {
-        setError(error.message);
-      } else {
-        setResendCooldown(60);
-        toast.success('New code sent to your email');
-      }
-    } catch (err) {
-      setError('Failed to resend code');
+      // Generate a new OTP and send it
+      const code = generateOtpCode();
+      await sendOtpEmail(pendingEmail, code);
+      
+      // Update the pending code
+      setPendingOtpCode(code);
+      setResendCooldown(60);
+      toast.success('New code sent to your email');
+    } catch (err: any) {
+      setError(err.message || 'Failed to resend code');
     } finally {
       setSubmitting(false);
     }

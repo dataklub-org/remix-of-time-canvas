@@ -303,8 +303,8 @@ export function TimelineCanvas() {
         Add Moment
       </Button>
       
-      {/* Timeline selector - centered, 20% from top */}
-      <div className="absolute left-1/2 transform -translate-x-1/2 z-10" style={{ top: '20%' }}>
+      {/* Timeline selector - centered, 10% from top */}
+      <div className="absolute left-1/2 transform -translate-x-1/2 z-10" style={{ top: '10%' }}>
         <TimelineSelector onOpenBabiesSection={handleOpenBabiesSection} />
       </div>
       

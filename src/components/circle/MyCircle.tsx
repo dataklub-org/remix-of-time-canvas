@@ -45,6 +45,7 @@ export function MyCircle({ externalOpen, onExternalOpenChange, defaultBabiesExpa
     createGroup,
     deleteGroup,
     getGroupMembers,
+    addMemberToGroup,
     acceptInvitation,
     declineInvitation,
     updateGroupColor,
@@ -205,6 +206,7 @@ export function MyCircle({ externalOpen, onExternalOpenChange, defaultBabiesExpa
             onDeclineInvitation={declineInvitation}
             onAddConnection={addConnection}
             onUpdateGroupColor={updateGroupColor}
+            onAddMemberToGroup={addMemberToGroup}
           />
 
           <Separator />

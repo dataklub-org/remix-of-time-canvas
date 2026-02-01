@@ -291,26 +291,24 @@ export function useGroups(userId: string | null) {
 
   const addMemberToGroup = async (groupId: string, memberUserId: string) => {
     try {
+      // Direct invites create a pending membership that the user must accept
       const { error } = await supabase
         .from('group_members')
-        .insert({ group_id: groupId, user_id: memberUserId });
+        .insert({ 
+          group_id: groupId, 
+          user_id: memberUserId,
+          status: 'pending'
+        });
 
       if (error) throw error;
 
-      // Update member count locally
-      setGroups(prev => prev.map(g => 
-        g.id === groupId 
-          ? { ...g, memberCount: (g.memberCount || 0) + 1 }
-          : g
-      ));
-
-      toast.success('Member added to group');
+      toast.success('Invitation sent');
     } catch (error: any) {
       if (error.code === '23505') {
-        toast.error('User is already a member');
+        toast.error('User is already a member or has a pending invite');
       } else {
         console.error('Error adding member:', error);
-        toast.error('Failed to add member');
+        toast.error('Failed to send invitation');
       }
     }
   };

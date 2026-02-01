@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/popover';
 import { COLOR_PALETTE, DEFAULT_GROUP_COLOR } from '@/utils/colorPalette';
 import { GroupInviteLink } from '@/components/canvas/GroupInviteLink';
+import { DirectGroupInvite } from './DirectGroupInvite';
 
 interface GroupsSectionProps {
   groups: Group[];
@@ -27,6 +28,7 @@ interface GroupsSectionProps {
   onDeclineInvitation: (membershipId: string) => Promise<void>;
   onAddConnection?: (userId: string) => Promise<unknown>;
   onUpdateGroupColor?: (groupId: string, color: string | null) => Promise<void>;
+  onAddMemberToGroup?: (groupId: string, userId: string) => Promise<void>;
 }
 
 export function GroupsSection({
@@ -42,6 +44,7 @@ export function GroupsSection({
   onDeclineInvitation,
   onAddConnection,
   onUpdateGroupColor,
+  onAddMemberToGroup,
 }: GroupsSectionProps) {
   const [isCreating, setIsCreating] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -368,9 +371,21 @@ export function GroupsSection({
                         </div>
                       ))}
                       
-                      {/* Group invite link section */}
-                      <div className="pt-2 border-t mt-2">
-                        <p className="text-xs text-muted-foreground mb-2">Invite others to join:</p>
+                      {/* Group invite section */}
+                      <div className="pt-2 border-t mt-2 space-y-2">
+                        <p className="text-xs text-muted-foreground">Invite others to join:</p>
+                        
+                        {/* Direct invite from circle */}
+                        {onAddMemberToGroup && (
+                          <DirectGroupInvite
+                            groupId={group.id}
+                            connections={connections}
+                            groupMembers={groupMembers}
+                            onInvite={onAddMemberToGroup}
+                          />
+                        )}
+                        
+                        {/* Invite link */}
                         <GroupInviteLink groupId={group.id} userId={userId} />
                       </div>
                     </div>

@@ -2,3 +2,6 @@ project_id = "fqbwglmbdmfnmgllkdgz"
 
 [functions.send-otp-email]
 verify_jwt = false
+
+[functions.delete-account]
+verify_jwt = false

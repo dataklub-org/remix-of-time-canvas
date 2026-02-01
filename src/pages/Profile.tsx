@@ -186,12 +186,13 @@ export default function Profile() {
     if (!user?.id) return;
     setIsDeleting(true);
     try {
-      // Call the database function to delete all user data
-      const { error: deleteDataError } = await supabase.rpc('delete_user_account');
+      // Call the edge function to delete all user data AND the auth record
+      const { data, error } = await supabase.functions.invoke('delete-account');
       
-      if (deleteDataError) throw deleteDataError;
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      // Sign out the user
+      // Sign out the user (session is now invalid anyway)
       await supabase.auth.signOut();
       
       toast.success('Your account has been deleted');

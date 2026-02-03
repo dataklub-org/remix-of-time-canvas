@@ -31,15 +31,15 @@ interface InviteCode {
   createdAt: string;
 }
 
-export default function Profile() {
+export default function Profile() { // a component that displays the user's profile information and allows them to manage their account
   const navigate = useNavigate();
   const { user, profile, isAuthenticated, loading } = useAuth();
-  const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
+  const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]); // a state that stores the invite codes of the user
   const [loadingCodes, setLoadingCodes] = useState(false);
-  const [generatingCode, setGeneratingCode] = useState(false);
-  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [generatingCode, setGeneratingCode] = useState(false); // a state that stores the generating code of the user
+  const [copiedCode, setCopiedCode] = useState<string | null>(null); // a state that stores the copied code of the user
   const [deleteStep, setDeleteStep] = useState<'initial' | 'confirm-moments' | 'confirm-account'>('initial');
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false); // a state that stores the deleting of the user
 
   // Redirect if not authenticated
   useEffect(() => {

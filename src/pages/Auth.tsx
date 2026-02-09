@@ -26,23 +26,23 @@ const authSchema = z.object({
   password: z.string().min(6, { message: "Password must be at least 6 characters" }).max(100),
 });
 
-export default function Auth() {
-  const navigate = useNavigate();
+export default function Auth() { // a component that handles the authentication process
+  const navigate = useNavigate(); // a hook that allows us to navigate to different routes
   const [searchParams] = useSearchParams();
-  const inviteCode = searchParams.get('invite');
-  const groupInviteCode = searchParams.get('group_invite');
+  const inviteCode = searchParams.get('invite'); // a hook that allows us to get the invite code from the URL
+  const groupInviteCode = searchParams.get('group_invite'); // a hook that allows us to get the group invite code from the URL
   
-  const { signIn, signInWithGoogle, isAuthenticated, loading, checkUsernameAvailable } = useAuth();
+  const { signIn, signInWithGoogle, isAuthenticated, loading, checkUsernameAvailable } = useAuth(); // a hook that allows us to sign in with Google and check if the user is authenticated
   const [isSignUp, setIsSignUp] = useState(!!inviteCode || !!groupInviteCode);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [username, setUsername] = useState('');
-  const [usernameError, setUsernameError] = useState<string | null>(null);
-  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
-  const [checkingUsername, setCheckingUsername] = useState(false);
+  const [email, setEmail] = useState(''); // a state that stores the email of the user
+  const [password, setPassword] = useState(''); // a state that stores the password of the user
+  const [confirmPassword, setConfirmPassword] = useState(''); // a state that stores the confirm password of the user
+  const [username, setUsername] = useState(''); // a state that stores the username of the user
+  const [usernameError, setUsernameError] = useState<string | null>(null); // a state that stores the username error of the user
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null); // a state that stores the username available of the user
+  const [checkingUsername, setCheckingUsername] = useState(false); // a state that stores the checking username of the user
   const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting] = useState(false); // a state that stores the submitting of the user
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [inviterUsername, setInviterUsername] = useState<string | null>(null);
@@ -50,8 +50,8 @@ export default function Auth() {
   
   // OTP verification state
   const [showOtpInput, setShowOtpInput] = useState(false);
-  const [otpCode, setOtpCode] = useState('');
-  const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const [otpCode, setOtpCode] = useState(''); // a state that stores the OTP code of the user
+  const [verifyingOtp, setVerifyingOtp] = useState(false); // a state that stores the verifying OTP of the user
   const [pendingUsername, setPendingUsername] = useState('');
   const [pendingOtpCode, setPendingOtpCode] = useState('');
   const [pendingEmail, setPendingEmail] = useState('');
@@ -59,7 +59,7 @@ export default function Auth() {
   const [resendCooldown, setResendCooldown] = useState(0);
 
   // Check invite code validity and get inviter info
-  useEffect(() => {
+  useEffect(() => { // a hook that allows us to check the invite code validity and get the inviter info
     if (inviteCode) {
       checkInviteCode(inviteCode);
     }
@@ -69,14 +69,14 @@ export default function Auth() {
   }, [inviteCode, groupInviteCode]);
 
   // Resend cooldown timer
-  useEffect(() => {
+  useEffect(() => { // a hook that allows us to set the resend cooldown timer
     if (resendCooldown > 0) {
       const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
       return () => clearTimeout(timer);
     }
   }, [resendCooldown]);
 
-  const checkGroupInviteCode = async (code: string) => {
+  const checkGroupInviteCode = async (code: string) => { // a function that checks the group invite code validity and gets the group info
     const result = await validateGroupInviteCode(code);
     if (result.isValid && result.groupName) {
       setGroupInviteInfo({
@@ -88,7 +88,7 @@ export default function Auth() {
     }
   };
 
-  const checkInviteCode = async (code: string) => {
+  const checkInviteCode = async (code: string) => { // a function that checks the invite code validity and gets the inviter info
     try {
       const { data, error } = await supabase
         .rpc('validate_invite_code', { code_to_validate: code });
@@ -99,14 +99,14 @@ export default function Auth() {
         return;
       }
 
-      const result = Array.isArray(data) ? data[0] : data;
+      const result = Array.isArray(data) ? data[0] : data; // a variable that stores the result of the invite code validation
       
-      if (!result || !result.is_valid) {
+      if (!result || !result.is_valid) { // if the invite code is invalid or expired, show an error toast
         toast.error('Invalid or expired invite link');
         return;
       }
 
-      if (result.inviter_username) {
+      if (result.inviter_username) { // if the inviter username is found, set the inviter username
         setInviterUsername(result.inviter_username);
       }
     } catch (err) {
@@ -175,7 +175,7 @@ export default function Auth() {
   };
 
   // Send OTP via edge function
-  const sendOtpEmail = async (toEmail: string, code: string) => {
+  const sendOtpEmail = async (toEmail: string, code: string) => { //
     const response = await supabase.functions.invoke('send-otp-email', {
       body: { email: toEmail, code },
     });

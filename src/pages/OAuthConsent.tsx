@@ -6,6 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, CheckCircle, XCircle, Shield } from 'lucide-react';
 import fractalito from '@/assets/fractalito-logo.png';
 
+
+//This OAuthConsent.tsx component is an OAuth “consent screen” — the page that shows “App X wants access to your account” and lets the user Approve (Authorize) or Deny.
 export default function OAuthConsent() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();

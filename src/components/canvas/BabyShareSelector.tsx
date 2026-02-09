@@ -1,3 +1,6 @@
+
+//ifwe have multiple babys, we i post sth i wwant to chose between babies : share to emmas timeline or other 
+
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Baby as BabyIcon } from 'lucide-react';
@@ -6,7 +9,7 @@ import type { Baby } from '@/types/baby';
 interface BabyShareSelectorProps {
   babies: Baby[];
   selectedBabyIds: string[];
-  onSelectionChange: (babyIds: string[]) => void;
+  onSelectionChange: (babyIds: string[]) => void; //function we call whenevewr selection changes
   label?: string;
 }
 

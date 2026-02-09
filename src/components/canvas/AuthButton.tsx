@@ -1,4 +1,6 @@
-import { useNavigate } from 'react-router-dom';
+
+//for signin in 
+import { useNavigate } from 'react-router-dom'; //gives functions to change pages programmatically
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { User, LogOut, Settings } from 'lucide-react';
@@ -10,11 +12,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-export function AuthButton() {
-  const navigate = useNavigate();
+export function AuthButton() {  //component
+  const navigate = useNavigate(); //function
   const { user, profile, isAuthenticated, signOut } = useAuth();
 
-  const handleSignOut = async () => {
+  const handleSignOut = async () => { //async function
     await signOut();
   };
 

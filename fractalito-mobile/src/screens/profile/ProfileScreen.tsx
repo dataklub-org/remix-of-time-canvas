@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,13 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Clipboard,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useAuth } from '../../hooks/useAuth';
+import { supabase } from '../../integrations/supabase/client';
+import { nanoid } from 'nanoid';
+import { toast } from '../../hooks/use-toast';
 
 interface InviteCode {
   id: string;
@@ -19,6 +25,9 @@ interface InviteCode {
 }
 
 export default function ProfileScreen() {
+  const navigation = useNavigation();
+  const { user, profile, signOut, checkUsernameAvailable } = useAuth();
+  
   // State from web version
   const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
   const [loadingCodes, setLoadingCodes] = useState(false);
@@ -27,27 +36,87 @@ export default function ProfileScreen() {
   const [deleteStep, setDeleteStep] = useState<'initial' | 'confirm-moments' | 'confirm-account'>('initial');
   const [isDeleting, setIsDeleting] = useState(false);
 
-  // Mock user data - will be replaced with real hooks
-  const user = { id: '1', email: 'user@example.com' };
-  const profile = { username: 'username', full_name: 'User Name' };
+  // Local editable profile copy
+  const [localUsername, setLocalUsername] = useState<string>(profile?.username || '');
+  const [localDisplayName, setLocalDisplayName] = useState<string>(profile?.displayName || '');
+  const [editingUsername, setEditingUsername] = useState(false);
+  const [editingDisplayName, setEditingDisplayName] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const usernameInputRef = useRef<TextInput | null>(null);
+  const displayNameInputRef = useRef<TextInput | null>(null);
 
   useEffect(() => {
-    loadInviteCodes();
-  }, []);
+    // initialize local copy when profile changes
+    setLocalUsername(profile?.username || '');
+    setLocalDisplayName(profile?.displayName || '');
+    if (user?.id) {
+      loadInviteCodes();
+    }
+  }, [user?.id, profile?.username, profile?.displayName]);
 
   const loadInviteCodes = async () => {
-    // Logic will be added when we copy hooks
-    console.log('Loading invite codes');
+    if (!user?.id) return;
+    console.log('📋 Loading invite codes...');
+    setLoadingCodes(true);
+    try {
+      const { data, error } = await supabase
+        .from('invite_codes')
+        .select('*')
+        .eq('inviter_user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setInviteCodes(
+        (data || []).map((row) => ({
+          id: row.id,
+          code: row.code,
+          usedByUserId: row.used_by_user_id,
+          usedAt: row.used_at,
+          createdAt: row.created_at,
+        }))
+      );
+      console.log('✅ Loaded', data?.length || 0, 'invite codes');
+    } catch (error) {
+      console.error('❌ Error loading invite codes:', error);
+    } finally {
+      setLoadingCodes(false);
+    }
   };
 
   const generateInviteCode = async () => {
-    // Logic will be added when we copy hooks
-    console.log('Generating invite code');
+    if (!user?.id) return;
+    console.log('🔑 Generating invite code...');
+    setGeneratingCode(true);
+    try {
+      const code = nanoid(10);
+      const { data, error } = await supabase
+        .from('invite_codes')
+        .insert({
+          code,
+          inviter_user_id: user.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      console.log('✅ Generated code:', code);
+      await loadInviteCodes();
+    } catch (error) {
+      console.error('❌ Error generating invite code:', error);
+      Alert.alert('Error', 'Failed to generate invite code');
+    } finally {
+      setGeneratingCode(false);
+    }
   };
 
   const copyInviteLink = async (code: string) => {
-    // Logic will be added when we copy hooks
-    console.log('Copy invite link:', code);
+    const inviteLink = `https://fractalito.app/invite/${code}`;
+    Clipboard.setString(inviteLink);
+    setCopiedCode(code);
+    console.log('📋 Copied invite link:', inviteLink);
+    setTimeout(() => setCopiedCode(null), 2000);
   };
 
   const deleteInviteCode = async (codeId: string) => {
@@ -56,11 +125,90 @@ export default function ProfileScreen() {
       'Are you sure you want to delete this invite code?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: () => {
-          console.log('Delete code:', codeId);
-        }},
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            console.log('🗑 Deleting code:', codeId);
+            try {
+              const { error } = await supabase
+                .from('invite_codes')
+                .delete()
+                .eq('id', codeId);
+
+              if (error) throw error;
+
+              console.log('✅ Code deleted');
+              await loadInviteCodes();
+            } catch (error) {
+              console.error('❌ Error deleting code:', error);
+              Alert.alert('Error', 'Failed to delete invite code');
+            }
+          },
+        },
       ]
     );
+  };
+
+  const saveProfileUpdates = async (fields: { username?: string; displayName?: string }) => {
+    if (!user?.id) return;
+    setSaving(true);
+    try {
+      // If username provided, validate availability first (simple client-side check)
+      if (fields.username && fields.username !== profile?.username) {
+        const ok = await checkUsernameAvailable(fields.username);
+        if (!ok) {
+          toast({ title: 'Username is already taken', variant: 'destructive' });
+          setSaving(false);
+          return false;
+        }
+      }
+
+      const updatePayload: any = {};
+      if (fields.username !== undefined) updatePayload.username = fields.username.toLowerCase();
+      if (fields.displayName !== undefined) updatePayload.display_name = fields.displayName || null;
+
+      const { error } = await supabase
+        .from('profiles')
+        .update(updatePayload)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      // Update local UI
+      if (fields.username !== undefined) setLocalUsername(fields.username);
+      if (fields.displayName !== undefined) setLocalDisplayName(fields.displayName);
+      toast({ title: 'Profile updated' });
+      return true;
+    } catch (error: any) {
+      console.error('❌ Error updating profile:', error);
+      toast({ title: 'Failed to update profile', variant: 'destructive' });
+      return false;
+    } finally {
+      setSaving(false);
+      setEditingUsername(false);
+      setEditingDisplayName(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: async () => {
+          console.log('👋 Signing out...');
+          const { error } = await signOut();
+          if (error) {
+            console.error('❌ Error signing out:', error);
+            Alert.alert('Error', 'Failed to sign out');
+          } else {
+            console.log('✅ Signed out successfully');
+          }
+        },
+      },
+    ]);
   };
 
   const handleDeleteAllData = () => {
@@ -69,10 +217,32 @@ export default function ProfileScreen() {
       'This will delete all your personal moments. This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel', onPress: () => setDeleteStep('initial') },
-        { text: 'Delete', style: 'destructive', onPress: () => {
-          console.log('Delete all data');
-          setDeleteStep('initial');
-        }},
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!user?.id) return;
+            console.log('🗑 Deleting all moments...');
+            setIsDeleting(true);
+            try {
+              const { error } = await supabase
+                .from('moments')
+                .delete()
+                .eq('user_id', user.id);
+
+              if (error) throw error;
+
+              console.log('✅ All moments deleted');
+              Alert.alert('Success', 'All your moments have been deleted');
+            } catch (error) {
+              console.error('❌ Error deleting moments:', error);
+              Alert.alert('Error', 'Failed to delete moments');
+            } finally {
+              setIsDeleting(false);
+              setDeleteStep('initial');
+            }
+          },
+        },
       ]
     );
   };
@@ -83,10 +253,28 @@ export default function ProfileScreen() {
       'This will permanently delete your account and all associated data. This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel', onPress: () => setDeleteStep('initial') },
-        { text: 'Delete Forever', style: 'destructive', onPress: () => {
-          console.log('Delete account');
-          setDeleteStep('initial');
-        }},
+        {
+          text: 'Delete Forever',
+          style: 'destructive',
+          onPress: async () => {
+            console.log('🗑 Deleting account...');
+            setIsDeleting(true);
+            try {
+              // Call the delete account edge function
+              const { error } = await supabase.functions.invoke('delete-account');
+
+              if (error) throw error;
+
+              console.log('✅ Account deleted');
+              // User will be automatically signed out
+            } catch (error) {
+              console.error('❌ Error deleting account:', error);
+              Alert.alert('Error', 'Failed to delete account');
+              setIsDeleting(false);
+              setDeleteStep('initial');
+            }
+          },
+        },
       ]
     );
   };
@@ -106,7 +294,7 @@ export default function ProfileScreen() {
       <View style={styles.content}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
             <Text style={styles.backButton}>← Back</Text>
           </TouchableOpacity>
         </View>
@@ -116,40 +304,74 @@ export default function ProfileScreen() {
           <Text style={styles.cardTitle}>Profile</Text>
           <Text style={styles.cardDescription}>Manage your account information</Text>
 
-          <View style={styles.avatarContainer}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>
-                {profile.username?.charAt(0).toUpperCase() || 'U'}
-              </Text>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Profile</Text>
+            <Text style={styles.cardDescription}>Manage your account information</Text>
+
+            <View style={styles.avatarContainer}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>
+                  {profile?.username?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
+                </Text>
+              </View>
             </View>
-          </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Username</Text>
-            <TextInput
-              style={styles.input}
-              value={profile.username}
-              editable={false}
-            />
-          </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Username</Text>
+              <View style={styles.inputRow}>
+                <TextInput
+                  ref={usernameInputRef}
+                  style={[styles.input, styles.inputInline, editingUsername && styles.inputEditable]}
+                  value={localUsername}
+                  onChangeText={setLocalUsername}
+                  editable={editingUsername && !saving}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() => {
+                    if (editingUsername) {
+                      saveProfileUpdates({ username: localUsername });
+                    } else {
+                      setEditingUsername(true);
+                      setTimeout(() => usernameInputRef.current?.focus(), 50);
+                    }
+                  }}
+                >
+                  <Text style={styles.editButtonText}>{editingUsername ? (saving ? 'Saving...' : 'Save') : 'Edit'}</Text>
+                </TouchableOpacity>
+              </View>
+              {!editingUsername && profile?.username && (
+                <Text style={styles.helperText}>@{profile.username}</Text>
+              )}
+            </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Full Name</Text>
-            <TextInput
-              style={styles.input}
-              value={profile.full_name || ''}
-              placeholder="Enter your full name"
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              value={user.email}
-              editable={false}
-            />
-          </View>
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Display Name</Text>
+              <View style={styles.inputRow}>
+                <TextInput
+                  ref={displayNameInputRef}
+                  style={[styles.input, styles.inputInline, editingDisplayName && styles.inputEditable]}
+                  value={localDisplayName}
+                  onChangeText={setLocalDisplayName}
+                  editable={editingDisplayName && !saving}
+                />
+                <TouchableOpacity
+                  style={styles.editButton}
+                  onPress={() => {
+                    if (editingDisplayName) {
+                      saveProfileUpdates({ displayName: localDisplayName });
+                    } else {
+                      setEditingDisplayName(true);
+                      setTimeout(() => displayNameInputRef.current?.focus(), 50);
+                    }
+                  }}
+                >
+                  <Text style={styles.editButtonText}>{editingDisplayName ? (saving ? 'Saving...' : 'Save') : 'Edit'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+        </View>
         </View>
 
         {/* Invite Codes Card */}
@@ -331,6 +553,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
     backgroundColor: '#fff',
   },
+  inputInline: {
+    flex: 1,
+  },
+  inputEditable: {
+    borderColor: '#007AFF',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editButton: {
+    marginLeft: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+  },
+  editButtonText: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  helperText: {
+    marginTop: 6,
+    color: '#666',
+  },
   generateButton: {
     backgroundColor: '#007AFF',
     paddingHorizontal: 16,
@@ -419,5 +664,17 @@ const styles = StyleSheet.create({
   dangerButtonSubtext: {
     fontSize: 14,
     color: '#666',
+  },
+  signOutButton: {
+    backgroundColor: '#007AFF',
+    padding: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginTop: 16,
+  },
+  signOutButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

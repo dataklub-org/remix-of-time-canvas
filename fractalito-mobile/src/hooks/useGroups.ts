@@ -1,3 +1,4 @@
+// Manages user groups - loading groups, creating/deleting groups, managing group members, and sharing moments to groups
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../integrations/supabase/client';
 
@@ -226,7 +227,7 @@ export function useGroups(userId: string | null) {
       setGroups(prev => [newGroup, ...prev]);
       console.log(`Group "${name}" created!`);
       return newGroup;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating group:', error);
       console.log('Failed to create group');
       return null;
@@ -278,8 +279,8 @@ export function useGroups(userId: string | null) {
           joinedAt: m.joined_at,
           status: m.status as 'pending' | 'accepted',
           username: profile?.username,
-          displayName: profile?.display_name,
-          avatarUrl: profile?.avatar_url,
+          displayName: profile?.display_name ?? undefined,
+          avatarUrl: profile?.avatar_url ?? undefined,
         };
       });
     } catch (error) {

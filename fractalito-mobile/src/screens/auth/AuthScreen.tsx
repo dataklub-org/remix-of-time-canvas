@@ -11,8 +11,10 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function AuthScreen() {
+  const { signUp, signIn, signInWithGoogle, checkUsernameAvailable } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,14 +40,124 @@ export default function AuthScreen() {
     }
   }, [resendCooldown]);
 
-  const handleSubmit = () => {
-    // Logic will be added when we copy hooks
-    console.log('Submit:', { email, password, username, isSignUp });
+  // Username availability checking with debounce
+  useEffect(() => {
+    if (!isSignUp || !username || username.length < 3) {
+      setUsernameAvailable(null);
+      setUsernameError(null);
+      return;
+    }
+
+    // Validate username format
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      setUsernameError('Username can only contain letters, numbers, and underscores');
+      setUsernameAvailable(false);
+      return;
+    }
+
+    setCheckingUsername(true);
+    setUsernameError(null);
+
+    const timer = setTimeout(async () => {
+      try {
+        const available = await checkUsernameAvailable(username);
+        setUsernameAvailable(available);
+        if (!available) {
+          setUsernameError('Username is already taken');
+        }
+      } catch (error) {
+        console.error('Error checking username:', error);
+      } finally {
+        setCheckingUsername(false);
+      }
+    }, 500); // Debounce for 500ms
+
+    return () => clearTimeout(timer);
+  }, [username, isSignUp, checkUsernameAvailable]);
+
+  const handleSubmit = async () => {
+    setError(null);
+    setSuccessMessage(null);
+
+    // Validation
+    if (!email || !password) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    if (isSignUp) {
+      if (!username || username.length < 3) {
+        setError('Username must be at least 3 characters');
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        setError('Passwords do not match');
+        return;
+      }
+
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters');
+        return;
+      }
+
+      if (!usernameAvailable) {
+        setError('Please choose an available username');
+        return;
+      }
+    }
+
+    setSubmitting(true);
+
+    try {
+      if (isSignUp) {
+        console.log('📝 Attempting sign up for:', email);
+        const { error } = await signUp(email, password, username);
+        if (error) {
+          console.error('❌ Sign up error:', error.message);
+          setError(error.message);
+        } else {
+          console.log('✅ Sign up successful! Check email.');
+          setSuccessMessage('Check your email to verify your account!');
+          // Clear form
+          setEmail('');
+          setPassword('');
+          setConfirmPassword('');
+          setUsername('');
+        }
+      } else {
+        console.log('🔑 Attempting sign in for:', email);
+        const { error } = await signIn(email, password);
+        if (error) {
+          console.error('❌ Sign in error:', error.message);
+          setError(error.message || 'Invalid email or password');
+        } else {
+          console.log('✅ Sign in successful!');
+        }
+        // On success, navigation will be handled by auth state change
+      }
+    } catch (error: any) {
+      console.error('❌ Unexpected error:', error);
+      setError(error.message || 'An error occurred');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
-  const handleGoogleSignIn = () => {
-    // Logic will be added when we copy hooks
-    console.log('Google sign in');
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    setError(null);
+
+    try {
+      const { error } = await signInWithGoogle();
+      if (error) {
+        setError(error.message || 'Failed to sign in with Google');
+      }
+    } catch (error: any) {
+      setError(error.message || 'An error occurred');
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   const handleVerifyOtp = () => {
@@ -57,6 +169,9 @@ export default function AuthScreen() {
     setIsSignUp(!isSignUp);
     setError(null);
     setSuccessMessage(null);
+    setUsername('');
+    setUsernameAvailable(null);
+    setUsernameError(null);
   };
 
   if (showOtpInput) {

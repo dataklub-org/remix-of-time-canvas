@@ -1,3 +1,4 @@
+//watches the screensize and updates the canvas size accordingly
 import { useCallback, useEffect, useState } from 'react';
 
 export function useCanvasSize() {

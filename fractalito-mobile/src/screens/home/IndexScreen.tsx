@@ -2,11 +2,13 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
+import { useAuth } from '../../hooks/useAuth';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function IndexScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { user, profile } = useAuth();
 
   return (
     <View style={styles.container}>
@@ -15,9 +17,11 @@ export default function IndexScreen() {
         <Text style={styles.logo}>fractalito</Text>
         <TouchableOpacity 
           style={styles.signInButton}
-          onPress={() => navigation.navigate('Auth')}
+          onPress={() => navigation.navigate('Profile')}
         >
-          <Text style={styles.signInText}>Sign In</Text>
+          <Text style={styles.signInText}>
+            {profile?.username || user?.email || 'Profile'}
+          </Text>
         </TouchableOpacity>
       </View>
 

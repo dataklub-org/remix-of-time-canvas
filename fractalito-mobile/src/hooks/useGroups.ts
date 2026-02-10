@@ -1,7 +1,6 @@
 // Manages user groups - loading groups, creating/deleting groups, managing group members, and sharing moments to groups
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../integrations/supabase/client';
-import { toast } from './use-toast';
 
 export interface Group {
   id: string;
@@ -161,10 +160,10 @@ export function useGroups(userId: string | null) {
 
       setPendingInvitations(prev => prev.filter(inv => inv.id !== membershipId));
       await fetchGroups(); // Refresh groups list
-      toast({ title: 'Invitation accepted!' });
+      console.log('Invitation accepted!');
     } catch (error) {
       console.error('Error accepting invitation:', error);
-      toast({ title: 'Failed to accept invitation', variant: 'destructive' });
+      console.log('Failed to accept invitation');
     }
   };
 
@@ -178,10 +177,10 @@ export function useGroups(userId: string | null) {
       if (error) throw error;
 
       setPendingInvitations(prev => prev.filter(inv => inv.id !== membershipId));
-      toast({ title: 'Invitation declined' });
+      console.log('Invitation declined');
     } catch (error) {
       console.error('Error declining invitation:', error);
-      toast({ title: 'Failed to decline invitation', variant: 'destructive' });
+      console.log('Failed to decline invitation');
     }
   };
 
@@ -226,11 +225,11 @@ export function useGroups(userId: string | null) {
       };
 
       setGroups(prev => [newGroup, ...prev]);
-      toast({ title: `Group "${name}" created!` });
+      console.log(`Group "${name}" created!`);
       return newGroup;
     } catch (error) {
       console.error('Error creating group:', error);
-      toast({ title: 'Failed to create group', variant: 'destructive' });
+      console.log('Failed to create group');
       return null;
     }
   };
@@ -245,10 +244,10 @@ export function useGroups(userId: string | null) {
       if (error) throw error;
 
       setGroups(prev => prev.filter(g => g.id !== groupId));
-      toast({ title: 'Group deleted' });
+      console.log('Group deleted');
     } catch (error) {
       console.error('Error deleting group:', error);
-      toast({ title: 'Failed to delete group', variant: 'destructive' });
+      console.log('Failed to delete group');
     }
   };
 
@@ -303,13 +302,13 @@ export function useGroups(userId: string | null) {
 
       if (error) throw error;
 
-      toast({ title: 'Invitation sent' });
+      console.log('Invitation sent');
     } catch (error: any) {
       if (error.code === '23505') {
-        toast({ title: 'User is already a member or has a pending invite', variant: 'destructive' });
+        console.log('User is already a member or has a pending invite');
       } else {
         console.error('Error adding member:', error);
-        toast({ title: 'Failed to send invitation', variant: 'destructive' });
+        console.log('Failed to send invitation');
       }
     }
   };
@@ -330,10 +329,10 @@ export function useGroups(userId: string | null) {
           : g
       ));
 
-      toast({ title: 'Member removed from group' });
+      console.log('Member removed from group');
     } catch (error) {
       console.error('Error removing member:', error);
-      toast({ title: 'Failed to remove member', variant: 'destructive' });
+      console.log('Failed to remove member');
     }
   };
 
@@ -388,7 +387,7 @@ export function useGroups(userId: string | null) {
       ));
     } catch (error) {
       console.error('Error updating group color:', error);
-      toast({ title: 'Failed to update group color', variant: 'destructive' });
+      console.log('Failed to update group color');
     }
   };
 
@@ -451,11 +450,11 @@ export function useShareMoment(userId: string | null) {
 
       if (error) throw error;
 
-      toast({ title: 'Moment shared to group!' });
+      console.log('Moment shared to group!');
       return true;
     } catch (error) {
-      console.error('Error sharing moment to group:', error);
-      toast({ title: 'Failed to share moment', variant: 'destructive' });
+      console.error('Error sharing moment:', error);
+      console.log('Failed to share moment');
       return false;
     }
   };

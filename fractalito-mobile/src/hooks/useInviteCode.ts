@@ -1,12 +1,13 @@
 import { supabase } from '../integrations/supabase/client';
 import { toast } from './use-toast';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 //manages invites for individual connections - redeeming invite codes, generating invite codes, and listing pending invites
 /**
  * Redeem an invite code - uses a database function to create bidirectional connections
  * One invite link can be used by multiple users
  */
 export async function redeemInviteCode(userId: string): Promise<boolean> {
-  const inviteCode = localStorage.getItem('pending_invite_code');
+  const inviteCode = await AsyncStorage.getItem('pending_invite_code');
   if (!inviteCode) return false;
 
   try {
@@ -16,7 +17,7 @@ export async function redeemInviteCode(userId: string): Promise<boolean> {
       .rpc('redeem_invite_code', { invite_code: inviteCode });
 
     // Clear the stored invite code regardless of outcome
-    localStorage.removeItem('pending_invite_code');
+    await AsyncStorage.removeItem('pending_invite_code');
 
     if (error) {
       console.error('Error redeeming invite code:', error);
@@ -54,7 +55,7 @@ export async function redeemInviteCode(userId: string): Promise<boolean> {
     return true;
   } catch (error) {
     console.error('Error redeeming invite code:', error);
-    localStorage.removeItem('pending_invite_code');
+    await AsyncStorage.removeItem('pending_invite_code');
     return false;
   }
 }

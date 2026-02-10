@@ -1,11 +1,12 @@
 import { supabase } from '../integrations/supabase/client';
-import { toast } from 'sonner';
+import { toast } from './use-toast';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * Redeem a group invite code - adds user to group and creates bidirectional connections with inviter
  */
 export async function redeemGroupInviteCode(userId: string): Promise<boolean> {
-  const inviteCode = localStorage.getItem('pending_group_invite_code');
+  const inviteCode = await AsyncStorage.getItem('pending_group_invite_code');
   if (!inviteCode) return false;
 
   try {
@@ -14,7 +15,7 @@ export async function redeemGroupInviteCode(userId: string): Promise<boolean> {
       .rpc('redeem_group_invite_code', { invite_code: inviteCode });
 
     // Clear the stored invite code regardless of outcome
-    localStorage.removeItem('pending_group_invite_code');
+    await AsyncStorage.removeItem('pending_group_invite_code');
 
     if (error) {
       console.error('Error redeeming group invite code:', error);
@@ -31,15 +32,15 @@ export async function redeemGroupInviteCode(userId: string): Promise<boolean> {
       .rpc('validate_group_invite_code', { code_to_validate: inviteCode });
 
     if (codeInfo && codeInfo.length > 0 && codeInfo[0].group_name) {
-      toast.success(`You joined "${codeInfo[0].group_name}"!`);
+      toast({ title: `You joined "${codeInfo[0].group_name}"!` });
     } else {
-      toast.success('You joined the group!');
+      toast({ title: 'You joined the group!' });
     }
 
     return true;
   } catch (error) {
     console.error('Error redeeming group invite code:', error);
-    localStorage.removeItem('pending_group_invite_code');
+    await AsyncStorage.removeItem('pending_group_invite_code');
     return false;
   }
 }

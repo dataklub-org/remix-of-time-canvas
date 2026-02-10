@@ -36,12 +36,16 @@ export function useAuth() {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log('🔐 Auth event:', event);
+        console.log('👤 User:', session?.user?.email || 'No user');
+        
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
         
         // Fetch profile and handle invite codes when user logs in
         if (session?.user) {
+          console.log('✅ User logged in:', session.user.email);
           setTimeout(() => {
             fetchProfile(session.user.id);
             // Redeem any pending invite codes on SIGNED_IN event
@@ -51,6 +55,7 @@ export function useAuth() {
             }
           }, 0);
         } else {
+          console.log('❌ User logged out');
           setProfile(null);
         }
       }
@@ -81,8 +86,6 @@ export function useAuth() {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, username: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
     // First check if username is available
     const isAvailable = await checkUsernameAvailable(username);
     if (!isAvailable) {
@@ -92,9 +95,6 @@ export function useAuth() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: {
-        emailRedirectTo: redirectUrl
-      }
     });
     
     if (error) return { error };
@@ -134,10 +134,6 @@ export function useAuth() {
   const signInWithGoogle = useCallback(async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        // Redirect to complete-profile page to check if username is needed
-        redirectTo: `${window.location.origin}/complete-profile`,
-      },
     });
     return { error };
   }, []);

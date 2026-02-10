@@ -111,10 +111,13 @@ export default function AuthScreen() {
 
     try {
       if (isSignUp) {
+        console.log('📝 Attempting sign up for:', email);
         const { error } = await signUp(email, password, username);
         if (error) {
+          console.error('❌ Sign up error:', error.message);
           setError(error.message);
         } else {
+          console.log('✅ Sign up successful! Check email.');
           setSuccessMessage('Check your email to verify your account!');
           // Clear form
           setEmail('');
@@ -123,13 +126,18 @@ export default function AuthScreen() {
           setUsername('');
         }
       } else {
+        console.log('🔑 Attempting sign in for:', email);
         const { error } = await signIn(email, password);
         if (error) {
+          console.error('❌ Sign in error:', error.message);
           setError(error.message || 'Invalid email or password');
+        } else {
+          console.log('✅ Sign in successful!');
         }
         // On success, navigation will be handled by auth state change
       }
     } catch (error: any) {
+      console.error('❌ Unexpected error:', error);
       setError(error.message || 'An error occurred');
     } finally {
       setSubmitting(false);

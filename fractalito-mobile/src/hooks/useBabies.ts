@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../integrations/supabase/client';
 import type { Baby, BabyAccess, BabyMoment, BabyAccessRole, AngelPermission, AccessStatus } from '../types/baby';
+import { toast } from '../hooks/use-toast';
 
 export interface PendingBabyInvitation {
   id: string;
@@ -119,8 +120,8 @@ export function useBabies(userId: string | null) {
         p_name: data.name,
         p_username: data.username,
         p_date_of_birth: data.dateOfBirth.toISOString().split('T')[0],
-        p_time_of_birth: data.timeOfBirth || null,
-        p_place_of_birth: data.placeOfBirth || null,
+        p_time_of_birth: data.timeOfBirth ?? undefined,
+        p_place_of_birth: data.placeOfBirth ?? undefined,
       });
 
       if (error) throw error;
@@ -130,27 +131,27 @@ export function useBabies(userId: string | null) {
         name: babyData.name,
         username: babyData.username,
         dateOfBirth: new Date(babyData.date_of_birth),
-        timeOfBirth: babyData.time_of_birth || undefined,
-        placeOfBirth: babyData.place_of_birth || undefined,
+        timeOfBirth: babyData.time_of_birth ?? undefined,
+        placeOfBirth: babyData.place_of_birth ?? undefined,
         createdBy: babyData.created_by,
         createdAt: new Date(babyData.created_at),
         updatedAt: new Date(babyData.updated_at),
       };
 
       setBabies(prev => [newBaby, ...prev]);
-      toast.success(`${data.name}'s timeline created!`);
+      toast({ title: `${data.name}'s timeline created!` });
       return newBaby;
     } catch (error: any) {
       console.error('Error creating baby:', error);
       if (error.code === '23505') {
         // Check if it's a username duplicate or something else
         if (error.details?.includes('username') || error.message?.includes('username')) {
-          toast.error('This username is already taken');
+          toast({ title: 'This username is already taken', variant: 'destructive' });
         } else {
-          toast.error('Failed to create baby timeline');
+          toast({ title: 'Failed to create baby timeline', variant: 'destructive' });
         }
       } else {
-        toast.error('Failed to create baby timeline');
+        toast({ title: 'Failed to create baby timeline', variant: 'destructive' });
       }
       return null;
     }
@@ -182,15 +183,22 @@ export function useBabies(userId: string | null) {
 
       setBabies(prev => prev.map(b => 
         b.id === babyId 
-          ? { ...b, ...updates, updatedAt: new Date() }
+          ? { 
+              ...b, 
+              ...updates,
+              timeOfBirth: updates.timeOfBirth === null ? undefined : (updates.timeOfBirth ?? b.timeOfBirth),
+              placeOfBirth: updates.placeOfBirth === null ? undefined : (updates.placeOfBirth ?? b.placeOfBirth),
+              color: updates.color === null ? undefined : (updates.color ?? b.color),
+              updatedAt: new Date() 
+            }
           : b
       ));
 
-      toast.success('Baby info updated');
+      toast({ title: 'Baby info updated' });
       return true;
     } catch (error) {
       console.error('Error updating baby:', error);
-      toast.error('Failed to update baby');
+      toast({ title: 'Failed to update baby', variant: 'destructive' });
       return false;
     }
   };
@@ -205,11 +213,11 @@ export function useBabies(userId: string | null) {
       if (error) throw error;
 
       setBabies(prev => prev.filter(b => b.id !== babyId));
-      toast.success('Baby timeline deleted');
+      toast({ title: 'Baby timeline deleted' });
       return true;
     } catch (error) {
       console.error('Error deleting baby:', error);
-      toast.error('Failed to delete baby timeline');
+      toast({ title: 'Failed to delete baby timeline', variant: 'destructive' });
       return false;
     }
   };
@@ -236,14 +244,14 @@ export function useBabies(userId: string | null) {
 
       if (error) throw error;
 
-      toast.success(`Invitation sent as ${role}`);
+      toast({ title: `Invitation sent as ${role}` });
       return true;
     } catch (error: any) {
       console.error('Error inviting user:', error);
       if (error.code === '23505') {
-        toast.error('User already has access');
+        toast({ title: 'User already has access', variant: 'destructive' });
       } else {
-        toast.error('Failed to send invitation');
+        toast({ title: 'Failed to send invitation', variant: 'destructive' });
       }
       return false;
     }
@@ -260,11 +268,11 @@ export function useBabies(userId: string | null) {
 
       setPendingInvitations(prev => prev.filter(inv => inv.id !== accessId));
       await fetchBabies();
-      toast.success('Invitation accepted!');
+      toast({ title: 'Invitation accepted!' });
       return true;
     } catch (error) {
       console.error('Error accepting invitation:', error);
-      toast.error('Failed to accept invitation');
+      toast({ title: 'Failed to accept invitation', variant: 'destructive' });
       return false;
     }
   };
@@ -279,11 +287,11 @@ export function useBabies(userId: string | null) {
       if (error) throw error;
 
       setPendingInvitations(prev => prev.filter(inv => inv.id !== accessId));
-      toast.success('Invitation declined');
+      toast({ title: 'Invitation declined' });
       return true;
     } catch (error) {
       console.error('Error declining invitation:', error);
-      toast.error('Failed to decline invitation');
+      toast({ title: 'Failed to decline invitation', variant: 'destructive' });
       return false;
     }
   };
@@ -318,8 +326,8 @@ export function useBabies(userId: string | null) {
           invitedBy: a.invited_by,
           createdAt: new Date(a.created_at),
           username: profile?.username,
-          displayName: profile?.display_name,
-          avatarUrl: profile?.avatar_url,
+          displayName: profile?.display_name ?? undefined,
+          avatarUrl: profile?.avatar_url ?? undefined,
         };
       });
     } catch (error) {
@@ -337,11 +345,11 @@ export function useBabies(userId: string | null) {
 
       if (error) throw error;
 
-      toast.success('Access revoked');
+      toast({ title: 'Access revoked' });
       return true;
     } catch (error) {
       console.error('Error revoking access:', error);
-      toast.error('Failed to revoke access');
+      toast({ title: 'Failed to revoke access', variant: 'destructive' });
       return false;
     }
   };
@@ -378,7 +386,7 @@ export function useBabies(userId: string | null) {
       return true;
     } catch (error) {
       console.error('Error updating baby color:', error);
-      toast.error('Failed to update color');
+      toast({ title: 'Failed to update color', variant: 'destructive' });
       return false;
     }
   };
@@ -447,7 +455,7 @@ export function useShareMomentToBaby(userId: string | null) {
       return true;
     } catch (error) {
       console.error('Error sharing moment to baby:', error);
-      toast.error('Failed to share moment to baby timeline');
+      toast({ title: 'Failed to share moment to baby timeline', variant: 'destructive' });
       return false;
     }
   };

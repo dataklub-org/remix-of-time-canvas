@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../integrations/supabase/client';
-import { toast } from 'sonner';
 
 export interface Group {
   id: string;
@@ -160,10 +159,10 @@ export function useGroups(userId: string | null) {
 
       setPendingInvitations(prev => prev.filter(inv => inv.id !== membershipId));
       await fetchGroups(); // Refresh groups list
-      toast.success('Invitation accepted!');
+      console.log('Invitation accepted!');
     } catch (error) {
       console.error('Error accepting invitation:', error);
-      toast.error('Failed to accept invitation');
+      console.log('Failed to accept invitation');
     }
   };
 
@@ -177,10 +176,10 @@ export function useGroups(userId: string | null) {
       if (error) throw error;
 
       setPendingInvitations(prev => prev.filter(inv => inv.id !== membershipId));
-      toast.success('Invitation declined');
+      console.log('Invitation declined');
     } catch (error) {
       console.error('Error declining invitation:', error);
-      toast.error('Failed to decline invitation');
+      console.log('Failed to decline invitation');
     }
   };
 
@@ -225,11 +224,11 @@ export function useGroups(userId: string | null) {
       };
 
       setGroups(prev => [newGroup, ...prev]);
-      toast.success(`Group "${name}" created!`);
+      console.log(`Group "${name}" created!`);
       return newGroup;
     } catch (error: any) {
       console.error('Error creating group:', error);
-      toast.error('Failed to create group');
+      console.log('Failed to create group');
       return null;
     }
   };
@@ -244,10 +243,10 @@ export function useGroups(userId: string | null) {
       if (error) throw error;
 
       setGroups(prev => prev.filter(g => g.id !== groupId));
-      toast.success('Group deleted');
+      console.log('Group deleted');
     } catch (error) {
       console.error('Error deleting group:', error);
-      toast.error('Failed to delete group');
+      console.log('Failed to delete group');
     }
   };
 
@@ -302,13 +301,13 @@ export function useGroups(userId: string | null) {
 
       if (error) throw error;
 
-      toast.success('Invitation sent');
+      console.log('Invitation sent');
     } catch (error: any) {
       if (error.code === '23505') {
-        toast.error('User is already a member or has a pending invite');
+        console.log('User is already a member or has a pending invite');
       } else {
         console.error('Error adding member:', error);
-        toast.error('Failed to send invitation');
+        console.log('Failed to send invitation');
       }
     }
   };
@@ -329,10 +328,10 @@ export function useGroups(userId: string | null) {
           : g
       ));
 
-      toast.success('Member removed from group');
+      console.log('Member removed from group');
     } catch (error) {
       console.error('Error removing member:', error);
-      toast.error('Failed to remove member');
+      console.log('Failed to remove member');
     }
   };
 
@@ -387,7 +386,7 @@ export function useGroups(userId: string | null) {
       ));
     } catch (error) {
       console.error('Error updating group color:', error);
-      toast.error('Failed to update group color');
+      console.log('Failed to update group color');
     }
   };
 
@@ -450,11 +449,11 @@ export function useShareMoment(userId: string | null) {
 
       if (error) throw error;
 
-      toast.success('Moment shared to group!');
+      console.log('Moment shared to group!');
       return true;
     } catch (error) {
       console.error('Error sharing moment:', error);
-      toast.error('Failed to share moment');
+      console.log('Failed to share moment');
       return false;
     }
   };

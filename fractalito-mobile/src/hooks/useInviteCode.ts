@@ -1,5 +1,4 @@
 import { supabase } from '../integrations/supabase/client';
-import { toast } from 'sonner';
 
 /**
  * Redeem an invite code - uses a database function to create bidirectional connections
@@ -43,12 +42,12 @@ export async function redeemInviteCode(userId: string): Promise<boolean> {
         .maybeSingle();
 
       if (profile?.username) {
-        toast.success(`You're now connected with @${profile.username}!`);
+        console.log(`You're now connected with @${profile.username}!`);
       } else {
-        toast.success('Invite redeemed! You are now connected.');
+        console.log('Invite redeemed! You are now connected.');
       }
     } else {
-      toast.success('Invite redeemed! You are now connected.');
+      console.log('Invite redeemed! You are now connected.');
     }
 
     return true;

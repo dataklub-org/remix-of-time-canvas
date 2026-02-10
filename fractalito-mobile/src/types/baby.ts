@@ -1,3 +1,6 @@
+// instructions manuals or blueprints for the baby timeline feature - defining data structures, constants, and utility functions related to babies and their developmental milestones
+// they dont create anything by themselves but they tell the rest of the code how to create and manage baby timelines, moments, and access control
+
 export type BabyAccessRole = 'parent' | 'angel';
 export type AngelPermission = 'view' | 'contribute';
 export type AccessStatus = 'pending' | 'accepted';

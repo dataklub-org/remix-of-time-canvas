@@ -1,6 +1,7 @@
+// Manages user groups - loading groups, creating/deleting groups, managing group members, and sharing moments to groups
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../integrations/supabase/client';
-import { toast } from 'sonner';
+import { toast } from './use-toast';
 
 export interface Group {
   id: string;
@@ -160,10 +161,10 @@ export function useGroups(userId: string | null) {
 
       setPendingInvitations(prev => prev.filter(inv => inv.id !== membershipId));
       await fetchGroups(); // Refresh groups list
-      toast.success('Invitation accepted!');
+      toast({ title: 'Invitation accepted!' });
     } catch (error) {
       console.error('Error accepting invitation:', error);
-      toast.error('Failed to accept invitation');
+      toast({ title: 'Failed to accept invitation', variant: 'destructive' });
     }
   };
 
@@ -177,10 +178,10 @@ export function useGroups(userId: string | null) {
       if (error) throw error;
 
       setPendingInvitations(prev => prev.filter(inv => inv.id !== membershipId));
-      toast.success('Invitation declined');
+      toast({ title: 'Invitation declined' });
     } catch (error) {
       console.error('Error declining invitation:', error);
-      toast.error('Failed to decline invitation');
+      toast({ title: 'Failed to decline invitation', variant: 'destructive' });
     }
   };
 
@@ -225,11 +226,11 @@ export function useGroups(userId: string | null) {
       };
 
       setGroups(prev => [newGroup, ...prev]);
-      toast.success(`Group "${name}" created!`);
+      toast({ title: `Group "${name}" created!` });
       return newGroup;
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error creating group:', error);
-      toast.error('Failed to create group');
+      toast({ title: 'Failed to create group', variant: 'destructive' });
       return null;
     }
   };
@@ -244,10 +245,10 @@ export function useGroups(userId: string | null) {
       if (error) throw error;
 
       setGroups(prev => prev.filter(g => g.id !== groupId));
-      toast.success('Group deleted');
+      toast({ title: 'Group deleted' });
     } catch (error) {
       console.error('Error deleting group:', error);
-      toast.error('Failed to delete group');
+      toast({ title: 'Failed to delete group', variant: 'destructive' });
     }
   };
 
@@ -279,8 +280,8 @@ export function useGroups(userId: string | null) {
           joinedAt: m.joined_at,
           status: m.status as 'pending' | 'accepted',
           username: profile?.username,
-          displayName: profile?.display_name,
-          avatarUrl: profile?.avatar_url,
+          displayName: profile?.display_name ?? undefined,
+          avatarUrl: profile?.avatar_url ?? undefined,
         };
       });
     } catch (error) {
@@ -302,13 +303,13 @@ export function useGroups(userId: string | null) {
 
       if (error) throw error;
 
-      toast.success('Invitation sent');
+      toast({ title: 'Invitation sent' });
     } catch (error: any) {
       if (error.code === '23505') {
-        toast.error('User is already a member or has a pending invite');
+        toast({ title: 'User is already a member or has a pending invite', variant: 'destructive' });
       } else {
         console.error('Error adding member:', error);
-        toast.error('Failed to send invitation');
+        toast({ title: 'Failed to send invitation', variant: 'destructive' });
       }
     }
   };
@@ -329,10 +330,10 @@ export function useGroups(userId: string | null) {
           : g
       ));
 
-      toast.success('Member removed from group');
+      toast({ title: 'Member removed from group' });
     } catch (error) {
       console.error('Error removing member:', error);
-      toast.error('Failed to remove member');
+      toast({ title: 'Failed to remove member', variant: 'destructive' });
     }
   };
 
@@ -387,7 +388,7 @@ export function useGroups(userId: string | null) {
       ));
     } catch (error) {
       console.error('Error updating group color:', error);
-      toast.error('Failed to update group color');
+      toast({ title: 'Failed to update group color', variant: 'destructive' });
     }
   };
 
@@ -450,11 +451,11 @@ export function useShareMoment(userId: string | null) {
 
       if (error) throw error;
 
-      toast.success('Moment shared to group!');
+      toast({ title: 'Moment shared to group!' });
       return true;
     } catch (error) {
-      console.error('Error sharing moment:', error);
-      toast.error('Failed to share moment');
+      console.error('Error sharing moment to group:', error);
+      toast({ title: 'Failed to share moment', variant: 'destructive' });
       return false;
     }
   };

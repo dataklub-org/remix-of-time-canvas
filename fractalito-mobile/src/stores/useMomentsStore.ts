@@ -1,3 +1,6 @@
+// Manages all moments and timelines - loading/saving moments, managing timelines, and canvas state
+//instead of asking db every seconds it saves all your moments in this memory box 
+
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { nanoid } from 'nanoid';

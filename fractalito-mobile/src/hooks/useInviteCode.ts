@@ -1,6 +1,6 @@
 import { supabase } from '../integrations/supabase/client';
-import { toast } from 'sonner';
-
+import { toast } from './use-toast';
+//manages invites for individual connections - redeeming invite codes, generating invite codes, and listing pending invites
 /**
  * Redeem an invite code - uses a database function to create bidirectional connections
  * One invite link can be used by multiple users
@@ -43,12 +43,12 @@ export async function redeemInviteCode(userId: string): Promise<boolean> {
         .maybeSingle();
 
       if (profile?.username) {
-        toast.success(`You're now connected with @${profile.username}!`);
+        toast({ title: `You're now connected with @${profile.username}!` });
       } else {
-        toast.success('Invite redeemed! You are now connected.');
+        toast({ title: 'Invite redeemed! You are now connected.' });
       }
     } else {
-      toast.success('Invite redeemed! You are now connected.');
+      toast({ title: 'Invite redeemed! You are now connected.' });
     }
 
     return true;

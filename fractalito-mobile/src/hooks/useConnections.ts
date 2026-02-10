@@ -1,3 +1,4 @@
+// Manages user connections (friends) - loading, searching, adding, and removing connections
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../integrations/supabase/client';
 

@@ -42,6 +42,7 @@ export default function ProfileScreen() {
   const [editingUsername, setEditingUsername] = useState(false);
   const [editingDisplayName, setEditingDisplayName] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const usernameInputRef = useRef<TextInput | null>(null);
   const displayNameInputRef = useRef<TextInput | null>(null);
 
@@ -58,6 +59,7 @@ export default function ProfileScreen() {
     if (!user?.id) return;
     console.log('📋 Loading invite codes...');
     setLoadingCodes(true);
+    setErrorMessage(null);
     try {
       const { data, error } = await supabase
         .from('invite_codes')
@@ -79,6 +81,7 @@ export default function ProfileScreen() {
       console.log('✅ Loaded', data?.length || 0, 'invite codes');
     } catch (error) {
       console.error('❌ Error loading invite codes:', error);
+      setErrorMessage('Failed to load invite codes.');
     } finally {
       setLoadingCodes(false);
     }
@@ -88,6 +91,7 @@ export default function ProfileScreen() {
     if (!user?.id) return;
     console.log('🔑 Generating invite code...');
     setGeneratingCode(true);
+    setErrorMessage(null);
     try {
       const code = nanoid(10);
       const { data, error } = await supabase
@@ -106,6 +110,7 @@ export default function ProfileScreen() {
     } catch (error) {
       console.error('❌ Error generating invite code:', error);
       Alert.alert('Error', 'Failed to generate invite code');
+      setErrorMessage('Failed to generate invite code.');
     } finally {
       setGeneratingCode(false);
     }
@@ -130,6 +135,7 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             console.log('🗑 Deleting code:', codeId);
+            setErrorMessage(null);
             try {
               const { error } = await supabase
                 .from('invite_codes')
@@ -143,6 +149,7 @@ export default function ProfileScreen() {
             } catch (error) {
               console.error('❌ Error deleting code:', error);
               Alert.alert('Error', 'Failed to delete invite code');
+              setErrorMessage('Failed to delete invite code.');
             }
           },
         },
@@ -153,12 +160,14 @@ export default function ProfileScreen() {
   const saveProfileUpdates = async (fields: { username?: string; displayName?: string }) => {
     if (!user?.id) return;
     setSaving(true);
+    setErrorMessage(null);
     try {
       // If username provided, validate availability first (simple client-side check)
       if (fields.username && fields.username !== profile?.username) {
         const ok = await checkUsernameAvailable(fields.username);
         if (!ok) {
           toast({ title: 'Username is already taken', variant: 'destructive' });
+          setErrorMessage('Username is already taken.');
           setSaving(false);
           return false;
         }
@@ -183,6 +192,7 @@ export default function ProfileScreen() {
     } catch (error: any) {
       console.error('❌ Error updating profile:', error);
       toast({ title: 'Failed to update profile', variant: 'destructive' });
+      setErrorMessage('Failed to update profile.');
       return false;
     } finally {
       setSaving(false);
@@ -266,10 +276,15 @@ export default function ProfileScreen() {
               if (error) throw error;
 
               console.log('✅ Account deleted');
-              // User will be automatically signed out
             } catch (error) {
-              console.error('❌ Error deleting account:', error);
-              Alert.alert('Error', 'Failed to delete account');
+              // Silent failure: redirect to sign-in regardless
+            } finally {
+              // Ensure we leave the authenticated stack
+              await signOut();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Auth' as never }],
+              });
               setIsDeleting(false);
               setDeleteStep('initial');
             }
@@ -292,6 +307,11 @@ export default function ProfileScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
+        {errorMessage && (
+          <View style={styles.errorBanner}>
+            <Text style={styles.errorBannerText}>{errorMessage}</Text>
+          </View>
+        )}
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
@@ -603,6 +623,19 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: '#999',
+  },
+  errorBanner: {
+    backgroundColor: '#fee',
+    borderColor: '#fca5a5',
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  errorBannerText: {
+    color: '#b91c1c',
+    fontSize: 13,
   },
   codesList: {
     marginTop: 8,

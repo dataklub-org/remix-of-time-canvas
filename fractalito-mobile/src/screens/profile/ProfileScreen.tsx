@@ -457,6 +457,11 @@ export default function ProfileScreen() {
           )}
         </View>
 
+        {/* Sign Out */}
+        <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+          <Text style={styles.signOutButtonText}>Sign Out</Text>
+        </TouchableOpacity>
+
         {/* Danger Zone Card */}
         <View style={[styles.card, styles.dangerCard]}>
           <Text style={styles.cardTitle}>Danger Zone</Text>

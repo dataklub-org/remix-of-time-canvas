@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from 'react-native';
 import { useEffect, useRef, useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,7 +21,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useAuth } from '../../hooks/useAuth';
-import { useMomentsStore } from '../../stores/useMomentsStore';
+import { useMomentsStore, DEFAULT_TIMELINE_ID } from '../../stores/useMomentsStore';
 import type { Category } from '../../types/moment';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -55,6 +56,7 @@ export default function IndexScreen() {
   const addMoment = useMomentsStore((state) => state.addMoment);
   const setAuthenticated = useMomentsStore((state) => state.setAuthenticated);
   const moments = useMomentsStore((state) => state.moments);
+  const userTimelineId = useMomentsStore((state) => state.userTimelineId);
   const insets = useSafeAreaInsets();
   const { width: viewportWidth } = useWindowDimensions();
   const [centerTime, setCenterTime] = useState<number>(Date.now());
@@ -73,7 +75,6 @@ export default function IndexScreen() {
   const [people, setPeople] = useState<string[]>([]);
   const [locationInput, setLocationInput] = useState('');
   const [category, setCategory] = useState<Category>('personal');
-  const [moreDetailsOpen, setMoreDetailsOpen] = useState(true);
   const [startDateInput, setStartDateInput] = useState(format(new Date(), 'MM/dd/yyyy'));
   const [startTimeInput, setStartTimeInput] = useState(format(new Date(), 'hh:mm a'));
   const [endDateInput, setEndDateInput] = useState('');
@@ -172,7 +173,6 @@ export default function IndexScreen() {
     setLocationInput('');
     setCategory('personal');
     setMemorable(false);
-    setMoreDetailsOpen(true);
     setStartDateInput(format(now, 'MM/dd/yyyy'));
     setStartTimeInput(format(now, 'hh:mm a'));
     setEndDateInput('');
@@ -200,14 +200,14 @@ export default function IndexScreen() {
     return d.getTime();
   };
 
-  const saveMoment = async () => {
+  const saveMoment = async (): Promise<number | null> => {
     const desc = descriptionInput.trim();
-    if (!desc) return false;
+    if (!desc) return null;
 
     const startTs = parseDateTime(startDateInput, startTimeInput);
     if (!startTs) {
       Alert.alert('Invalid Start', 'Use date MM/DD/YYYY and time hh:mm AM/PM.');
-      return false;
+      return null;
     }
 
     let endTs: number | undefined;
@@ -232,19 +232,20 @@ export default function IndexScreen() {
         photo: photo || undefined,
         width: 260,
       });
-      return true;
+      return startTs;
     } catch (error) {
       console.error('Error creating moment:', error);
       Alert.alert('Error', 'Failed to create moment');
-      return false;
+      return null;
     } finally {
       setSavingMoment(false);
     }
   };
 
   const handleCreateMoment = async () => {
-    const ok = await saveMoment();
-    if (ok) {
+    const createdTs = await saveMoment();
+    if (createdTs !== null) {
+      setCenterTime(createdTs);
       resetNewMomentForm();
       setNewMomentOpen(false);
     }
@@ -497,6 +498,18 @@ export default function IndexScreen() {
   const nowVisible = nowX >= 0 && nowX <= viewportWidth;
   const centerDate = new Date(centerTime);
   const dateLabel = format(centerDate, 'EEEE, MMM d, yyyy');
+  const visibleMoments = moments.filter((moment) => {
+    const inTimeline =
+      moment.timelineId === DEFAULT_TIMELINE_ID ||
+      (!!userTimelineId && moment.timelineId === userTimelineId);
+    const inRange =
+      moment.timestamp >= startTime - visibleTimeRange * 0.1 &&
+      moment.timestamp <= endTime + visibleTimeRange * 0.1;
+    const passesZoomRule =
+      isWeekLevel || isMonthLevel || isYearLevel ? moment.memorable === true : true;
+
+    return inTimeline && inRange && passesZoomRule;
+  });
 
   function getOrdinalSuffix(day: number): string {
     if (day > 3 && day < 21) return 'th';
@@ -629,6 +642,33 @@ export default function IndexScreen() {
                 <View style={styles.nowLine} />
               </View>
             )}
+
+            {visibleMoments.map((moment) => {
+              const x = timeToX(moment.timestamp, centerTime, msPerPixel, viewportWidth);
+              return (
+                <View
+                  key={moment.id}
+                  style={[
+                    styles.momentCard,
+                    { left: Math.max(6, Math.min(viewportWidth - 174, x - 84)) },
+                  ]}
+                >
+                  {!!moment.photo && (
+                    <Image
+                      source={{ uri: moment.photo }}
+                      style={styles.momentPhoto}
+                      resizeMode="cover"
+                    />
+                  )}
+                  <Text style={styles.momentTitle} numberOfLines={1}>
+                    {moment.description}
+                  </Text>
+                  <Text style={styles.momentMeta} numberOfLines={1}>
+                    {format(moment.timestamp, 'hh:mm a')}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
 
           {/* Info text below timeline (show only before sign in) */}
@@ -735,11 +775,6 @@ export default function IndexScreen() {
                   onChangeText={setLocationInput}
                 />
 
-                <TouchableOpacity style={styles.newMomentDetailsToggle} onPress={() => setMoreDetailsOpen((v) => !v)}>
-                  <Text style={styles.newMomentDetailsToggleText}>{moreDetailsOpen ? 'Less details ^' : 'More details v'}</Text>
-                </TouchableOpacity>
-
-                {moreDetailsOpen && (
                 <View style={styles.newMomentTimeRow}>
                   <View style={styles.newMomentTimeCol}>
                     <Text style={styles.newMomentLabel}>Start</Text>
@@ -769,7 +804,6 @@ export default function IndexScreen() {
                     />
                   </View>
                 </View>
-                )}
 
                 <View style={styles.newMomentCategoryRow}>
                   <TouchableOpacity
@@ -785,7 +819,9 @@ export default function IndexScreen() {
                     <Text style={[styles.newMomentCategoryText, category === 'business' && styles.newMomentCategoryTextActive]}>Business</Text>
                   </TouchableOpacity>
                   <View style={styles.newMomentMemorableRow}>
-                    <Switch value={memorable} onValueChange={setMemorable} />
+                    <View style={styles.newMomentMemorableSwitch}>
+                      <Switch value={memorable} onValueChange={setMemorable} />
+                    </View>
                     <Text style={styles.newMomentMemorableText}>Memorable</Text>
                   </View>
                 </View>
@@ -1036,6 +1072,38 @@ const styles = StyleSheet.create({
     width: 2,
     height: 40,
     backgroundColor: '#4a7dff',
+  },
+  momentCard: {
+    position: 'absolute',
+    top: 8,
+    width: 168,
+    minHeight: 48,
+    padding: 8,
+    borderRadius: 10,
+    backgroundColor: '#f7f8fb',
+    borderLeftWidth: 3,
+    borderLeftColor: '#4a7dff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  momentPhoto: {
+    width: '100%',
+    height: 52,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  momentTitle: {
+    fontSize: 13,
+    color: '#1f2937',
+    fontWeight: '700',
+  },
+  momentMeta: {
+    marginTop: 2,
+    fontSize: 11,
+    color: '#6b7280',
   },
   dateLabel: {
     position: 'absolute',
@@ -1479,19 +1547,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
-  newMomentDetailsToggle: {
-    borderWidth: 1,
-    borderColor: '#d8dde6',
-    borderRadius: 10,
-    minHeight: 44,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f4f5f7',
-  },
-  newMomentDetailsToggleText: {
-    color: '#6f7b90',
-    fontSize: 16,
-  },
   newMomentTimeCol: {
     flex: 1,
     gap: 8,
@@ -1518,6 +1573,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
     marginTop: 6,
+    flexWrap: 'wrap',
   },
   newMomentCategoryBtn: {
     borderWidth: 1,
@@ -1543,12 +1599,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    flexShrink: 0,
+    minWidth: 120,
+    flexGrow: 1,
+  },
+  newMomentMemorableSwitch: {
+    transform: [{ scale: 0.95 }],
   },
   newMomentMemorableText: {
-    fontSize: 15,
+    fontSize: 16,
     color: '#323b4a',
-    flexShrink: 0,
+    flexShrink: 1,
   },
   newMomentPhotoRow: {
     flexDirection: 'row',

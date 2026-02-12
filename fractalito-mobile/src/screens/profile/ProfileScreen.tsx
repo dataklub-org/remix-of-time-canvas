@@ -9,7 +9,9 @@ import {
   ActivityIndicator,
   Alert,
   Clipboard,
+  Image,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../integrations/supabase/client';
@@ -39,9 +41,12 @@ export default function ProfileScreen() {
   // Local editable profile copy
   const [localUsername, setLocalUsername] = useState<string>(profile?.username || '');
   const [localDisplayName, setLocalDisplayName] = useState<string>(profile?.displayName || '');
+  const [localAvatarUrl, setLocalAvatarUrl] = useState<string | null>(profile?.avatarUrl || null);
+  const [avatarLoadFailed, setAvatarLoadFailed] = useState(false);
   const [editingUsername, setEditingUsername] = useState(false);
   const [editingDisplayName, setEditingDisplayName] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const usernameInputRef = useRef<TextInput | null>(null);
   const displayNameInputRef = useRef<TextInput | null>(null);
@@ -50,10 +55,84 @@ export default function ProfileScreen() {
     // initialize local copy when profile changes
     setLocalUsername(profile?.username || '');
     setLocalDisplayName(profile?.displayName || '');
+    setLocalAvatarUrl(profile?.avatarUrl || null);
+    setAvatarLoadFailed(false);
     if (user?.id) {
       loadInviteCodes();
     }
-  }, [user?.id, profile?.username, profile?.displayName]);
+  }, [user?.id, profile?.username, profile?.displayName, profile?.avatarUrl]);
+
+  const uploadProfilePhoto = async () => {
+    if (!user?.id) return;
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission needed', 'Please allow photo library access to upload a profile picture.');
+        return;
+      }
+
+      const mediaTypes =
+        (ImagePicker as any).MediaType?.Images
+          ? [(ImagePicker as any).MediaType.Images]
+          : ImagePicker.MediaTypeOptions.Images;
+
+      const pickerResult = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (pickerResult.canceled || !pickerResult.assets?.length) return;
+
+      const selectedAsset = pickerResult.assets[0];
+      if (selectedAsset.fileSize && selectedAsset.fileSize > 5 * 1024 * 1024) {
+        Alert.alert('File too large', 'Please choose an image up to 5MB.');
+        return;
+      }
+
+      const extension =
+        selectedAsset.fileName?.split('.').pop()?.toLowerCase() ||
+        selectedAsset.uri.split('.').pop()?.toLowerCase() ||
+        'jpg';
+      const avatarPath = `${user.id}/${Date.now()}-${nanoid(6)}.${extension}`;
+
+      setUploadingAvatar(true);
+      setErrorMessage(null);
+
+      const imageResponse = await fetch(selectedAsset.uri);
+      const imageArrayBuffer = await imageResponse.arrayBuffer();
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(avatarPath, imageArrayBuffer, {
+          contentType: selectedAsset.mimeType || 'image/jpeg',
+        });
+
+      if (uploadError) throw uploadError;
+
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('avatars').getPublicUrl(avatarPath);
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('user_id', user.id);
+
+      if (profileError) throw profileError;
+
+      setLocalAvatarUrl(publicUrl);
+      setAvatarLoadFailed(false);
+      toast({ title: 'Profile photo updated' });
+    } catch (error) {
+      console.error('❌ Error uploading profile photo:', error);
+      toast({ title: 'Failed to upload profile photo', variant: 'destructive' });
+      setErrorMessage('Failed to upload profile photo.');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const loadInviteCodes = async () => {
     if (!user?.id) return;
@@ -330,10 +409,25 @@ export default function ProfileScreen() {
 
             <View style={styles.avatarContainer}>
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {profile?.username?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
-                </Text>
+                {localAvatarUrl && !avatarLoadFailed ? (
+                  <Image
+                    source={{ uri: localAvatarUrl }}
+                    style={styles.avatarImage}
+                    onError={() => setAvatarLoadFailed(true)}
+                  />
+                ) : (
+                  <Text style={styles.avatarText}>
+                    {profile?.username?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
+                  </Text>
+                )}
               </View>
+              <TouchableOpacity
+                style={styles.avatarButton}
+                onPress={uploadProfilePhoto}
+                disabled={uploadingAvatar}
+              >
+                <Text style={styles.avatarButtonText}>{uploadingAvatar ? 'Uploading...' : 'Change Photo'}</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.inputGroup}>
@@ -554,11 +648,27 @@ const styles = StyleSheet.create({
     backgroundColor: '#007AFF',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
   },
   avatarText: {
     fontSize: 32,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  avatarButton: {
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#f0f7ff',
+  },
+  avatarButtonText: {
+    color: '#007AFF',
+    fontWeight: '600',
   },
   inputGroup: {
     marginBottom: 16,

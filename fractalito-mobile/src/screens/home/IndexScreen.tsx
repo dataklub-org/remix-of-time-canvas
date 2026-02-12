@@ -112,7 +112,7 @@ export default function IndexScreen() {
     if (feedbackRating === 0 || feedbackSubmitting) return;
     setFeedbackSubmitting(true);
     try {
-      const response = await fetch('https://formspree.io/f/xeeoyqvb', {
+      const response = await fetch('https://formspree.io/f/mwvnlpee', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

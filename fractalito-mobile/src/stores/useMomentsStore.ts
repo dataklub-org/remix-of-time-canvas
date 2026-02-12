@@ -2,8 +2,9 @@
 //instead of asking db every seconds it saves all your moments in this memory box 
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+import { persist, createJSONStorage } from 'zustand/middleware';
 import { nanoid } from 'nanoid';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Moment, Category, CanvasState, Timeline } from '../types/moment';
 import { supabase } from '../integrations/supabase/client';
 
@@ -617,6 +618,7 @@ export const useMomentsStore = create<MomentsStore>()(
     }),
     {
       name: 'temporal-memory-storage',
+      storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => {
         // Only persist local data when NOT authenticated
         if (state.isAuthenticated) {

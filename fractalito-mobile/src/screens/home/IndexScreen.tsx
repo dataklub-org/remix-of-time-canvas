@@ -9,13 +9,20 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Switch,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useAuth } from '../../hooks/useAuth';
+import { useMomentsStore } from '../../stores/useMomentsStore';
+import type { Category } from '../../types/moment';
+import * as ImagePicker from 'expo-image-picker';
 import {
   format,
   isWeekend,
@@ -44,7 +51,10 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function IndexScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { user, profile } = useAuth();
+  const { user, profile, isAuthenticated } = useAuth();
+  const addMoment = useMomentsStore((state) => state.addMoment);
+  const setAuthenticated = useMomentsStore((state) => state.setAuthenticated);
+  const moments = useMomentsStore((state) => state.moments);
   const insets = useSafeAreaInsets();
   const { width: viewportWidth } = useWindowDimensions();
   const [centerTime, setCenterTime] = useState<number>(Date.now());
@@ -56,8 +66,27 @@ export default function IndexScreen() {
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [newMomentOpen, setNewMomentOpen] = useState(false);
+  const [savingMoment, setSavingMoment] = useState(false);
+  const [descriptionInput, setDescriptionInput] = useState('');
+  const [peopleInput, setPeopleInput] = useState('');
+  const [people, setPeople] = useState<string[]>([]);
+  const [locationInput, setLocationInput] = useState('');
+  const [category, setCategory] = useState<Category>('personal');
+  const [moreDetailsOpen, setMoreDetailsOpen] = useState(true);
+  const [startDateInput, setStartDateInput] = useState(format(new Date(), 'MM/dd/yyyy'));
+  const [startTimeInput, setStartTimeInput] = useState(format(new Date(), 'hh:mm a'));
+  const [endDateInput, setEndDateInput] = useState('');
+  const [endTimeInput, setEndTimeInput] = useState('');
+  const [memorable, setMemorable] = useState(false);
+  const [keepOriginalSize, setKeepOriginalSize] = useState(false);
+  const [photo, setPhoto] = useState<string | null>(null);
   const pinchStartDistance = useRef<number | null>(null);
   const pinchStartMsPerPixel = useRef(msPerPixel);
+
+  useEffect(() => {
+    setAuthenticated(isAuthenticated, user?.id || null);
+  }, [isAuthenticated, setAuthenticated, user?.id]);
 
   const unitLabels: Record<string, string> = {
     '5min': '5m',
@@ -133,6 +162,147 @@ export default function IndexScreen() {
     } finally {
       setFeedbackSubmitting(false);
     }
+  };
+
+  const resetNewMomentForm = () => {
+    const now = new Date();
+    setDescriptionInput('');
+    setPeopleInput('');
+    setPeople([]);
+    setLocationInput('');
+    setCategory('personal');
+    setMemorable(false);
+    setMoreDetailsOpen(true);
+    setStartDateInput(format(now, 'MM/dd/yyyy'));
+    setStartTimeInput(format(now, 'hh:mm a'));
+    setEndDateInput('');
+    setEndTimeInput('');
+    setKeepOriginalSize(false);
+    setPhoto(null);
+  };
+
+  const parseDateTime = (dateInput: string, timeInput: string) => {
+    const dateMatch = dateInput.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    const timeMatch = timeInput.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!dateMatch || !timeMatch) return null;
+    const month = Number(dateMatch[1]);
+    const day = Number(dateMatch[2]);
+    const year = Number(dateMatch[3]);
+    const rawHour = Number(timeMatch[1]);
+    const minute = Number(timeMatch[2]);
+    if (month < 1 || month > 12 || day < 1 || day > 31 || rawHour < 1 || rawHour > 12 || minute < 0 || minute > 59) {
+      return null;
+    }
+    let hour = rawHour % 12;
+    if (timeMatch[3].toUpperCase() === 'PM') hour += 12;
+    const d = new Date(year, month - 1, day, hour, minute, 0, 0);
+    if (d.getMonth() !== month - 1 || d.getDate() !== day || d.getFullYear() !== year) return null;
+    return d.getTime();
+  };
+
+  const saveMoment = async () => {
+    const desc = descriptionInput.trim();
+    if (!desc) return false;
+
+    const startTs = parseDateTime(startDateInput, startTimeInput);
+    if (!startTs) {
+      Alert.alert('Invalid Start', 'Use date MM/DD/YYYY and time hh:mm AM/PM.');
+      return false;
+    }
+
+    let endTs: number | undefined;
+    if (endDateInput.trim() && endTimeInput.trim()) {
+      const parsedEnd = parseDateTime(endDateInput, endTimeInput);
+      if (parsedEnd && parsedEnd > startTs) {
+        endTs = parsedEnd;
+      }
+    }
+
+    setSavingMoment(true);
+    try {
+      await addMoment({
+        timestamp: startTs,
+        endTime: endTs,
+        y: 70 + moments.length * 8,
+        description: desc,
+        people: people.join(', '),
+        location: locationInput.trim(),
+        category,
+        memorable,
+        photo: photo || undefined,
+        width: 260,
+      });
+      return true;
+    } catch (error) {
+      console.error('Error creating moment:', error);
+      Alert.alert('Error', 'Failed to create moment');
+      return false;
+    } finally {
+      setSavingMoment(false);
+    }
+  };
+
+  const handleCreateMoment = async () => {
+    const ok = await saveMoment();
+    if (ok) {
+      resetNewMomentForm();
+      setNewMomentOpen(false);
+    }
+  };
+
+  const handleAutosaveAndClose = async () => {
+    if (descriptionInput.trim()) {
+      const ok = await saveMoment();
+      if (!ok) return;
+    }
+    resetNewMomentForm();
+    setNewMomentOpen(false);
+  };
+
+  const handleDiscardMoment = () => {
+    resetNewMomentForm();
+    setNewMomentOpen(false);
+  };
+
+  const handleAddPerson = () => {
+    const next = peopleInput.trim();
+    if (!next) return;
+    if (!people.includes(next)) setPeople((prev) => [...prev, next]);
+    setPeopleInput('');
+  };
+
+  const handlePickPhoto = async (fromCamera: boolean) => {
+    try {
+      if (fromCamera) {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        if (status !== 'granted') return;
+      } else {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') return;
+      }
+
+      const mediaTypes =
+        (ImagePicker as any).MediaType?.Images
+          ? [(ImagePicker as any).MediaType.Images]
+          : ImagePicker.MediaTypeOptions.Images;
+
+      const result = fromCamera
+        ? await ImagePicker.launchCameraAsync({ mediaTypes, quality: keepOriginalSize ? 1 : 0.7 })
+        : await ImagePicker.launchImageLibraryAsync({ mediaTypes, quality: keepOriginalSize ? 1 : 0.7 });
+
+      if (!result.canceled && result.assets?.[0]?.uri) {
+        setPhoto(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error selecting photo:', error);
+    }
+  };
+
+  const handleOpenNewMoment = () => {
+    const now = new Date();
+    setStartDateInput(format(now, 'MM/dd/yyyy'));
+    setStartTimeInput(format(now, 'hh:mm a'));
+    setNewMomentOpen(true);
   };
 
   const MIN_TICK_SPACING = 50;
@@ -490,8 +660,8 @@ export default function IndexScreen() {
             <TouchableOpacity style={styles.circleButton} onPress={() => setCalendarOpen(true)}>
               <Text style={styles.circleButtonText}>📅</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.circleButton, styles.circleButtonDark]}>
-              <Text style={[styles.circleButtonText, styles.circleButtonTextDark]}>+M</Text>
+            <TouchableOpacity style={[styles.circleButton, styles.circleButtonDark]} onPress={handleOpenNewMoment}>
+              <Text style={[styles.circleButtonText, styles.circleButtonTextDark]}>+</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -512,6 +682,137 @@ export default function IndexScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* New Moment modal */}
+      <Modal visible={newMomentOpen} transparent animationType="fade" onRequestClose={handleAutosaveAndClose}>
+        <Pressable style={styles.newMomentOverlay} onPress={handleAutosaveAndClose}>
+          <View />
+        </Pressable>
+        <View style={styles.newMomentOverlayCard}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.newMomentKeyboard}>
+            <View style={styles.newMomentCard}>
+              <View style={styles.newMomentHeader}>
+                <Text style={styles.newMomentTitle}>New Moment</Text>
+                <TouchableOpacity onPress={handleDiscardMoment}>
+                  <Text style={styles.newMomentClose}>x</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.newMomentScroll} contentContainerStyle={styles.newMomentBody} showsVerticalScrollIndicator>
+                <Text style={styles.newMomentLabel}>Description *</Text>
+                <TextInput
+                  style={[styles.newMomentInput, styles.newMomentTextArea]}
+                  placeholder="What happened?"
+                  placeholderTextColor="#7e8a9d"
+                  value={descriptionInput}
+                  onChangeText={setDescriptionInput}
+                  multiline
+                />
+                <TouchableOpacity style={styles.newMomentCreateBtn} onPress={handleCreateMoment} disabled={savingMoment}>
+                  <Text style={styles.newMomentCreateText}>{savingMoment ? 'Creating...' : 'Create'}</Text>
+                </TouchableOpacity>
+
+                <Text style={styles.newMomentLabel}>People</Text>
+                <View style={styles.newMomentPeopleRow}>
+                  <TextInput
+                    style={[styles.newMomentInput, styles.newMomentPeopleInput]}
+                    placeholder="Add person..."
+                    placeholderTextColor="#7e8a9d"
+                    value={peopleInput}
+                    onChangeText={setPeopleInput}
+                  />
+                  <TouchableOpacity style={styles.newMomentAddBtn} onPress={handleAddPerson}>
+                    <Text style={styles.newMomentAddText}>+</Text>
+                  </TouchableOpacity>
+                </View>
+                {people.length > 0 && <Text style={styles.newMomentPeopleAdded}>Added: {people.join(', ')}</Text>}
+
+                <Text style={styles.newMomentLabel}>Location</Text>
+                <TextInput
+                  style={styles.newMomentInput}
+                  placeholder="Where?"
+                  placeholderTextColor="#7e8a9d"
+                  value={locationInput}
+                  onChangeText={setLocationInput}
+                />
+
+                <TouchableOpacity style={styles.newMomentDetailsToggle} onPress={() => setMoreDetailsOpen((v) => !v)}>
+                  <Text style={styles.newMomentDetailsToggleText}>{moreDetailsOpen ? 'Less details ^' : 'More details v'}</Text>
+                </TouchableOpacity>
+
+                {moreDetailsOpen && (
+                <View style={styles.newMomentTimeRow}>
+                  <View style={styles.newMomentTimeCol}>
+                    <Text style={styles.newMomentLabel}>Start</Text>
+                    <TextInput style={styles.newMomentInput} value={startDateInput} onChangeText={setStartDateInput} />
+                    <TextInput style={styles.newMomentInput} value={startTimeInput} onChangeText={setStartTimeInput} />
+                  </View>
+                  <View style={styles.newMomentTimeCol}>
+                    <View style={styles.newMomentEndHeader}>
+                      <Text style={styles.newMomentLabel}>End (optional)</Text>
+                      <View style={styles.newMomentNowPill}>
+                        <Text style={styles.newMomentNowText}>Now</Text>
+                      </View>
+                    </View>
+                    <TextInput
+                      style={styles.newMomentInput}
+                      placeholder="mm/dd/yyyy"
+                      placeholderTextColor="#7e8a9d"
+                      value={endDateInput}
+                      onChangeText={setEndDateInput}
+                    />
+                    <TextInput
+                      style={styles.newMomentInput}
+                      placeholder="--:-- --"
+                      placeholderTextColor="#202938"
+                      value={endTimeInput}
+                      onChangeText={setEndTimeInput}
+                    />
+                  </View>
+                </View>
+                )}
+
+                <View style={styles.newMomentCategoryRow}>
+                  <TouchableOpacity
+                    style={[styles.newMomentCategoryBtn, category === 'personal' && styles.newMomentCategoryBtnActive]}
+                    onPress={() => setCategory('personal')}
+                  >
+                    <Text style={[styles.newMomentCategoryText, category === 'personal' && styles.newMomentCategoryTextActive]}>Personal</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.newMomentCategoryBtn, category === 'business' && styles.newMomentCategoryBtnActive]}
+                    onPress={() => setCategory('business')}
+                  >
+                    <Text style={[styles.newMomentCategoryText, category === 'business' && styles.newMomentCategoryTextActive]}>Business</Text>
+                  </TouchableOpacity>
+                  <View style={styles.newMomentMemorableRow}>
+                    <Switch value={memorable} onValueChange={setMemorable} />
+                    <Text style={styles.newMomentMemorableText}>Memorable</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.newMomentLabel}>Photo</Text>
+                <View style={styles.newMomentPhotoRow}>
+                  <TouchableOpacity style={styles.newMomentPhotoBtn} onPress={() => handlePickPhoto(true)}>
+                    <Text style={styles.newMomentPhotoText}>Camera</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.newMomentPhotoBtn} onPress={() => handlePickPhoto(false)}>
+                    <Text style={styles.newMomentPhotoText}>Gallery</Text>
+                  </TouchableOpacity>
+                </View>
+                {photo && <Text style={styles.newMomentPhotoChosen}>Photo selected</Text>}
+
+                <View style={styles.newMomentKeepSize}>
+                  <View>
+                    <Text style={styles.newMomentKeepTitle}>Keep original size</Text>
+                    <Text style={styles.newMomentKeepSub}>Higher quality</Text>
+                  </View>
+                  <Switch value={keepOriginalSize} onValueChange={setKeepOriginalSize} />
+                </View>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
 
       {/* Calendar popover */}
       <Modal visible={calendarOpen} transparent animationType="fade" onRequestClose={() => setCalendarOpen(false)}>
@@ -1060,5 +1361,234 @@ const styles = StyleSheet.create({
     color: '#15803d',
     fontWeight: '700',
     fontSize: 13,
+  },
+  newMomentOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(16, 21, 30, 0.72)',
+  },
+  newMomentOverlayCard: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  newMomentKeyboard: {
+    width: '100%',
+    maxWidth: 760,
+    maxHeight: '95%',
+  },
+  newMomentCard: {
+    backgroundColor: '#f4f5f7',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#d6dbe3',
+    overflow: 'hidden',
+    maxHeight: '100%',
+  },
+  newMomentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#dfe3ea',
+  },
+  newMomentTitle: {
+    fontSize: 20,
+    color: '#303846',
+    fontWeight: '500',
+  },
+  newMomentClose: {
+    fontSize: 28,
+    color: '#5f6674',
+    paddingHorizontal: 8,
+  },
+  newMomentScroll: {
+    maxHeight: 720,
+  },
+  newMomentBody: {
+    padding: 18,
+    gap: 14,
+  },
+  newMomentLabel: {
+    fontSize: 15,
+    color: '#313a49',
+    fontWeight: '500',
+  },
+  newMomentInput: {
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    borderRadius: 10,
+    backgroundColor: '#f4f5f7',
+    minHeight: 56,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#1f2937',
+  },
+  newMomentTextArea: {
+    minHeight: 110,
+    textAlignVertical: 'top',
+  },
+  newMomentCreateBtn: {
+    backgroundColor: '#9da2aa',
+    borderRadius: 10,
+    minHeight: 52,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 4,
+  },
+  newMomentCreateText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  newMomentPeopleRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  newMomentPeopleInput: {
+    flex: 1,
+  },
+  newMomentPeopleAdded: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: -4,
+  },
+  newMomentAddBtn: {
+    width: 56,
+    minHeight: 54,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    backgroundColor: '#f4f5f7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  newMomentAddText: {
+    fontSize: 22,
+    color: '#283141',
+    lineHeight: 22,
+  },
+  newMomentTimeRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  newMomentDetailsToggle: {
+    borderWidth: 1,
+    borderColor: '#d8dde6',
+    borderRadius: 10,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f4f5f7',
+  },
+  newMomentDetailsToggleText: {
+    color: '#6f7b90',
+    fontSize: 16,
+  },
+  newMomentTimeCol: {
+    flex: 1,
+    gap: 8,
+  },
+  newMomentEndHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  newMomentNowPill: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 9,
+    paddingHorizontal: 12,
+    paddingVertical: 3,
+    backgroundColor: '#f4f5f7',
+  },
+  newMomentNowText: {
+    fontSize: 12,
+    color: '#4b5563',
+  },
+  newMomentCategoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+  },
+  newMomentCategoryBtn: {
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    borderRadius: 10,
+    backgroundColor: '#eceef2',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  newMomentCategoryBtnActive: {
+    borderColor: '#f19b3a',
+    backgroundColor: '#fff6ec',
+  },
+  newMomentCategoryText: {
+    fontSize: 17,
+    color: '#3b4353',
+  },
+  newMomentCategoryTextActive: {
+    color: '#cc5f10',
+    fontWeight: '600',
+  },
+  newMomentMemorableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flexShrink: 0,
+  },
+  newMomentMemorableText: {
+    fontSize: 15,
+    color: '#323b4a',
+    flexShrink: 0,
+  },
+  newMomentPhotoRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  newMomentPhotoBtn: {
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    borderRadius: 10,
+    backgroundColor: '#f4f5f7',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  newMomentPhotoText: {
+    fontSize: 16,
+    color: '#313a49',
+  },
+  newMomentPhotoChosen: {
+    color: '#6b7280',
+    fontSize: 13,
+    marginTop: -4,
+  },
+  newMomentKeepSize: {
+    borderWidth: 1,
+    borderColor: '#d9dee7',
+    borderRadius: 12,
+    minHeight: 74,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  newMomentKeepTitle: {
+    fontSize: 16,
+    color: '#323b4a',
+    fontWeight: '500',
+  },
+  newMomentKeepSub: {
+    fontSize: 12,
+    color: '#7a8598',
+    marginTop: 2,
   },
 });

@@ -117,7 +117,7 @@ export default function ProfileScreen() {
   };
 
   const copyInviteLink = async (code: string) => {
-    const inviteLink = `https://fractalito.app/invite/${code}`;
+    const inviteLink = `https://fractalito.com/auth?invite=${code}`;
     Clipboard.setString(inviteLink);
     setCopiedCode(code);
     console.log('📋 Copied invite link:', inviteLink);

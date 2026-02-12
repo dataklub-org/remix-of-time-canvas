@@ -1,8 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   StyleSheet,
   TouchableOpacity,
   ScrollView,
@@ -14,7 +13,6 @@ import { useNavigation } from '@react-navigation/native';
 import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../integrations/supabase/client';
 import { nanoid } from 'nanoid';
-import { toast } from '../../hooks/use-toast';
 
 interface InviteCode {
   id: string;
@@ -26,8 +24,8 @@ interface InviteCode {
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
-  const { user, profile, signOut, checkUsernameAvailable } = useAuth();
-  
+  const { user, profile, signOut } = useAuth();
+
   // State from web version
   const [inviteCodes, setInviteCodes] = useState<InviteCode[]>([]);
   const [loadingCodes, setLoadingCodes] = useState(false);
@@ -35,25 +33,13 @@ export default function ProfileScreen() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [deleteStep, setDeleteStep] = useState<'initial' | 'confirm-moments' | 'confirm-account'>('initial');
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // Local editable profile copy
-  const [localUsername, setLocalUsername] = useState<string>(profile?.username || '');
-  const [localDisplayName, setLocalDisplayName] = useState<string>(profile?.displayName || '');
-  const [editingUsername, setEditingUsername] = useState(false);
-  const [editingDisplayName, setEditingDisplayName] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const usernameInputRef = useRef<TextInput | null>(null);
-  const displayNameInputRef = useRef<TextInput | null>(null);
 
   useEffect(() => {
-    // initialize local copy when profile changes
-    setLocalUsername(profile?.username || '');
-    setLocalDisplayName(profile?.displayName || '');
     if (user?.id) {
       loadInviteCodes();
     }
-  }, [user?.id, profile?.username, profile?.displayName]);
+  }, [user?.id]);
 
   const loadInviteCodes = async () => {
     if (!user?.id) return;
@@ -155,50 +141,6 @@ export default function ProfileScreen() {
         },
       ]
     );
-  };
-
-  const saveProfileUpdates = async (fields: { username?: string; displayName?: string }) => {
-    if (!user?.id) return;
-    setSaving(true);
-    setErrorMessage(null);
-    try {
-      // If username provided, validate availability first (simple client-side check)
-      if (fields.username && fields.username !== profile?.username) {
-        const ok = await checkUsernameAvailable(fields.username);
-        if (!ok) {
-          toast({ title: 'Username is already taken', variant: 'destructive' });
-          setErrorMessage('Username is already taken.');
-          setSaving(false);
-          return false;
-        }
-      }
-
-      const updatePayload: any = {};
-      if (fields.username !== undefined) updatePayload.username = fields.username.toLowerCase();
-      if (fields.displayName !== undefined) updatePayload.display_name = fields.displayName || null;
-
-      const { error } = await supabase
-        .from('profiles')
-        .update(updatePayload)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      // Update local UI
-      if (fields.username !== undefined) setLocalUsername(fields.username);
-      if (fields.displayName !== undefined) setLocalDisplayName(fields.displayName);
-      toast({ title: 'Profile updated' });
-      return true;
-    } catch (error: any) {
-      console.error('❌ Error updating profile:', error);
-      toast({ title: 'Failed to update profile', variant: 'destructive' });
-      setErrorMessage('Failed to update profile.');
-      return false;
-    } finally {
-      setSaving(false);
-      setEditingUsername(false);
-      setEditingDisplayName(false);
-    }
   };
 
   const handleSignOut = async () => {
@@ -338,60 +280,14 @@ export default function ProfileScreen() {
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Username</Text>
-              <View style={styles.inputRow}>
-                <TextInput
-                  ref={usernameInputRef}
-                  style={[styles.input, styles.inputInline, editingUsername && styles.inputEditable]}
-                  value={localUsername}
-                  onChangeText={setLocalUsername}
-                  editable={editingUsername && !saving}
-                  autoCapitalize="none"
-                />
-                <TouchableOpacity
-                  style={styles.editButton}
-                  onPress={() => {
-                    if (editingUsername) {
-                      saveProfileUpdates({ username: localUsername });
-                    } else {
-                      setEditingUsername(true);
-                      setTimeout(() => usernameInputRef.current?.focus(), 50);
-                    }
-                  }}
-                >
-                  <Text style={styles.editButtonText}>{editingUsername ? (saving ? 'Saving...' : 'Save') : 'Edit'}</Text>
-                </TouchableOpacity>
-              </View>
-              {!editingUsername && profile?.username && (
-                <Text style={styles.helperText}>@{profile.username}</Text>
-              )}
+              <Text style={styles.valueText}>@{profile?.username || ''}</Text>
             </View>
 
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Display Name</Text>
-              <View style={styles.inputRow}>
-                <TextInput
-                  ref={displayNameInputRef}
-                  style={[styles.input, styles.inputInline, editingDisplayName && styles.inputEditable]}
-                  value={localDisplayName}
-                  onChangeText={setLocalDisplayName}
-                  editable={editingDisplayName && !saving}
-                />
-                <TouchableOpacity
-                  style={styles.editButton}
-                  onPress={() => {
-                    if (editingDisplayName) {
-                      saveProfileUpdates({ displayName: localDisplayName });
-                    } else {
-                      setEditingDisplayName(true);
-                      setTimeout(() => displayNameInputRef.current?.focus(), 50);
-                    }
-                  }}
-                >
-                  <Text style={styles.editButtonText}>{editingDisplayName ? (saving ? 'Saving...' : 'Save') : 'Edit'}</Text>
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.valueText}>{profile?.displayName || ''}</Text>
             </View>
-        </View>
+          </View>
         </View>
 
         {/* Invite Codes Card */}
@@ -399,15 +295,9 @@ export default function ProfileScreen() {
           <View style={styles.cardHeader}>
             <View>
               <Text style={styles.cardTitle}>Invite Codes</Text>
-              <Text style={styles.cardDescription}>
-                Share Fractalito with friends
-              </Text>
+              <Text style={styles.cardDescription}>Share Fractalito with friends</Text>
             </View>
-            <TouchableOpacity
-              style={styles.generateButton}
-              onPress={generateInviteCode}
-              disabled={generatingCode}
-            >
+            <TouchableOpacity style={styles.generateButton} onPress={generateInviteCode} disabled={generatingCode}>
               {generatingCode ? (
                 <ActivityIndicator size="small" color="#007AFF" />
               ) : (
@@ -421,9 +311,7 @@ export default function ProfileScreen() {
           ) : inviteCodes.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>No invite codes yet</Text>
-              <Text style={styles.emptySubtext}>
-                Generate a code to invite friends
-              </Text>
+              <Text style={styles.emptySubtext}>Generate a code to invite friends</Text>
             </View>
           ) : (
             <View style={styles.codesList}>
@@ -431,23 +319,13 @@ export default function ProfileScreen() {
                 <View key={code.id} style={styles.codeItem}>
                   <View style={styles.codeInfo}>
                     <Text style={styles.codeText}>{code.code}</Text>
-                    <Text style={styles.codeStatus}>
-                      {code.usedAt ? '✓ Used' : 'Available'}
-                    </Text>
+                    <Text style={styles.codeStatus}>{code.usedAt ? '✓ Used' : 'Available'}</Text>
                   </View>
                   <View style={styles.codeActions}>
-                    <TouchableOpacity
-                      onPress={() => copyInviteLink(code.code)}
-                      style={styles.iconButton}
-                    >
-                      <Text style={styles.iconText}>
-                        {copiedCode === code.code ? '✓' : '📋'}
-                      </Text>
+                    <TouchableOpacity onPress={() => copyInviteLink(code.code)} style={styles.iconButton}>
+                      <Text style={styles.iconText}>{copiedCode === code.code ? '✓' : '📋'}</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                      onPress={() => deleteInviteCode(code.id)}
-                      style={styles.iconButton}
-                    >
+                    <TouchableOpacity onPress={() => deleteInviteCode(code.id)} style={styles.iconButton}>
                       <Text style={styles.iconTextDelete}>🗑</Text>
                     </TouchableOpacity>
                   </View>
@@ -465,34 +343,20 @@ export default function ProfileScreen() {
         {/* Danger Zone Card */}
         <View style={[styles.card, styles.dangerCard]}>
           <Text style={styles.cardTitle}>Danger Zone</Text>
-          <Text style={styles.cardDescription}>
-            Irreversible actions
-          </Text>
+          <Text style={styles.cardDescription}>Irreversible actions</Text>
 
           <View style={styles.separator} />
 
-          <TouchableOpacity
-            style={styles.dangerButton}
-            onPress={startDeleteMomentsFlow}
-            disabled={isDeleting}
-          >
+          <TouchableOpacity style={styles.dangerButton} onPress={startDeleteMomentsFlow} disabled={isDeleting}>
             <Text style={styles.dangerButtonText}>Delete All My Moments</Text>
-            <Text style={styles.dangerButtonSubtext}>
-              Remove all personal moments from your timeline
-            </Text>
+            <Text style={styles.dangerButtonSubtext}>Remove all personal moments from your timeline</Text>
           </TouchableOpacity>
 
           <View style={styles.separator} />
 
-          <TouchableOpacity
-            style={styles.dangerButton}
-            onPress={startDeleteAccountFlow}
-            disabled={isDeleting}
-          >
+          <TouchableOpacity style={styles.dangerButton} onPress={startDeleteAccountFlow} disabled={isDeleting}>
             <Text style={styles.dangerButtonText}>Delete My Account</Text>
-            <Text style={styles.dangerButtonSubtext}>
-              Permanently delete your account and all data
-            </Text>
+            <Text style={styles.dangerButtonSubtext}>Permanently delete your account and all data</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -569,37 +433,9 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: '#000',
   },
-  input: {
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 8,
-    paddingHorizontal: 16,
+  valueText: {
     fontSize: 16,
-    backgroundColor: '#fff',
-  },
-  inputInline: {
-    flex: 1,
-  },
-  inputEditable: {
-    borderColor: '#007AFF',
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  editButton: {
-    marginLeft: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  editButtonText: {
-    color: '#007AFF',
-    fontWeight: '600',
-  },
-  helperText: {
-    marginTop: 6,
-    color: '#666',
+    color: '#111',
   },
   generateButton: {
     backgroundColor: '#007AFF',

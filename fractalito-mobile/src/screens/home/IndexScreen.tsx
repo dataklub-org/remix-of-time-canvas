@@ -1,4 +1,6 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { useRef, useState } from 'react';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
@@ -9,19 +11,30 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function IndexScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user, profile } = useAuth();
+  const insets = useSafeAreaInsets();
+  const [zoom, setZoom] = useState(1);
+  const pinchStartDistance = useRef<number | null>(null);
+  const pinchStartZoom = useRef(1);
+
+  const clampZoom = (value: number) => Math.min(4, Math.max(0.5, value));
+  const zoomLabel =
+    zoom <= 0.75 ? '1w' : zoom <= 1.1 ? '1d' : zoom <= 1.8 ? '12h' : zoom <= 2.6 ? '6h' : '1h';
+
+  const getDistance = (touches: any[]) => {
+    if (touches.length < 2) return 0;
+    const [a, b] = touches;
+    const dx = a.pageX - b.pageX;
+    const dy = a.pageY - b.pageY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.logo}>fractalito</Text>
-        <TouchableOpacity 
-          style={styles.signInButton}
-          onPress={() => navigation.navigate('Profile')}
-        >
-          <Text style={styles.signInText}>
-            {profile?.username || user?.email || 'Profile'}
-          </Text>
+        <TouchableOpacity style={styles.signInButton} onPress={() => navigation.navigate('Profile')}>
+          <Text style={styles.signInText}>{profile?.username || user?.email || 'Profile'}</Text>
         </TouchableOpacity>
       </View>
 
@@ -40,73 +53,133 @@ export default function IndexScreen() {
 
       {/* Timeline Canvas */}
       <View style={styles.canvasContainer}>
-        {/* Timeline with hours */}
-        <View style={styles.timeline}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.timelineTrack}
+        <View style={styles.timelineWrapper}>
+          {/* Timeline with hours */}
+          <View
+            style={styles.timeline}
+            onStartShouldSetResponder={(e) => e.nativeEvent.touches.length >= 2}
+            onMoveShouldSetResponder={(e) => e.nativeEvent.touches.length >= 2}
+            onResponderGrant={(e) => {
+              if (e.nativeEvent.touches.length >= 2) {
+                pinchStartDistance.current = getDistance(e.nativeEvent.touches);
+                pinchStartZoom.current = zoom;
+              }
+            }}
+            onResponderMove={(e) => {
+              if (e.nativeEvent.touches.length >= 2 && pinchStartDistance.current) {
+                const nextDistance = getDistance(e.nativeEvent.touches);
+                if (nextDistance > 0) {
+                  const nextZoom = clampZoom(pinchStartZoom.current * (nextDistance / pinchStartDistance.current));
+                  setZoom(nextZoom);
+                }
+              }
+            }}
+            onResponderRelease={() => {
+              pinchStartDistance.current = null;
+            }}
           >
-            {/* Hour markers */}
-            {[...Array(24)].map((_, i) => {
-              const hour = (i + 3) % 24; // Start from 03:00
-              const hourStr = hour.toString().padStart(2, '0') + ':00';
-              const isNow = hour === 10; // Current time marker (example: 10:00)
-              
-              return (
-                <View key={i} style={styles.hourMarker}>
-                  {isNow && (
-                    <View style={styles.nowMarker}>
-                      <Text style={styles.nowText}>Now</Text>
-                      <View style={styles.nowLine} />
-                    </View>
-                  )}
-                  <Text style={styles.hourText}>{hourStr}</Text>
-                  <View style={styles.hourTick} />
-                </View>
-              );
-            })}
-          </ScrollView>
-          
-          {/* Date label */}
-          <Text style={styles.dateLabel}>Monday, Feb 9, 2026</Text>
-        </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.timelineTrack}
+            >
+              {[...Array(24)].map((_, i) => {
+                const hour = (i + 3) % 24;
+                const hourStr = hour.toString().padStart(2, '0') + ':00';
+                const isNow = hour === 10;
 
-        {/* Info text below timeline */}
-        <View style={styles.infoBox}>
-          <Text style={styles.title}>A visual memory plane</Text>
-          <Text style={styles.subtitle}>Time flows horizontally, moments live in space</Text>
-          <Text style={styles.description}>
-            Capture thoughts, experiences, and ideas as points on a timeline—
-            organized by categories, enhanced by meaning and proximity
-          </Text>
+                return (
+                  <View key={i} style={[styles.hourMarker, { width: 80 * zoom }]}>
+                    {isNow && (
+                      <View style={styles.nowMarker}>
+                        <Text style={styles.nowText}>Now</Text>
+                        <View style={styles.nowLine} />
+                      </View>
+                    )}
+                    <Text style={styles.hourText}>{hourStr}</Text>
+                    <View style={styles.hourTick} />
+                  </View>
+                );
+              })}
+            </ScrollView>
+
+            {/* Date label */}
+            <Text style={styles.dateLabel}>Monday, Feb 9, 2026</Text>
+          </View>
+
+          {/* Info text below timeline (show only before sign in) */}
+          {!user?.id && (
+            <View style={styles.infoBox}>
+              <Text style={styles.title}>A visual memory plane</Text>
+              <Text style={styles.subtitle}>Time flows horizontally, moments live in space</Text>
+              <Text style={styles.description}>
+                Capture thoughts, experiences, and ideas as points on a timeline—
+                organized by categories, enhanced by meaning and proximity
+              </Text>
+            </View>
+          )}
         </View>
       </View>
 
-      {/* Bottom Buttons */}
-      <View style={styles.bottomButtons}>
-        <TouchableOpacity style={styles.jumpButton}>
-          <Text style={styles.jumpButtonText}>Jump to Now</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.addButton}>
-          <Text style={styles.addButtonText}>+ Add Moment</Text>
-        </TouchableOpacity>
+      {/* Floating actions + bottom control bar */}
+      <View style={[styles.bottomDock, { paddingBottom: insets.bottom + 12 }]}>
+        <View style={styles.floatingRow}>
+          <TouchableOpacity style={styles.feedbackPill}>
+            <Text style={styles.feedbackIcon}>💬</Text>
+            <Text style={styles.feedbackText}>Feedback</Text>
+          </TouchableOpacity>
+
+          <View style={styles.rightActions}>
+            <TouchableOpacity style={styles.circleButton}>
+              <Text style={styles.circleButtonText}>📷</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.circleButton}>
+              <Text style={styles.circleButtonText}>📅</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.circleButton, styles.circleButtonDark]}>
+              <Text style={[styles.circleButtonText, styles.circleButtonTextDark]}>+M</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        <View style={styles.controlBar}>
+          <View style={styles.zoomSegment}>
+            <TouchableOpacity
+              style={styles.zoomIconButton}
+              onPress={() => setZoom((z) => clampZoom(z / 1.25))}
+            >
+              <Text style={styles.zoomIconText}>−</Text>
+            </TouchableOpacity>
+            <Text style={styles.zoomLabel}>{zoomLabel}</Text>
+            <TouchableOpacity
+              style={styles.zoomIconButton}
+              onPress={() => setZoom((z) => clampZoom(z * 1.25))}
+            >
+              <Text style={styles.zoomIconText}>+</Text>
+            </TouchableOpacity>
+          </View>
+          <View style={styles.segmentDivider} />
+          <TouchableOpacity style={styles.jumpSegment}>
+            <Text style={styles.jumpSegmentText}>Jump to Now</Text>
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#fafafa',
+    position: 'relative',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 50,
+    paddingTop: 8,
     paddingBottom: 16,
   },
   logo: {
@@ -156,11 +229,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fafafa',
   },
+  timelineWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+  },
   timeline: {
-    height: 150,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    height: 120,
+    backgroundColor: 'transparent',
   },
   timelineTrack: {
     flexDirection: 'row',
@@ -169,7 +244,6 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   hourMarker: {
-    width: 80,
     alignItems: 'center',
     position: 'relative',
   },
@@ -206,10 +280,10 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   infoBox: {
-    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 40,
+    paddingTop: 12,
   },
   title: {
     fontSize: 24,
@@ -230,35 +304,129 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 20,
   },
-  bottomButtons: {
+  bottomDock: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 20,
+  },
+  floatingRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    gap: 12,
+    alignItems: 'flex-end',
+    marginBottom: 16,
   },
-  jumpButton: {
-    flex: 1,
-    backgroundColor: '#f0f0f0',
-    paddingVertical: 12,
-    borderRadius: 8,
+  controlBar: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#f7f7f7',
+    borderRadius: 999,
+    paddingVertical: 6,
+    paddingHorizontal: 6,
+    borderWidth: 1,
+    borderColor: '#e6e6e6',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  jumpButtonText: {
+  zoomSegment: {
+    flex: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 10,
+    height: 34,
+  },
+  zoomIconButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  zoomIconText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#000',
+    color: '#111',
   },
-  addButton: {
-    flex: 1,
-    backgroundColor: '#000',
-    paddingVertical: 12,
-    borderRadius: 8,
+  zoomLabel: {
+    fontSize: 11,
+    color: '#444',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  segmentDivider: {
+    width: 1,
+    height: 26,
+    backgroundColor: '#e0e0e0',
+  },
+  jumpSegment: {
+    flex: 6,
+    backgroundColor: '#111',
+    height: 34,
+    marginLeft: 8,
+    borderRadius: 999,
     alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
   },
-  addButtonText: {
-    fontSize: 14,
+  jumpSegmentText: {
+    fontSize: 13,
     fontWeight: '600',
     color: '#fff',
+  },
+  rightActions: {
+    gap: 12,
+    alignItems: 'flex-end',
+  },
+  circleButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  circleButtonDark: {
+    backgroundColor: '#111',
+  },
+  circleButtonText: {
+    fontSize: 18,
+  },
+  circleButtonTextDark: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  feedbackPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#18a64a',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 999,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  feedbackIcon: {
+    fontSize: 16,
+    color: '#fff',
+  },
+  feedbackText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });

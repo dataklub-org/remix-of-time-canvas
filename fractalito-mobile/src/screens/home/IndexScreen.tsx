@@ -1,4 +1,15 @@
-import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions, Modal, Pressable } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  useWindowDimensions,
+  Modal,
+  Pressable,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { useRef, useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -36,11 +47,15 @@ export default function IndexScreen() {
   const { user, profile } = useAuth();
   const insets = useSafeAreaInsets();
   const { width: viewportWidth } = useWindowDimensions();
-  const [centerTime, setCenterTime] = useState(() => Date.now());
-  const [msPerPixel, setMsPerPixel] = useState(() => ZOOM_LEVELS[3].msPerPixel);
+  const [centerTime, setCenterTime] = useState<number>(Date.now());
+  const [msPerPixel, setMsPerPixel] = useState<number>(ZOOM_LEVELS[3].msPerPixel);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState<Date>(() => new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackRating, setFeedbackRating] = useState(0);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const pinchStartDistance = useRef<number | null>(null);
   const pinchStartMsPerPixel = useRef(msPerPixel);
 
@@ -92,6 +107,33 @@ export default function IndexScreen() {
 
   const handleCalendarPrev = () => setCurrentMonth((prev) => subMonths(prev, 1));
   const handleCalendarNext = () => setCurrentMonth((prev) => addMonths(prev, 1));
+
+  const handleSubmitFeedback = async () => {
+    if (feedbackRating === 0 || feedbackSubmitting) return;
+    setFeedbackSubmitting(true);
+    try {
+      const response = await fetch('https://formspree.io/f/xeeoyqvb', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `Rating: ${feedbackRating}/5 stars\n\nFeedback:\n${feedbackText}`,
+        }),
+      });
+
+      if (response.ok) {
+        Alert.alert('Thank you', 'Thank you for your feedback!');
+        setFeedbackRating(0);
+        setFeedbackText('');
+        setFeedbackOpen(false);
+      } else {
+        Alert.alert('Error', 'Failed to send feedback. Please try again.');
+      }
+    } catch {
+      Alert.alert('Error', 'Failed to send feedback. Please try again.');
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  };
 
   const MIN_TICK_SPACING = 50;
   const timeUnit = getTimeUnit(msPerPixel);
@@ -436,7 +478,7 @@ export default function IndexScreen() {
       {/* Floating actions + bottom control bar */}
       <View style={[styles.bottomDock, { paddingBottom: insets.bottom + 12 }]}>
         <View style={styles.floatingRow}>
-          <TouchableOpacity style={styles.feedbackPill}>
+          <TouchableOpacity style={styles.feedbackPill} onPress={() => setFeedbackOpen(true)}>
             <Text style={styles.feedbackIcon}>💬</Text>
             <Text style={styles.feedbackText}>Feedback</Text>
           </TouchableOpacity>
@@ -525,6 +567,53 @@ export default function IndexScreen() {
               );
             })}
           </View>
+        </View>
+      </Modal>
+
+      {/* Feedback sheet */}
+      <Modal visible={feedbackOpen} transparent animationType="slide" onRequestClose={() => setFeedbackOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setFeedbackOpen(false)}>
+          <View />
+        </Pressable>
+        <View style={[styles.feedbackSheet, { paddingBottom: insets.bottom + 16 }]}>
+          <View style={styles.feedbackSheetHeader}>
+            <Text style={styles.feedbackSheetTitle}>Share your feedback</Text>
+            <TouchableOpacity onPress={() => setFeedbackOpen(false)} style={styles.feedbackClose}>
+              <Text style={styles.feedbackCloseText}>✕</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.ratingRow}>
+            <Text style={styles.ratingLabel}>Rating:</Text>
+            <View style={styles.starsRow}>
+              {[1, 2, 3, 4, 5].map((star) => (
+                <TouchableOpacity key={star} onPress={() => setFeedbackRating(star)}>
+                  <Text style={[styles.star, star <= feedbackRating && styles.starActive]}>★</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          <TextInput
+            value={feedbackText}
+            onChangeText={setFeedbackText}
+            placeholder="Tell us what you think..."
+            placeholderTextColor="#d1fae5"
+            multiline
+            style={styles.feedbackInput}
+          />
+
+          <TouchableOpacity
+            style={[styles.feedbackSubmit, (feedbackRating === 0 || feedbackSubmitting) && styles.feedbackSubmitDisabled]}
+            disabled={feedbackRating === 0 || feedbackSubmitting}
+            onPress={handleSubmitFeedback}
+          >
+            {feedbackSubmitting ? (
+              <ActivityIndicator color="#15803d" />
+            ) : (
+              <Text style={styles.feedbackSubmitText}>Send Feedback</Text>
+            )}
+          </TouchableOpacity>
         </View>
       </Modal>
     </SafeAreaView>
@@ -892,5 +981,84 @@ const styles = StyleSheet.create({
   },
   dayTextSelected: {
     color: '#fff',
+  },
+  feedbackSheet: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    bottom: 0,
+    backgroundColor: '#16a34a',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 16,
+  },
+  feedbackSheetHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  feedbackSheetTitle: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  feedbackClose: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+  },
+  feedbackCloseText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 8,
+  },
+  ratingLabel: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: 12,
+  },
+  starsRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  star: {
+    fontSize: 18,
+    color: 'rgba(255,255,255,0.4)',
+  },
+  starActive: {
+    color: '#fde047',
+  },
+  feedbackInput: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#fff',
+    fontSize: 13,
+    minHeight: 80,
+    marginBottom: 12,
+  },
+  feedbackSubmit: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  feedbackSubmitDisabled: {
+    opacity: 0.6,
+  },
+  feedbackSubmitText: {
+    color: '#15803d',
+    fontWeight: '700',
+    fontSize: 13,
   },
 });

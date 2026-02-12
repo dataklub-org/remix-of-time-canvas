@@ -1,11 +1,31 @@
-import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions, Modal, Pressable } from 'react-native';
 import { useRef, useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useAuth } from '../../hooks/useAuth';
-import { format, isWeekend, startOfMonth, eachDayOfInterval, startOfDay, endOfDay, isSunday, isThursday, isSaturday, startOfYear } from 'date-fns';
+import {
+  format,
+  isWeekend,
+  startOfMonth,
+  eachDayOfInterval,
+  startOfDay,
+  endOfDay,
+  isSunday,
+  isThursday,
+  isSaturday,
+  startOfYear,
+  addMonths,
+  subMonths,
+  endOfMonth,
+  isSameDay,
+  getDay,
+  setHours,
+  setMinutes,
+  setSeconds,
+  setMilliseconds,
+} from 'date-fns';
 import { timeToX, getTickInterval, getTimeUnit, ZOOM_LEVELS, getZoomLevelIndex, MIN_MS_PER_PIXEL, MAX_MS_PER_PIXEL, clampZoom } from '../../utils/timeUtils';
 import { formatTickLabel } from '../../utils/formatUtils';
 
@@ -18,6 +38,9 @@ export default function IndexScreen() {
   const { width: viewportWidth } = useWindowDimensions();
   const [centerTime, setCenterTime] = useState(() => Date.now());
   const [msPerPixel, setMsPerPixel] = useState(() => ZOOM_LEVELS[3].msPerPixel);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState<Date>(() => new Date());
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const pinchStartDistance = useRef<number | null>(null);
   const pinchStartMsPerPixel = useRef(msPerPixel);
 
@@ -59,6 +82,16 @@ export default function IndexScreen() {
   const handleJumpToNow = () => {
     setCenterTime(Date.now());
   };
+
+  const handleSelectDate = (date: Date) => {
+    const noonDate = setMilliseconds(setSeconds(setMinutes(setHours(date, 12), 0), 0), 0);
+    setCenterTime(noonDate.getTime());
+    setSelectedDate(date);
+    setCalendarOpen(false);
+  };
+
+  const handleCalendarPrev = () => setCurrentMonth((prev) => subMonths(prev, 1));
+  const handleCalendarNext = () => setCurrentMonth((prev) => addMonths(prev, 1));
 
   const MIN_TICK_SPACING = 50;
   const timeUnit = getTimeUnit(msPerPixel);
@@ -412,7 +445,7 @@ export default function IndexScreen() {
             <TouchableOpacity style={styles.circleButton}>
               <Text style={styles.circleButtonText}>📷</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.circleButton}>
+            <TouchableOpacity style={styles.circleButton} onPress={() => setCalendarOpen(true)}>
               <Text style={styles.circleButtonText}>📅</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.circleButton, styles.circleButtonDark]}>
@@ -437,6 +470,63 @@ export default function IndexScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Calendar popover */}
+      <Modal visible={calendarOpen} transparent animationType="fade" onRequestClose={() => setCalendarOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setCalendarOpen(false)}>
+          <View />
+        </Pressable>
+        <View style={styles.calendarPopover}>
+          <View style={styles.calendarHeader}>
+            <TouchableOpacity onPress={handleCalendarPrev} style={styles.calendarNavBtn}>
+              <Text style={styles.calendarNavText}>‹</Text>
+            </TouchableOpacity>
+            <Text style={styles.calendarTitle}>{format(currentMonth, 'MMMM yyyy')}</Text>
+            <TouchableOpacity onPress={handleCalendarNext} style={styles.calendarNavBtn}>
+              <Text style={styles.calendarNavText}>›</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.weekHeaderRow}>
+            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+              <Text key={day} style={styles.weekHeaderText}>
+                {day}
+              </Text>
+            ))}
+          </View>
+
+          <View style={styles.daysGrid}>
+            {Array.from({ length: getDay(startOfMonth(currentMonth)) }).map((_, i) => (
+              <View key={`empty-${i}`} style={styles.dayCell} />
+            ))}
+
+            {eachDayOfInterval({ start: startOfMonth(currentMonth), end: endOfMonth(currentMonth) }).map((day) => {
+              const isToday = isSameDay(day, new Date());
+              const isSelected = selectedDate ? isSameDay(day, selectedDate) : false;
+              return (
+                <TouchableOpacity
+                  key={day.toISOString()}
+                  style={[
+                    styles.dayCell,
+                    isSelected && styles.dayCellSelected,
+                    !isSelected && isToday && styles.dayCellToday,
+                  ]}
+                  onPress={() => handleSelectDate(day)}
+                >
+                  <Text
+                    style={[
+                      styles.dayText,
+                      isSelected && styles.dayTextSelected,
+                    ]}
+                  >
+                    {format(day, 'd')}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -724,5 +814,83 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '700',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.15)',
+  },
+  calendarPopover: {
+    position: 'absolute',
+    right: 16,
+    bottom: 160,
+    width: 260,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 6,
+  },
+  calendarHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  calendarTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  calendarNavBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calendarNavText: {
+    fontSize: 20,
+    color: '#111',
+  },
+  weekHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  weekHeaderText: {
+    width: 32,
+    textAlign: 'center',
+    fontSize: 10,
+    color: '#6b7280',
+    fontWeight: '600',
+  },
+  daysGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+  },
+  dayCell: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  dayCellToday: {
+    backgroundColor: '#f3f4f6',
+  },
+  dayCellSelected: {
+    backgroundColor: '#111',
+  },
+  dayText: {
+    fontSize: 12,
+    color: '#111',
+    fontWeight: '600',
+  },
+  dayTextSelected: {
+    color: '#fff',
   },
 });

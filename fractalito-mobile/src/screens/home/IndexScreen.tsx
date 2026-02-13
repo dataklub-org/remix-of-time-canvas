@@ -645,27 +645,46 @@ export default function IndexScreen() {
 
             {visibleMoments.map((moment) => {
               const x = timeToX(moment.timestamp, centerTime, msPerPixel, viewportWidth);
+              const cardWidth = Math.max(190, Math.min(320, viewportWidth * 0.62));
+              const cardLeft = Math.max(8, Math.min(viewportWidth - cardWidth - 8, x + 2));
+              const accentColor = moment.category === 'personal' ? '#f59e0b' : '#4a7dff';
+
               return (
-                <View
-                  key={moment.id}
-                  style={[
-                    styles.momentCard,
-                    { left: Math.max(6, Math.min(viewportWidth - 174, x - 84)) },
-                  ]}
-                >
-                  {!!moment.photo && (
-                    <Image
-                      source={{ uri: moment.photo }}
-                      style={styles.momentPhoto}
-                      resizeMode="cover"
-                    />
-                  )}
-                  <Text style={styles.momentTitle} numberOfLines={1}>
-                    {moment.description}
-                  </Text>
-                  <Text style={styles.momentMeta} numberOfLines={1}>
-                    {format(moment.timestamp, 'hh:mm a')}
-                  </Text>
+                <View key={moment.id}>
+                  <View style={[styles.momentConnector, { left: cardLeft, backgroundColor: accentColor }]} />
+                  <View
+                    style={[
+                      styles.momentCard,
+                      {
+                        left: cardLeft,
+                        width: cardWidth,
+                        borderLeftColor: accentColor,
+                      },
+                    ]}
+                  >
+                    <View style={styles.momentCardMainRow}>
+                      <View style={styles.momentTextWrap}>
+                        <Text style={styles.momentTitle} numberOfLines={1}>
+                          {moment.description}
+                        </Text>
+                        <Text style={styles.momentMeta} numberOfLines={1}>
+                          {format(moment.timestamp, 'hh:mm a')}
+                        </Text>
+                      </View>
+                      {!!moment.photo && (
+                        <Image
+                          source={{ uri: moment.photo }}
+                          style={styles.momentThumb}
+                          resizeMode="cover"
+                        />
+                      )}
+                    </View>
+                    {moment.memorable && (
+                      <View style={styles.momentBadge}>
+                        <Text style={styles.momentBadgeText}>M</Text>
+                      </View>
+                    )}
+                  </View>
                 </View>
               );
             })}
@@ -1073,37 +1092,72 @@ const styles = StyleSheet.create({
     height: 40,
     backgroundColor: '#4a7dff',
   },
+  momentConnector: {
+    position: 'absolute',
+    top: 22,
+    width: 2,
+    height: 40,
+    borderRadius: 2,
+  },
   momentCard: {
     position: 'absolute',
-    top: 8,
-    width: 168,
-    minHeight: 48,
-    padding: 8,
+    top: 10,
+    minHeight: 56,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderRadius: 10,
-    backgroundColor: '#f7f8fb',
+    backgroundColor: '#f3f4f6',
     borderLeftWidth: 3,
     borderLeftColor: '#4a7dff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.08,
     shadowRadius: 6,
     elevation: 2,
   },
-  momentPhoto: {
-    width: '100%',
-    height: 52,
-    borderRadius: 6,
-    marginBottom: 6,
+  momentCardMainRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  momentTextWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   momentTitle: {
-    fontSize: 13,
-    color: '#1f2937',
+    fontSize: 15,
+    color: '#1f2430',
     fontWeight: '700',
   },
   momentMeta: {
-    marginTop: 2,
+    marginTop: 3,
     fontSize: 11,
     color: '#6b7280',
+  },
+  momentThumb: {
+    width: 34,
+    height: 34,
+    borderRadius: 6,
+  },
+  momentBadge: {
+    position: 'absolute',
+    top: -10,
+    right: -8,
+    minWidth: 22,
+    height: 22,
+    borderRadius: 8,
+    backgroundColor: '#9ca3af',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+  },
+  momentBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
   },
   dateLabel: {
     position: 'absolute',

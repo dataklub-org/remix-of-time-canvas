@@ -226,7 +226,7 @@ export default function IndexScreen() {
     if (Math.abs(deltaY) > 0) {
       const nextScroll = Math.max(
         -maxVerticalScroll,
-        Math.min(maxVerticalScroll, lastTouchRef.current.scrollOffset - deltaY)
+        Math.min(maxVerticalScroll, lastTouchRef.current.scrollOffset + deltaY)
       );
       setScrollOffset(nextScroll);
       lastTouchRef.current.scrollOffset = nextScroll;

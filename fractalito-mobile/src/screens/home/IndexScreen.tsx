@@ -54,6 +54,7 @@ export default function IndexScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user, profile, isAuthenticated } = useAuth();
   const addMoment = useMomentsStore((state) => state.addMoment);
+  const updateMomentY = useMomentsStore((state) => state.updateMomentY);
   const setAuthenticated = useMomentsStore((state) => state.setAuthenticated);
   const moments = useMomentsStore((state) => state.moments);
   const userTimelineId = useMomentsStore((state) => state.userTimelineId);
@@ -83,10 +84,14 @@ export default function IndexScreen() {
   const [memorable, setMemorable] = useState(false);
   const [keepOriginalSize, setKeepOriginalSize] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
+  const [dragMomentYById, setDragMomentYById] = useState<Record<string, number>>({});
   const [isPanning, setIsPanning] = useState(false);
   const [isPinching, setIsPinching] = useState(false);
   const lastTouchRef = useRef<{ x: number; y: number; centerTime: number; scrollOffset: number } | null>(null);
   const pinchStartRef = useRef<{ distance: number; msPerPixel: number } | null>(null);
+  const draggingMomentIdRef = useRef<string | null>(null);
+  const dragCardStartRef = useRef<{ pageY: number; momentY: number } | null>(null);
+  const dragMomentCurrentYRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
     setAuthenticated(isAuthenticated, user?.id || null);
@@ -171,6 +176,7 @@ export default function IndexScreen() {
   const maxVerticalScroll = Math.max(200, viewportHeight / 2);
 
   const handlePanStart = (e: any) => {
+    if (draggingMomentIdRef.current) return;
     if (!e?.nativeEvent?.touches) return;
     const touches = e.nativeEvent.touches;
 
@@ -191,6 +197,7 @@ export default function IndexScreen() {
   };
 
   const handlePanMove = (e: any) => {
+    if (draggingMomentIdRef.current) return;
     if (!e?.nativeEvent?.touches) return;
     const touches = e.nativeEvent.touches;
 
@@ -237,6 +244,7 @@ export default function IndexScreen() {
   };
 
   const handlePanEnd = () => {
+    if (draggingMomentIdRef.current) return;
     setIsPanning(false);
     setIsPinching(false);
     lastTouchRef.current = null;
@@ -600,6 +608,34 @@ export default function IndexScreen() {
     }
   }
 
+  const startMomentDrag = (momentId: string, initialY: number, pageY: number) => {
+    draggingMomentIdRef.current = momentId;
+    dragCardStartRef.current = { pageY, momentY: initialY };
+    dragMomentCurrentYRef.current[momentId] = initialY;
+  };
+
+  const moveMomentDrag = (momentId: string, pageY: number) => {
+    if (!dragCardStartRef.current || draggingMomentIdRef.current !== momentId) return;
+    const nextY = dragCardStartRef.current.momentY + (pageY - dragCardStartRef.current.pageY);
+    dragMomentCurrentYRef.current[momentId] = nextY;
+    setDragMomentYById((prev) => ({ ...prev, [momentId]: nextY }));
+  };
+
+  const endMomentDrag = (momentId: string) => {
+    const finalY = dragMomentCurrentYRef.current[momentId];
+    if (typeof finalY === 'number') {
+      updateMomentY(momentId, finalY);
+    }
+    setDragMomentYById((prev) => {
+      const next = { ...prev };
+      delete next[momentId];
+      return next;
+    });
+    delete dragMomentCurrentYRef.current[momentId];
+    draggingMomentIdRef.current = null;
+    dragCardStartRef.current = null;
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
@@ -710,19 +746,46 @@ export default function IndexScreen() {
               const cardWidth = Math.max(190, Math.min(320, viewportWidth * 0.62));
               const cardLeft = Math.max(8, Math.min(viewportWidth - cardWidth - 8, x + 2));
               const accentColor = moment.category === 'personal' ? '#f59e0b' : '#4a7dff';
+              const cardTop = dragMomentYById[moment.id] ?? moment.y;
+              const connectorAnchorY = cardTop + 28;
+              const connectorTop = Math.min(60, connectorAnchorY);
+              const connectorHeight = Math.max(10, Math.abs(connectorAnchorY - 60));
 
               return (
                 <View key={moment.id}>
-                  <View style={[styles.momentConnector, { left: cardLeft, backgroundColor: accentColor }]} />
+                  <View
+                    style={[
+                      styles.momentConnector,
+                      { left: cardLeft, top: connectorTop, height: connectorHeight, backgroundColor: accentColor },
+                    ]}
+                  />
                   <View
                     style={[
                       styles.momentCard,
                       {
                         left: cardLeft,
+                        top: cardTop,
                         width: cardWidth,
                         borderLeftColor: accentColor,
                       },
                     ]}
+                    onStartShouldSetResponder={() => true}
+                    onMoveShouldSetResponder={() => true}
+                    onResponderTerminationRequest={() => false}
+                    onResponderGrant={(e) => {
+                      const pageY = e.nativeEvent.pageY ?? e.nativeEvent.touches?.[0]?.pageY;
+                      if (typeof pageY === 'number') {
+                        startMomentDrag(moment.id, cardTop, pageY);
+                      }
+                    }}
+                    onResponderMove={(e) => {
+                      const pageY = e.nativeEvent.pageY ?? e.nativeEvent.touches?.[0]?.pageY;
+                      if (typeof pageY === 'number') {
+                        moveMomentDrag(moment.id, pageY);
+                      }
+                    }}
+                    onResponderRelease={() => endMomentDrag(moment.id)}
+                    onResponderTerminate={() => endMomentDrag(moment.id)}
                   >
                     <View style={styles.momentCardMainRow}>
                       <View style={styles.momentTextWrap}>
@@ -1107,6 +1170,7 @@ const styles = StyleSheet.create({
     height: 120,
     backgroundColor: 'transparent',
     position: 'relative',
+    overflow: 'visible',
   },
   axisLine: {
     position: 'absolute',
@@ -1156,14 +1220,11 @@ const styles = StyleSheet.create({
   },
   momentConnector: {
     position: 'absolute',
-    top: 22,
     width: 2,
-    height: 40,
     borderRadius: 2,
   },
   momentCard: {
     position: 'absolute',
-    top: 10,
     minHeight: 56,
     paddingHorizontal: 12,
     paddingVertical: 10,

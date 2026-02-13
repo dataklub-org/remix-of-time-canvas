@@ -58,9 +58,10 @@ export default function IndexScreen() {
   const moments = useMomentsStore((state) => state.moments);
   const userTimelineId = useMomentsStore((state) => state.userTimelineId);
   const insets = useSafeAreaInsets();
-  const { width: viewportWidth } = useWindowDimensions();
+  const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
   const [centerTime, setCenterTime] = useState<number>(Date.now());
   const [msPerPixel, setMsPerPixel] = useState<number>(ZOOM_LEVELS[3].msPerPixel);
+  const [scrollOffset, setScrollOffset] = useState(0);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState<Date>(() => new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -82,8 +83,10 @@ export default function IndexScreen() {
   const [memorable, setMemorable] = useState(false);
   const [keepOriginalSize, setKeepOriginalSize] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
-  const pinchStartDistance = useRef<number | null>(null);
-  const pinchStartMsPerPixel = useRef(msPerPixel);
+  const [isPanning, setIsPanning] = useState(false);
+  const [isPinching, setIsPinching] = useState(false);
+  const lastTouchRef = useRef<{ x: number; y: number; centerTime: number; scrollOffset: number } | null>(null);
+  const pinchStartRef = useRef<{ distance: number; msPerPixel: number } | null>(null);
 
   useEffect(() => {
     setAuthenticated(isAuthenticated, user?.id || null);
@@ -163,6 +166,82 @@ export default function IndexScreen() {
     } finally {
       setFeedbackSubmitting(false);
     }
+  };
+
+  const maxVerticalScroll = Math.max(200, viewportHeight / 2);
+
+  const handlePanStart = (e: any) => {
+    if (!e?.nativeEvent?.touches) return;
+    const touches = e.nativeEvent.touches;
+
+    if (touches.length >= 2) {
+      setIsPinching(true);
+      setIsPanning(false);
+      const distance = getDistance(touches);
+      pinchStartRef.current = { distance, msPerPixel };
+      lastTouchRef.current = null;
+      return;
+    }
+
+    if (touches.length !== 1) return;
+    const { pageX, pageY } = touches[0];
+    setIsPanning(true);
+    setIsPinching(false);
+    lastTouchRef.current = { x: pageX, y: pageY, centerTime, scrollOffset };
+  };
+
+  const handlePanMove = (e: any) => {
+    if (!e?.nativeEvent?.touches) return;
+    const touches = e.nativeEvent.touches;
+
+    if (touches.length >= 2) {
+      const distance = getDistance(touches);
+      if (!pinchStartRef.current || distance === 0) return;
+
+      const scale = distance / pinchStartRef.current.distance;
+      const nextMsPerPixel = Math.min(
+        MAX_MS_PER_PIXEL,
+        Math.max(MIN_MS_PER_PIXEL, pinchStartRef.current.msPerPixel / scale)
+      );
+      setMsPerPixel(nextMsPerPixel);
+      pinchStartRef.current = { distance, msPerPixel: nextMsPerPixel };
+      setIsPinching(true);
+      setIsPanning(false);
+      return;
+    }
+
+    if (!isPanning || !lastTouchRef.current || touches.length !== 1) return;
+    const { pageX, pageY } = touches[0];
+
+    const deltaX = pageX - lastTouchRef.current.x;
+    const deltaY = pageY - lastTouchRef.current.y;
+
+    if (Math.abs(deltaX) > 0) {
+      const timeDelta = deltaX * msPerPixel;
+      const newCenterTime = lastTouchRef.current.centerTime - timeDelta;
+      setCenterTime(newCenterTime);
+      lastTouchRef.current.centerTime = newCenterTime;
+    }
+
+    if (Math.abs(deltaY) > 0) {
+      const nextScroll = Math.max(
+        -maxVerticalScroll,
+        Math.min(maxVerticalScroll, lastTouchRef.current.scrollOffset - deltaY)
+      );
+      setScrollOffset(nextScroll);
+      lastTouchRef.current.scrollOffset = nextScroll;
+    }
+
+    lastTouchRef.current.x = pageX;
+    lastTouchRef.current.y = pageY;
+  };
+
+  const handlePanEnd = () => {
+    setIsPanning(false);
+    setIsPinching(false);
+    lastTouchRef.current = null;
+    pinchStartRef.current = null;
+    setMsPerPixel((value) => clampZoom(value));
   };
 
   const resetNewMomentForm = () => {
@@ -546,35 +625,18 @@ export default function IndexScreen() {
 
       {/* Timeline Canvas */}
       <View style={styles.canvasContainer}>
-        <View style={styles.timelineWrapper}>
+        <View
+          style={[styles.timelineWrapper, { transform: [{ translateY: scrollOffset }] }]}
+          onStartShouldSetResponder={(e) => e.nativeEvent.touches.length >= 1}
+          onMoveShouldSetResponder={(e) => e.nativeEvent.touches.length >= 1}
+          onResponderGrant={handlePanStart}
+          onResponderMove={handlePanMove}
+          onResponderRelease={handlePanEnd}
+          onResponderTerminate={handlePanEnd}
+        >
           {/* Timeline with hours */}
           <View
             style={styles.timeline}
-            onStartShouldSetResponder={(e) => e.nativeEvent.touches.length >= 2}
-            onMoveShouldSetResponder={(e) => e.nativeEvent.touches.length >= 2}
-            onResponderGrant={(e) => {
-              if (e.nativeEvent.touches.length >= 2) {
-                pinchStartDistance.current = getDistance(e.nativeEvent.touches);
-                pinchStartMsPerPixel.current = msPerPixel;
-              }
-            }}
-            onResponderMove={(e) => {
-              if (e.nativeEvent.touches.length >= 2 && pinchStartDistance.current) {
-                const nextDistance = getDistance(e.nativeEvent.touches);
-                if (nextDistance > 0) {
-                  const scale = nextDistance / pinchStartDistance.current;
-                  const nextMsPerPixel = Math.min(
-                    MAX_MS_PER_PIXEL,
-                    Math.max(MIN_MS_PER_PIXEL, pinchStartMsPerPixel.current / scale)
-                  );
-                  setMsPerPixel(nextMsPerPixel);
-                }
-              }
-            }}
-            onResponderRelease={() => {
-              pinchStartDistance.current = null;
-              setMsPerPixel((value) => clampZoom(value));
-            }}
           >
             <View style={styles.axisLine} />
 

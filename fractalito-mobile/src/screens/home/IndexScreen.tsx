@@ -15,6 +15,7 @@ import {
   ScrollView,
   Image,
 } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { useEffect, useRef, useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -585,6 +586,7 @@ export default function IndexScreen() {
   const nowVisible = nowX >= 0 && nowX <= viewportWidth;
   const centerDate = new Date(centerTime);
   const dateLabel = format(centerDate, 'EEEE, MMM d, yyyy');
+  const timelineY = 60;
   const visibleMoments = moments.filter((moment) => {
     const inTimeline =
       moment.timelineId === DEFAULT_TIMELINE_ID ||
@@ -742,23 +744,51 @@ export default function IndexScreen() {
             )}
 
             {visibleMoments.map((moment) => {
-              const x = timeToX(moment.timestamp, centerTime, msPerPixel, viewportWidth);
-              const cardWidth = Math.max(190, Math.min(320, viewportWidth * 0.62));
-              const cardLeft = Math.max(8, Math.min(viewportWidth - cardWidth - 8, x + 2));
+              const startX = timeToX(moment.timestamp, centerTime, msPerPixel, viewportWidth);
+              const endTimeValue = typeof moment.endTime === 'number'
+                ? moment.endTime
+                : (moment.endTime ? Number(moment.endTime) : undefined);
+              const endX = timeToX(endTimeValue ?? moment.timestamp, centerTime, msPerPixel, viewportWidth);
+              const baseCardWidth = moment.width ?? viewportWidth * 0.62;
+              const cardWidth = Math.max(190, Math.min(320, baseCardWidth));
+              const cardLeft = Math.max(8, Math.min(viewportWidth - cardWidth - 8, startX + 2));
+              const cardRight = cardLeft + cardWidth;
               const accentColor = moment.category === 'personal' ? '#f59e0b' : '#4a7dff';
               const cardTop = dragMomentYById[moment.id] ?? moment.y;
-              const connectorAnchorY = cardTop + 28;
-              const connectorTop = Math.min(60, connectorAnchorY);
-              const connectorHeight = Math.max(10, Math.abs(connectorAnchorY - 60));
+              const cardHeight = Math.max(56, moment.height ?? 56);
+              const cardBottom = cardTop + cardHeight;
+              const isAboveTimeline = cardBottom < timelineY;
+              const curveStrength = Math.abs(timelineY - (isAboveTimeline ? cardBottom : cardTop)) * 0.4;
+              const svgYOffset = viewportHeight;
+              const curveStartY = (isAboveTimeline ? cardBottom : cardTop) + svgYOffset;
+              const curveTimelineY = timelineY + svgYOffset;
 
               return (
                 <View key={moment.id}>
-                  <View
-                    style={[
-                      styles.momentConnector,
-                      { left: cardLeft, top: connectorTop, height: connectorHeight, backgroundColor: accentColor },
-                    ]}
-                  />
+                  <Svg
+                    style={[styles.momentCurveSvg, { top: -viewportHeight }]}
+                    width={viewportWidth}
+                    height={viewportHeight * 2}
+                  >
+                    <Path
+                      d={`M ${cardLeft} ${curveStartY}
+                          C ${cardLeft} ${curveStartY + (isAboveTimeline ? curveStrength : -curveStrength)},
+                            ${startX} ${curveTimelineY + (isAboveTimeline ? -curveStrength : curveStrength)},
+                            ${startX} ${curveTimelineY}`}
+                      stroke={accentColor}
+                      strokeWidth={2}
+                      fill="none"
+                    />
+                    <Path
+                      d={`M ${cardRight} ${curveStartY}
+                          C ${cardRight} ${curveStartY + (isAboveTimeline ? curveStrength : -curveStrength)},
+                            ${endX} ${curveTimelineY + (isAboveTimeline ? -curveStrength : curveStrength)},
+                            ${endX} ${curveTimelineY}`}
+                      stroke={accentColor}
+                      strokeWidth={2}
+                      fill="none"
+                    />
+                  </Svg>
                   <View
                     style={[
                       styles.momentCard,
@@ -1222,6 +1252,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     width: 2,
     borderRadius: 2,
+  },
+  momentCurveSvg: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
   },
   momentCard: {
     position: 'absolute',

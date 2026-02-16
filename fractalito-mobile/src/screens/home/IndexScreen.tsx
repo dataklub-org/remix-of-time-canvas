@@ -27,6 +27,7 @@ import type { Category } from '../../types/moment';
 import * as ImagePicker from 'expo-image-picker';
 import {
   format,
+  addDays,
   isWeekend,
   startOfMonth,
   eachDayOfInterval,
@@ -45,6 +46,10 @@ import {
   setMinutes,
   setSeconds,
   setMilliseconds,
+  startOfWeek,
+  endOfWeek,
+  isSameMonth,
+  isToday,
 } from 'date-fns';
 import { timeToX, getTickInterval, getTimeUnit, ZOOM_LEVELS, getZoomLevelIndex, MIN_MS_PER_PIXEL, MAX_MS_PER_PIXEL, clampZoom } from '../../utils/timeUtils';
 import { formatTickLabel } from '../../utils/formatUtils';
@@ -85,6 +90,16 @@ export default function IndexScreen() {
   const [memorable, setMemorable] = useState(false);
   const [keepOriginalSize, setKeepOriginalSize] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null);
+  const [endDatePickerOpen, setEndDatePickerOpen] = useState(false);
+  const [endTimePickerOpen, setEndTimePickerOpen] = useState(false);
+  const [endPickerMonth, setEndPickerMonth] = useState<Date>(() => new Date());
+  const [endPickerHour, setEndPickerHour] = useState<number>(10);
+  const [endPickerMinute, setEndPickerMinute] = useState<number>(0);
+  const [endPickerPeriod, setEndPickerPeriod] = useState<'AM' | 'PM'>('AM');
+  const endDateFieldRef = useRef<any>(null);
+  const endTimeFieldRef = useRef<any>(null);
+  const [endDateAnchor, setEndDateAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
+  const [endTimeAnchor, setEndTimeAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [dragMomentYById, setDragMomentYById] = useState<Record<string, number>>({});
   const [isPanning, setIsPanning] = useState(false);
   const [isPinching, setIsPinching] = useState(false);
@@ -93,6 +108,7 @@ export default function IndexScreen() {
   const draggingMomentIdRef = useRef<string | null>(null);
   const dragCardStartRef = useRef<{ pageY: number; momentY: number } | null>(null);
   const dragMomentCurrentYRef = useRef<Record<string, number>>({});
+  const pickerOpenedAtRef = useRef<number>(0);
 
   useEffect(() => {
     setAuthenticated(isAuthenticated, user?.id || null);
@@ -265,8 +281,61 @@ export default function IndexScreen() {
     setStartTimeInput(format(now, 'hh:mm a'));
     setEndDateInput('');
     setEndTimeInput('');
+    setEndDatePickerOpen(false);
+    setEndTimePickerOpen(false);
+    setEndPickerMonth(now);
     setKeepOriginalSize(false);
     setPhoto(null);
+  };
+
+  const endCalendarStart = startOfWeek(startOfMonth(endPickerMonth), { weekStartsOn: 1 });
+  const endCalendarDays = Array.from({ length: 42 }, (_, i) => addDays(endCalendarStart, i));
+  const endCalendarWeeks = Array.from({ length: 6 }, (_, weekIdx) =>
+    endCalendarDays.slice(weekIdx * 7, weekIdx * 7 + 7)
+  );
+
+  const applyEndTime = (hour: number, minute: number, period: 'AM' | 'PM') => {
+    const nextValue = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${period}`;
+    setEndPickerHour(hour);
+    setEndPickerMinute(minute);
+    setEndPickerPeriod(period);
+    setEndTimeInput(nextValue);
+  };
+
+  const openEndDatePicker = () => {
+    setEndTimePickerOpen(false);
+    endDateFieldRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
+      setEndDateAnchor({ x, y, width, height });
+    });
+    pickerOpenedAtRef.current = Date.now();
+    setTimeout(() => setEndDatePickerOpen(true), 0);
+  };
+
+  const openEndTimePicker = () => {
+    setEndDatePickerOpen(false);
+    endTimeFieldRef.current?.measureInWindow((x: number, y: number, width: number, height: number) => {
+      setEndTimeAnchor({ x, y, width, height });
+    });
+    const parsed = endTimeInput.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (parsed) {
+      setEndPickerHour(Number(parsed[1]));
+      setEndPickerMinute(Number(parsed[2]));
+      setEndPickerPeriod(parsed[3].toUpperCase() as 'AM' | 'PM');
+    } else {
+      const now = new Date();
+      const h = Number(format(now, 'hh'));
+      const m = now.getMinutes();
+      const p = format(now, 'a').toUpperCase() as 'AM' | 'PM';
+      applyEndTime(h, m, p);
+    }
+    pickerOpenedAtRef.current = Date.now();
+    setTimeout(() => setEndTimePickerOpen(true), 0);
+  };
+
+  const setEndToNow = () => {
+    const now = new Date();
+    setEndDateInput(format(now, 'MM/dd/yyyy'));
+    applyEndTime(Number(format(now, 'hh')), now.getMinutes(), format(now, 'a').toUpperCase() as 'AM' | 'PM');
   };
 
   const parseDateTime = (dateInput: string, timeInput: string) => {
@@ -299,11 +368,19 @@ export default function IndexScreen() {
     }
 
     let endTs: number | undefined;
-    if (endDateInput.trim() && endTimeInput.trim()) {
+    const hasEndDate = !!endDateInput.trim();
+    const hasEndTime = !!endTimeInput.trim();
+    if (hasEndDate !== hasEndTime) {
+      Alert.alert('Invalid End', 'Please choose both End Date and End Time.');
+      return null;
+    }
+    if (hasEndDate && hasEndTime) {
       const parsedEnd = parseDateTime(endDateInput, endTimeInput);
-      if (parsedEnd && parsedEnd > startTs) {
-        endTs = parsedEnd;
+      if (!parsedEnd || parsedEnd <= startTs) {
+        Alert.alert('Invalid End', 'End must be after Start.');
+        return null;
       }
+      endTs = parsedEnd;
     }
 
     setSavingMoment(true);
@@ -391,6 +468,9 @@ export default function IndexScreen() {
     const now = new Date();
     setStartDateInput(format(now, 'MM/dd/yyyy'));
     setStartTimeInput(format(now, 'hh:mm a'));
+    setEndDatePickerOpen(false);
+    setEndTimePickerOpen(false);
+    setEndPickerMonth(now);
     setNewMomentOpen(true);
   };
 
@@ -609,6 +689,22 @@ export default function IndexScreen() {
       default: return 'th';
     }
   }
+
+  const datePickerWidth = Math.min(340, viewportWidth - 24);
+  const datePickerLeft = endDateAnchor
+    ? Math.max(12, Math.min(endDateAnchor.x + endDateAnchor.width - datePickerWidth, viewportWidth - datePickerWidth - 12))
+    : 12;
+  const datePickerTop = endDateAnchor
+    ? Math.min(endDateAnchor.y + endDateAnchor.height + 8, viewportHeight - 430)
+    : 100;
+
+  const timePickerWidth = Math.min(340, viewportWidth - 24);
+  const timePickerLeft = endTimeAnchor
+    ? Math.max(12, Math.min(endTimeAnchor.x + endTimeAnchor.width - timePickerWidth, viewportWidth - timePickerWidth - 12))
+    : 12;
+  const timePickerTop = endTimeAnchor
+    ? Math.min(endTimeAnchor.y + endTimeAnchor.height + 8, viewportHeight - 360)
+    : 120;
 
   const startMomentDrag = (momentId: string, initialY: number, pageY: number) => {
     draggingMomentIdRef.current = momentId;
@@ -958,24 +1054,146 @@ export default function IndexScreen() {
                   <View style={styles.newMomentTimeCol}>
                     <View style={styles.newMomentEndHeader}>
                       <Text style={styles.newMomentLabel}>End (optional)</Text>
-                      <View style={styles.newMomentNowPill}>
+                      <TouchableOpacity style={styles.newMomentNowPill} onPress={setEndToNow}>
                         <Text style={styles.newMomentNowText}>Now</Text>
-                      </View>
+                      </TouchableOpacity>
                     </View>
-                    <TextInput
-                      style={styles.newMomentInput}
-                      placeholder="mm/dd/yyyy"
-                      placeholderTextColor="#7e8a9d"
-                      value={endDateInput}
-                      onChangeText={setEndDateInput}
-                    />
-                    <TextInput
-                      style={styles.newMomentInput}
-                      placeholder="--:-- --"
-                      placeholderTextColor="#202938"
-                      value={endTimeInput}
-                      onChangeText={setEndTimeInput}
-                    />
+                    <TouchableOpacity
+                      ref={endDateFieldRef}
+                      style={[styles.newMomentInput, styles.newMomentPickerField]}
+                      onPress={openEndDatePicker}
+                      accessibilityRole="button"
+                      accessibilityLabel="Open end date picker"
+                    >
+                      <Text style={endDateInput ? styles.newMomentPickerValue : styles.newMomentPickerPlaceholder}>
+                        {endDateInput || 'mm/dd/yyyy'}
+                      </Text>
+                      <Text style={styles.newMomentPickerIcon}>📅</Text>
+                    </TouchableOpacity>
+                    {endDatePickerOpen && (
+                      <View style={styles.endPickerInline}>
+                        <View style={styles.endPickerHeader}>
+                          <Text style={styles.endPickerTitle} numberOfLines={1} allowFontScaling={false}>
+                            {format(endPickerMonth, 'MMMM yyyy')}
+                          </Text>
+                          <View style={styles.endPickerHeaderActions}>
+                            <TouchableOpacity onPress={() => setEndPickerMonth((m) => subMonths(m, 1))} style={styles.endPickerNavBtn}>
+                              <Text style={styles.endPickerNavText} allowFontScaling={false}>↑</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => setEndPickerMonth((m) => addMonths(m, 1))} style={styles.endPickerNavBtn}>
+                              <Text style={styles.endPickerNavText} allowFontScaling={false}>↓</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                        <View style={styles.endPickerWeekRow}>
+                          {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day) => (
+                            <Text key={day} style={styles.endPickerWeekLabel} allowFontScaling={false}>{day}</Text>
+                          ))}
+                        </View>
+                        <View style={styles.endPickerWeeks}>
+                          {endCalendarWeeks.map((week, idx) => (
+                            <View key={`w-inline-${idx}`} style={styles.endPickerWeek}>
+                              {week.map((day) => {
+                                const selected = (() => {
+                                  if (!endDateInput) return false;
+                                  const parts = endDateInput.split('/');
+                                  if (parts.length !== 3) return false;
+                                  const parsed = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
+                                  return isSameDay(day, parsed);
+                                })();
+                                const inCurrentMonth = isSameMonth(day, endPickerMonth);
+                                return (
+                                  <TouchableOpacity
+                                    key={`inline-${day.toISOString()}`}
+                                    style={[styles.endPickerDayCell, selected && styles.endPickerDayCellSelected]}
+                                    onPress={() => {
+                                      setEndDateInput(format(day, 'MM/dd/yyyy'));
+                                      setEndDatePickerOpen(false);
+                                    }}
+                                  >
+                                    <Text
+                                      style={[styles.endPickerDayText, !inCurrentMonth && styles.endPickerDayTextMuted, selected && styles.endPickerDayTextSelected]}
+                                      allowFontScaling={false}
+                                    >
+                                      {format(day, 'd')}
+                                    </Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </View>
+                          ))}
+                        </View>
+                        <View style={styles.endPickerFooter}>
+                          <TouchableOpacity onPress={() => setEndDateInput('')}>
+                            <Text style={styles.endPickerFooterLink} allowFontScaling={false}>Clear</Text>
+                          </TouchableOpacity>
+                          <TouchableOpacity onPress={() => {
+                            const now = new Date();
+                            setEndDateInput(format(now, 'MM/dd/yyyy'));
+                            setEndPickerMonth(now);
+                          }}>
+                            <Text style={styles.endPickerFooterLink} allowFontScaling={false}>Today</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                    <TouchableOpacity
+                      ref={endTimeFieldRef}
+                      style={[styles.newMomentInput, styles.newMomentPickerField]}
+                      onPress={openEndTimePicker}
+                      accessibilityRole="button"
+                      accessibilityLabel="Open end time picker"
+                    >
+                      <Text style={endTimeInput ? styles.newMomentPickerValue : styles.newMomentPickerPlaceholder}>
+                        {endTimeInput || '--:-- --'}
+                      </Text>
+                      <Text style={styles.newMomentPickerIcon}>🕒</Text>
+                    </TouchableOpacity>
+                    {endTimePickerOpen && (
+                      <View style={styles.endTimeInline}>
+                        <View style={styles.endTimeColumns}>
+                          <ScrollView style={styles.endTimeCol} showsVerticalScrollIndicator={false}>
+                            {Array.from({ length: 12 }, (_, i) => i + 1).map((hour) => (
+                              <TouchableOpacity
+                                key={`h-inline-${hour}`}
+                                style={[styles.endTimeOption, endPickerHour === hour && styles.endTimeOptionActive]}
+                                onPress={() => applyEndTime(hour, endPickerMinute, endPickerPeriod)}
+                              >
+                                <Text style={[styles.endTimeOptionText, endPickerHour === hour && styles.endTimeOptionTextActive]}>
+                                  {hour.toString().padStart(2, '0')}
+                                </Text>
+                              </TouchableOpacity>
+                            ))}
+                          </ScrollView>
+                          <ScrollView style={styles.endTimeCol} showsVerticalScrollIndicator={false}>
+                            {Array.from({ length: 60 }, (_, i) => i).map((minute) => (
+                              <TouchableOpacity
+                                key={`m-inline-${minute}`}
+                                style={[styles.endTimeOption, endPickerMinute === minute && styles.endTimeOptionActive]}
+                                onPress={() => applyEndTime(endPickerHour, minute, endPickerPeriod)}
+                              >
+                                <Text style={[styles.endTimeOptionText, endPickerMinute === minute && styles.endTimeOptionTextActive]}>
+                                  {minute.toString().padStart(2, '0')}
+                                </Text>
+                              </TouchableOpacity>
+                            ))}
+                          </ScrollView>
+                          <View style={styles.endPeriodCol}>
+                            {(['AM', 'PM'] as const).map((period) => (
+                              <TouchableOpacity
+                                key={`p-inline-${period}`}
+                                style={[styles.endTimeOption, endPickerPeriod === period && styles.endTimeOptionActive]}
+                                onPress={() => applyEndTime(endPickerHour, endPickerMinute, period)}
+                              >
+                                <Text style={[styles.endTimeOptionText, endPickerPeriod === period && styles.endTimeOptionTextActive]}>
+                                  {period}
+                                </Text>
+                              </TouchableOpacity>
+                            ))}
+                          </View>
+                        </View>
+                      </View>
+                    )}
                   </View>
                 </View>
 
@@ -1021,6 +1239,155 @@ export default function IndexScreen() {
               </ScrollView>
             </View>
           </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
+      <Modal visible={false && endDatePickerOpen} transparent animationType="fade" onRequestClose={() => setEndDatePickerOpen(false)}>
+        <Pressable
+          style={styles.pickerBackdrop}
+          onPress={() => {
+            if (Date.now() - pickerOpenedAtRef.current < 150) return;
+            setEndDatePickerOpen(false);
+          }}
+        >
+          <View />
+        </Pressable>
+        <View style={[styles.endPickerPopover, { top: datePickerTop, left: datePickerLeft, width: datePickerWidth }]}>
+          <View style={styles.endPickerHeader}>
+            <Text style={styles.endPickerTitle}>{format(endPickerMonth, 'MMMM yyyy')}</Text>
+            <View style={styles.endPickerHeaderActions}>
+              <TouchableOpacity
+                onPress={() => setEndPickerMonth((m) => subMonths(m, 1))}
+                style={styles.endPickerNavBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Previous month"
+              >
+                <Text style={styles.endPickerNavText}>↑</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setEndPickerMonth((m) => addMonths(m, 1))}
+                style={styles.endPickerNavBtn}
+                accessibilityRole="button"
+                accessibilityLabel="Next month"
+              >
+                <Text style={styles.endPickerNavText}>↓</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+          <View style={styles.endPickerWeekRow}>
+            {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day) => (
+              <Text key={day} style={styles.endPickerWeekLabel}>{day}</Text>
+            ))}
+          </View>
+          <View style={styles.endPickerWeeks}>
+            {endCalendarWeeks.map((week, idx) => (
+              <View key={`w-${idx}`} style={styles.endPickerWeek}>
+                {week.map((day) => {
+                  const selected = (() => {
+                    if (!endDateInput) return false;
+                    const parts = endDateInput.split('/');
+                    if (parts.length !== 3) return false;
+                    const parsed = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
+                    return isSameDay(day, parsed);
+                  })();
+                  const inCurrentMonth = isSameMonth(day, endPickerMonth);
+                  return (
+                    <TouchableOpacity
+                      key={day.toISOString()}
+                      style={[styles.endPickerDayCell, selected && styles.endPickerDayCellSelected]}
+                      onPress={() => {
+                        setEndDateInput(format(day, 'MM/dd/yyyy'));
+                        setEndDatePickerOpen(false);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Choose ${format(day, 'MMMM d, yyyy')}`}
+                    >
+                      <Text style={[styles.endPickerDayText, !inCurrentMonth && styles.endPickerDayTextMuted, selected && styles.endPickerDayTextSelected]}>
+                        {format(day, 'd')}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ))}
+          </View>
+          <View style={styles.endPickerFooter}>
+            <TouchableOpacity onPress={() => setEndDateInput('')} accessibilityRole="button" accessibilityLabel="Clear end date">
+              <Text style={styles.endPickerFooterLink}>Clear</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => {
+                const now = new Date();
+                setEndDateInput(format(now, 'MM/dd/yyyy'));
+                setEndPickerMonth(now);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="Set end date to today"
+            >
+              <Text style={styles.endPickerFooterLink}>Today</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={false && endTimePickerOpen} transparent animationType="fade" onRequestClose={() => setEndTimePickerOpen(false)}>
+        <Pressable
+          style={styles.pickerBackdrop}
+          onPress={() => {
+            if (Date.now() - pickerOpenedAtRef.current < 150) return;
+            setEndTimePickerOpen(false);
+          }}
+        >
+          <View />
+        </Pressable>
+        <View style={[styles.endPickerPopover, { top: timePickerTop, left: timePickerLeft, width: timePickerWidth }]}>
+          <View style={styles.endTimeColumns}>
+            <ScrollView style={styles.endTimeCol} showsVerticalScrollIndicator={false}>
+              {Array.from({ length: 12 }, (_, i) => i + 1).map((hour) => (
+                <TouchableOpacity
+                  key={`h-${hour}`}
+                  style={[styles.endTimeOption, endPickerHour === hour && styles.endTimeOptionActive]}
+                  onPress={() => applyEndTime(hour, endPickerMinute, endPickerPeriod)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select hour ${hour}`}
+                >
+                  <Text style={[styles.endTimeOptionText, endPickerHour === hour && styles.endTimeOptionTextActive]}>
+                    {hour.toString().padStart(2, '0')}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <ScrollView style={styles.endTimeCol} showsVerticalScrollIndicator={false}>
+              {Array.from({ length: 60 }, (_, i) => i).map((minute) => (
+                <TouchableOpacity
+                  key={`m-${minute}`}
+                  style={[styles.endTimeOption, endPickerMinute === minute && styles.endTimeOptionActive]}
+                  onPress={() => applyEndTime(endPickerHour, minute, endPickerPeriod)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select minute ${minute.toString().padStart(2, '0')}`}
+                >
+                  <Text style={[styles.endTimeOptionText, endPickerMinute === minute && styles.endTimeOptionTextActive]}>
+                    {minute.toString().padStart(2, '0')}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <View style={styles.endPeriodCol}>
+              {(['AM', 'PM'] as const).map((period) => (
+                <TouchableOpacity
+                  key={period}
+                  style={[styles.endTimeOption, endPickerPeriod === period && styles.endTimeOptionActive]}
+                  onPress={() => applyEndTime(endPickerHour, endPickerMinute, period)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Select ${period}`}
+                >
+                  <Text style={[styles.endTimeOptionText, endPickerPeriod === period && styles.endTimeOptionTextActive]}>
+                    {period}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
         </View>
       </Modal>
 
@@ -1711,6 +2078,23 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1f2937',
   },
+  newMomentPickerField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  newMomentPickerPlaceholder: {
+    fontSize: 16,
+    color: '#7e8a9d',
+  },
+  newMomentPickerValue: {
+    fontSize: 16,
+    color: '#1f2937',
+  },
+  newMomentPickerIcon: {
+    fontSize: 16,
+    color: '#1f2937',
+  },
   newMomentTextArea: {
     minHeight: 110,
     textAlignVertical: 'top',
@@ -1779,6 +2163,164 @@ const styles = StyleSheet.create({
   newMomentNowText: {
     fontSize: 12,
     color: '#4b5563',
+  },
+  pickerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.08)',
+  },
+  endPickerPopover: {
+    position: 'absolute',
+    borderWidth: 1,
+    borderColor: '#d5d9e0',
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  endPickerInline: {
+    width: '100%',
+    minWidth: 280,
+    maxWidth: 360,
+    alignSelf: 'flex-end',
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#d5d9e0',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    padding: 10,
+  },
+  endPickerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  endPickerHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  endPickerTitle: {
+    flexShrink: 1,
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  endPickerNavBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  endPickerNavText: {
+    fontSize: 18,
+    lineHeight: 18,
+    color: '#9ca3af',
+  },
+  endPickerWeekRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  endPickerWeekLabel: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#111827',
+  },
+  endPickerWeeks: {
+    gap: 0,
+  },
+  endPickerWeek: {
+    flexDirection: 'row',
+    width: '100%',
+  },
+  endPickerDayCell: {
+    flex: 1,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  endPickerDayCellSelected: {
+    backgroundColor: '#1d70e7',
+    borderRadius: 4,
+  },
+  endPickerDayText: {
+    fontSize: 15,
+    lineHeight: 18,
+    color: '#111827',
+    fontWeight: '400',
+    textAlign: 'center',
+  },
+  endPickerDayTextMuted: {
+    color: '#b5bbc6',
+  },
+  endPickerDayTextSelected: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  endPickerFooter: {
+    marginTop: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  endPickerFooterLink: {
+    color: '#1d70e7',
+    fontSize: 16,
+    lineHeight: 20,
+    fontWeight: '500',
+  },
+  endTimeColumns: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  endTimeInline: {
+    width: '100%',
+    minWidth: 280,
+    maxWidth: 360,
+    alignSelf: 'flex-end',
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: '#d5d9e0',
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    padding: 10,
+  },
+  endTimeCol: {
+    flex: 1,
+    maxHeight: 300,
+  },
+  endPeriodCol: {
+    width: 72,
+    justifyContent: 'flex-start',
+    gap: 8,
+  },
+  endTimeOption: {
+    minHeight: 48,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+    paddingHorizontal: 8,
+  },
+  endTimeOptionActive: {
+    backgroundColor: '#1d70e7',
+  },
+  endTimeOptionText: {
+    fontSize: 22,
+    lineHeight: 24,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  endTimeOptionTextActive: {
+    color: '#fff',
+    fontWeight: '700',
   },
   newMomentCategoryRow: {
     flexDirection: 'row',

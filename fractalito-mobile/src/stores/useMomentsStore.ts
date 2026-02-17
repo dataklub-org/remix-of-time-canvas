@@ -58,16 +58,47 @@ interface MomentsStore {
 
 const DEFAULT_MS_PER_PIXEL = 36_000; // 1 hour per pixel (hourly view)
 
+function toTimestamp(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const asNum = Number(value);
+    if (Number.isFinite(asNum)) return asNum;
+    const asDate = new Date(value).getTime();
+    if (Number.isFinite(asDate)) return asDate;
+  }
+  return Date.now();
+}
+
+function toOptionalTimestamp(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  return toTimestamp(value);
+}
+
+function toNumber(value: unknown, fallback: number): number {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string') {
+    const asNum = Number(value);
+    if (Number.isFinite(asNum)) return asNum;
+  }
+  return fallback;
+}
+
+function toOptionalNumber(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  const asNum = Number(value);
+  return Number.isFinite(asNum) ? asNum : undefined;
+}
+
 // Helper to convert Supabase moment to local Moment type
 function supabaseMomentToLocal(row: any): Moment {
   return {
     id: row.id,
     timelineId: row.timeline_id,
-    timestamp: row.start_time,
-    endTime: row.end_time || undefined,
-    y: row.y_position,
-    width: row.width || undefined,
-    height: row.height || undefined,
+    timestamp: toTimestamp(row.start_time),
+    endTime: toOptionalTimestamp(row.end_time),
+    y: toNumber(row.y_position, 70),
+    width: toOptionalNumber(row.width),
+    height: toOptionalNumber(row.height),
     description: row.description,
     people: row.people || '',
     location: row.location || '',
@@ -84,11 +115,11 @@ function groupMomentToLocal(row: any): Moment {
   return {
     id: row.id,
     timelineId: OURLIFE_TIMELINE_ID, // All group moments belong to OurLife
-    timestamp: row.start_time,
-    endTime: row.end_time || undefined,
-    y: row.y_position,
-    width: row.width || undefined,
-    height: row.height || undefined,
+    timestamp: toTimestamp(row.start_time),
+    endTime: toOptionalTimestamp(row.end_time),
+    y: toNumber(row.y_position, 70),
+    width: toOptionalNumber(row.width),
+    height: toOptionalNumber(row.height),
     description: row.description,
     people: row.people || '',
     location: row.location || '',
@@ -240,11 +271,11 @@ export const useMomentsStore = create<MomentsStore>()(
           const localBabyMoments = (bMoments || []).map((row: any): Moment => ({
             id: row.id,
             timelineId: BABYLIFE_TIMELINE_ID,
-            timestamp: row.start_time,
-            endTime: row.end_time || undefined,
-            y: row.y_position,
-            width: row.width || undefined,
-            height: row.height || undefined,
+            timestamp: toTimestamp(row.start_time),
+            endTime: toOptionalTimestamp(row.end_time),
+            y: toNumber(row.y_position, 70),
+            width: toOptionalNumber(row.width),
+            height: toOptionalNumber(row.height),
             description: row.description,
             people: row.people || '',
             location: row.location || '',
@@ -639,6 +670,11 @@ export const useMomentsStore = create<MomentsStore>()(
           persistedState.moments = persistedState.moments.map((m: any) => ({
             ...m,
             timelineId: m.timelineId || DEFAULT_TIMELINE_ID,
+            timestamp: toTimestamp(m.timestamp),
+            endTime: toOptionalTimestamp(m.endTime),
+            y: toNumber(m.y, 70),
+            width: toOptionalNumber(m.width),
+            height: toOptionalNumber(m.height),
           }));
         }
         if (!persistedState.timelines) {

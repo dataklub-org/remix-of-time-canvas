@@ -60,6 +60,8 @@ export default function IndexScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user, profile, isAuthenticated } = useAuth();
   const addMoment = useMomentsStore((state) => state.addMoment);
+  const updateMoment = useMomentsStore((state) => state.updateMoment);
+  const deleteMoment = useMomentsStore((state) => state.deleteMoment);
   const updateMomentY = useMomentsStore((state) => state.updateMomentY);
   const setAuthenticated = useMomentsStore((state) => state.setAuthenticated);
   const moments = useMomentsStore((state) => state.moments);
@@ -69,6 +71,7 @@ export default function IndexScreen() {
   const [centerTime, setCenterTime] = useState<number>(Date.now());
   const [msPerPixel, setMsPerPixel] = useState<number>(ZOOM_LEVELS[3].msPerPixel);
   const [scrollOffset, setScrollOffset] = useState(0);
+  const [timelineWrapperHeight, setTimelineWrapperHeight] = useState(0);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState<Date>(() => new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -77,6 +80,7 @@ export default function IndexScreen() {
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [newMomentOpen, setNewMomentOpen] = useState(false);
+  const [editingMomentId, setEditingMomentId] = useState<string | null>(null);
   const [savingMoment, setSavingMoment] = useState(false);
   const [descriptionInput, setDescriptionInput] = useState('');
   const [peopleInput, setPeopleInput] = useState('');
@@ -109,6 +113,8 @@ export default function IndexScreen() {
   const dragCardStartRef = useRef<{ pageY: number; momentY: number } | null>(null);
   const dragMomentCurrentYRef = useRef<Record<string, number>>({});
   const pickerOpenedAtRef = useRef<number>(0);
+  const editingMoment = editingMomentId ? moments.find((m) => m.id === editingMomentId) ?? null : null;
+  const isEditingMoment = !!editingMomentId;
 
   useEffect(() => {
     setAuthenticated(isAuthenticated, user?.id || null);
@@ -288,6 +294,40 @@ export default function IndexScreen() {
     setPhoto(null);
   };
 
+  const loadFormFromMoment = (moment: (typeof moments)[number]) => {
+    const startDate = new Date(moment.timestamp);
+    setDescriptionInput(moment.description || '');
+    setPeopleInput('');
+    setPeople(
+      (moment.people || '')
+        .split(',')
+        .map((p) => p.trim())
+        .filter(Boolean)
+    );
+    setLocationInput(moment.location || '');
+    setCategory(moment.category);
+    setMemorable(!!moment.memorable);
+    setStartDateInput(format(startDate, 'MM/dd/yyyy'));
+    setStartTimeInput(format(startDate, 'hh:mm a'));
+    if (moment.endTime) {
+      const endDate = new Date(moment.endTime);
+      setEndDateInput(format(endDate, 'MM/dd/yyyy'));
+      setEndTimeInput(format(endDate, 'hh:mm a'));
+    } else {
+      setEndDateInput('');
+      setEndTimeInput('');
+    }
+    setEndDatePickerOpen(false);
+    setEndTimePickerOpen(false);
+    setPhoto(moment.photo || null);
+  };
+
+  const openEditMoment = (moment: (typeof moments)[number]) => {
+    setEditingMomentId(moment.id);
+    loadFormFromMoment(moment);
+    setNewMomentOpen(true);
+  };
+
   const endCalendarStart = startOfWeek(startOfMonth(endPickerMonth), { weekStartsOn: 1 });
   const endCalendarDays = Array.from({ length: 42 }, (_, i) => addDays(endCalendarStart, i));
   const endCalendarWeeks = Array.from({ length: 6 }, (_, weekIdx) =>
@@ -411,12 +451,67 @@ export default function IndexScreen() {
     const createdTs = await saveMoment();
     if (createdTs !== null) {
       setCenterTime(createdTs);
+      setEditingMomentId(null);
       resetNewMomentForm();
       setNewMomentOpen(false);
     }
   };
 
+  const handleSaveEditedMoment = async () => {
+    if (!editingMomentId || !editingMoment) return;
+    const desc = descriptionInput.trim();
+    if (!desc) return;
+
+    const startTs = parseDateTime(startDateInput, startTimeInput);
+    if (!startTs) {
+      Alert.alert('Invalid Start', 'Use date MM/DD/YYYY and time hh:mm AM/PM.');
+      return;
+    }
+
+    let endTs: number | undefined;
+    const hasEndDate = !!endDateInput.trim();
+    const hasEndTime = !!endTimeInput.trim();
+    if (hasEndDate !== hasEndTime) {
+      Alert.alert('Invalid End', 'Please choose both End Date and End Time.');
+      return;
+    }
+    if (hasEndDate && hasEndTime) {
+      const parsedEnd = parseDateTime(endDateInput, endTimeInput);
+      if (!parsedEnd || parsedEnd <= startTs) {
+        Alert.alert('Invalid End', 'End must be after Start.');
+        return;
+      }
+      endTs = parsedEnd;
+    }
+
+    setSavingMoment(true);
+    try {
+      await updateMoment(editingMomentId, {
+        timestamp: startTs,
+        endTime: endTs,
+        description: desc,
+        people: people.join(', '),
+        location: locationInput.trim(),
+        category,
+        memorable,
+        photo: photo || undefined,
+      });
+      setCenterTime(startTs);
+      setEditingMomentId(null);
+      resetNewMomentForm();
+      setNewMomentOpen(false);
+    } finally {
+      setSavingMoment(false);
+    }
+  };
+
   const handleAutosaveAndClose = async () => {
+    if (isEditingMoment) {
+      setEditingMomentId(null);
+      resetNewMomentForm();
+      setNewMomentOpen(false);
+      return;
+    }
     if (descriptionInput.trim()) {
       const ok = await saveMoment();
       if (!ok) return;
@@ -426,8 +521,26 @@ export default function IndexScreen() {
   };
 
   const handleDiscardMoment = () => {
+    setEditingMomentId(null);
     resetNewMomentForm();
     setNewMomentOpen(false);
+  };
+
+  const handleDeleteEditedMoment = () => {
+    if (!editingMomentId) return;
+    Alert.alert('Delete Moment', 'Are you sure you want to delete this moment?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          await deleteMoment(editingMomentId);
+          setEditingMomentId(null);
+          resetNewMomentForm();
+          setNewMomentOpen(false);
+        },
+      },
+    ]);
   };
 
   const handleAddPerson = () => {
@@ -466,6 +579,7 @@ export default function IndexScreen() {
 
   const handleOpenNewMoment = () => {
     const now = new Date();
+    setEditingMomentId(null);
     setStartDateInput(format(now, 'MM/dd/yyyy'));
     setStartTimeInput(format(now, 'hh:mm a'));
     setEndDatePickerOpen(false);
@@ -705,6 +819,7 @@ export default function IndexScreen() {
   const timePickerTop = endTimeAnchor
     ? Math.min(endTimeAnchor.y + endTimeAnchor.height + 8, viewportHeight - 360)
     : 120;
+  const timelineTopOffset = Math.max(0, (timelineWrapperHeight - 120) / 2);
 
   const startMomentDrag = (momentId: string, initialY: number, pageY: number) => {
     draggingMomentIdRef.current = momentId;
@@ -719,11 +834,21 @@ export default function IndexScreen() {
     setDragMomentYById((prev) => ({ ...prev, [momentId]: nextY }));
   };
 
-  const endMomentDrag = (momentId: string) => {
-    const finalY = dragMomentCurrentYRef.current[momentId];
-    if (typeof finalY === 'number') {
+  const endMomentDrag = (moment: (typeof moments)[number], releasePageY?: number) => {
+    const momentId = moment.id;
+    const start = dragCardStartRef.current;
+    const safeMomentY = typeof moment.y === 'number' && Number.isFinite(moment.y) ? moment.y : 70;
+    const finalY = dragMomentCurrentYRef.current[momentId] ?? safeMomentY;
+    const movedDistance = start
+      ? Math.abs((releasePageY ?? start.pageY) - start.pageY)
+      : Math.abs(finalY - safeMomentY);
+
+    if (movedDistance < 6) {
+      openEditMoment(moment);
+    } else {
       updateMomentY(momentId, finalY);
     }
+
     setDragMomentYById((prev) => {
       const next = { ...prev };
       delete next[momentId];
@@ -761,8 +886,9 @@ export default function IndexScreen() {
       <View style={styles.canvasContainer}>
         <View
           style={[styles.timelineWrapper, { transform: [{ translateY: scrollOffset }] }]}
-          onStartShouldSetResponder={(e) => e.nativeEvent.touches.length >= 1}
-          onMoveShouldSetResponder={(e) => e.nativeEvent.touches.length >= 1}
+          onLayout={(e) => setTimelineWrapperHeight(e.nativeEvent.layout.height)}
+          onStartShouldSetResponder={() => false}
+          onMoveShouldSetResponder={(e) => !draggingMomentIdRef.current && e.nativeEvent.touches.length >= 1}
           onResponderGrant={handlePanStart}
           onResponderMove={handlePanMove}
           onResponderRelease={handlePanEnd}
@@ -839,6 +965,9 @@ export default function IndexScreen() {
               </View>
             )}
 
+          </View>
+
+          <View pointerEvents="box-none" style={styles.momentsLayer}>
             {visibleMoments.map((moment) => {
               const startX = timeToX(moment.timestamp, centerTime, msPerPixel, viewportWidth);
               const endTimeValue = typeof moment.endTime === 'number'
@@ -850,18 +979,22 @@ export default function IndexScreen() {
               const cardLeft = Math.max(8, Math.min(viewportWidth - cardWidth - 8, startX + 2));
               const cardRight = cardLeft + cardWidth;
               const accentColor = moment.category === 'personal' ? '#f59e0b' : '#4a7dff';
-              const cardTop = dragMomentYById[moment.id] ?? moment.y;
+              const safeMomentY = typeof moment.y === 'number' && Number.isFinite(moment.y) ? moment.y : 70;
+              const cardTop = dragMomentYById[moment.id] ?? safeMomentY;
+              const cardTopRender = cardTop + timelineTopOffset;
               const cardHeight = Math.max(56, moment.height ?? 56);
-              const cardBottom = cardTop + cardHeight;
-              const isAboveTimeline = cardBottom < timelineY;
-              const curveStrength = Math.abs(timelineY - (isAboveTimeline ? cardBottom : cardTop)) * 0.4;
+              const cardBottomRender = cardTopRender + cardHeight;
+              const timelineYRender = timelineY + timelineTopOffset;
+              const isAboveTimeline = cardBottomRender < timelineYRender;
+              const curveStrength = Math.abs(timelineYRender - (isAboveTimeline ? cardBottomRender : cardTopRender)) * 0.4;
               const svgYOffset = viewportHeight;
-              const curveStartY = (isAboveTimeline ? cardBottom : cardTop) + svgYOffset;
-              const curveTimelineY = timelineY + svgYOffset;
+              const curveStartY = (isAboveTimeline ? cardBottomRender : cardTopRender) + svgYOffset;
+              const curveTimelineY = timelineYRender + svgYOffset;
 
               return (
                 <View key={moment.id}>
                   <Svg
+                    pointerEvents="none"
                     style={[styles.momentCurveSvg, { top: -viewportHeight }]}
                     width={viewportWidth}
                     height={viewportHeight * 2}
@@ -890,7 +1023,7 @@ export default function IndexScreen() {
                       styles.momentCard,
                       {
                         left: cardLeft,
-                        top: cardTop,
+                        top: cardTopRender,
                         width: cardWidth,
                         borderLeftColor: accentColor,
                       },
@@ -910,8 +1043,11 @@ export default function IndexScreen() {
                         moveMomentDrag(moment.id, pageY);
                       }
                     }}
-                    onResponderRelease={() => endMomentDrag(moment.id)}
-                    onResponderTerminate={() => endMomentDrag(moment.id)}
+                    onResponderRelease={(e) => {
+                      const pageY = e.nativeEvent.pageY ?? e.nativeEvent.changedTouches?.[0]?.pageY;
+                      endMomentDrag(moment, typeof pageY === 'number' ? pageY : undefined);
+                    }}
+                    onResponderTerminate={() => endMomentDrag(moment)}
                   >
                     <View style={styles.momentCardMainRow}>
                       <View style={styles.momentTextWrap}>
@@ -994,15 +1130,15 @@ export default function IndexScreen() {
       </View>
 
       {/* New Moment modal */}
-      <Modal visible={newMomentOpen} transparent animationType="fade" onRequestClose={handleAutosaveAndClose}>
-        <Pressable style={styles.newMomentOverlay} onPress={handleAutosaveAndClose}>
+      <Modal visible={newMomentOpen} transparent animationType="fade" onRequestClose={handleDiscardMoment}>
+        <Pressable style={styles.newMomentOverlay} onPress={handleDiscardMoment}>
           <View />
         </Pressable>
         <View style={styles.newMomentOverlayCard}>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.newMomentKeyboard}>
             <View style={styles.newMomentCard}>
               <View style={styles.newMomentHeader}>
-                <Text style={styles.newMomentTitle}>New Moment</Text>
+                <Text style={styles.newMomentTitle}>{isEditingMoment ? 'Edit Moment' : 'New Moment'}</Text>
                 <TouchableOpacity onPress={handleDiscardMoment}>
                   <Text style={styles.newMomentClose}>x</Text>
                 </TouchableOpacity>
@@ -1017,8 +1153,14 @@ export default function IndexScreen() {
                   onChangeText={setDescriptionInput}
                   multiline
                 />
-                <TouchableOpacity style={styles.newMomentCreateBtn} onPress={handleCreateMoment} disabled={savingMoment}>
-                  <Text style={styles.newMomentCreateText}>{savingMoment ? 'Creating...' : 'Create'}</Text>
+                <TouchableOpacity
+                  style={styles.newMomentCreateBtn}
+                  onPress={isEditingMoment ? handleSaveEditedMoment : handleCreateMoment}
+                  disabled={savingMoment}
+                >
+                  <Text style={styles.newMomentCreateText}>
+                    {savingMoment ? (isEditingMoment ? 'Saving...' : 'Creating...') : (isEditingMoment ? 'Save Changes' : 'Create')}
+                  </Text>
                 </TouchableOpacity>
 
                 <Text style={styles.newMomentLabel}>People</Text>
@@ -1236,6 +1378,11 @@ export default function IndexScreen() {
                   </View>
                   <Switch value={keepOriginalSize} onValueChange={setKeepOriginalSize} />
                 </View>
+                {isEditingMoment && (
+                  <TouchableOpacity style={styles.deleteMomentButton} onPress={handleDeleteEditedMoment}>
+                    <Text style={styles.deleteMomentText}>Delete Moment</Text>
+                  </TouchableOpacity>
+                )}
               </ScrollView>
             </View>
           </KeyboardAvoidingView>
@@ -1558,16 +1705,27 @@ const styles = StyleSheet.create({
   canvasContainer: {
     flex: 1,
     backgroundColor: '#fafafa',
+    overflow: 'hidden',
   },
   timelineWrapper: {
     flex: 1,
     justifyContent: 'center',
+  },
+  momentsLayer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    top: 0,
+    overflow: 'visible',
+    zIndex: 5,
   },
   timeline: {
     height: 120,
     backgroundColor: 'transparent',
     position: 'relative',
     overflow: 'visible',
+    zIndex: 1,
   },
   axisLine: {
     position: 'absolute',
@@ -2404,5 +2562,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#7a8598',
     marginTop: 2,
+  },
+  deleteMomentButton: {
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    paddingTop: 14,
+    marginTop: 4,
+  },
+  deleteMomentText: {
+    color: '#dc2626',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

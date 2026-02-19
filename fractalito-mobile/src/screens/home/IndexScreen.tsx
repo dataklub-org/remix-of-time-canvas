@@ -24,6 +24,8 @@ import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useAuth } from '../../hooks/useAuth';
 import { useMomentsStore, DEFAULT_TIMELINE_ID } from '../../stores/useMomentsStore';
 import type { Category } from '../../types/moment';
+import { useConnections } from '../../hooks/useConnections';
+import { useGroups } from '../../hooks/useGroups';
 import * as ImagePicker from 'expo-image-picker';
 import {
   format,
@@ -59,6 +61,8 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function IndexScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user, profile, isAuthenticated } = useAuth();
+  const { connections } = useConnections(user?.id || null);
+  const { groups } = useGroups(user?.id || null);
   const addMoment = useMomentsStore((state) => state.addMoment);
   const updateMoment = useMomentsStore((state) => state.updateMoment);
   const deleteMoment = useMomentsStore((state) => state.deleteMoment);
@@ -76,6 +80,8 @@ export default function IndexScreen() {
   const [currentMonth, setCurrentMonth] = useState<Date>(() => new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [myCircleOpen, setMyCircleOpen] = useState(false);
+  const [myCircleSearch, setMyCircleSearch] = useState('');
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
@@ -864,9 +870,14 @@ export default function IndexScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.logo}>fractalito</Text>
-        <TouchableOpacity style={styles.signInButton} onPress={() => navigation.navigate('Profile')}>
-          <Text style={styles.signInText}>{profile?.username || user?.email || 'Profile'}</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.myCircleButton} onPress={() => setMyCircleOpen(true)}>
+            <Text style={styles.myCircleText}>My Circle</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.signInButton} onPress={() => navigation.navigate('Profile')}>
+            <Text style={styles.signInText}>{profile?.username || user?.email || 'Profile'}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Tabs */}
@@ -1128,6 +1139,88 @@ export default function IndexScreen() {
           </TouchableOpacity>
         </View>
       </View>
+
+      <Modal visible={myCircleOpen} transparent animationType="fade" onRequestClose={() => setMyCircleOpen(false)}>
+        <Pressable style={styles.newMomentOverlay} onPress={() => setMyCircleOpen(false)}>
+          <View />
+        </Pressable>
+        <View style={styles.newMomentOverlayCard}>
+          <View style={styles.myCircleCard}>
+            <View style={styles.myCircleHeader}>
+              <View>
+                <Text style={styles.myCircleTitle}>My Circle</Text>
+                <Text style={styles.myCircleSubtitle}>Manage your connections and groups</Text>
+              </View>
+              <TouchableOpacity onPress={() => setMyCircleOpen(false)}>
+                <Text style={styles.newMomentClose}>x</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.myCircleSearchWrap}>
+              <Text style={styles.myCircleSearchIcon}>⌕</Text>
+              <TextInput
+                style={styles.myCircleSearchInput}
+                placeholder="Search by username..."
+                placeholderTextColor="#7a8598"
+                value={myCircleSearch}
+                onChangeText={setMyCircleSearch}
+              />
+            </View>
+
+            <Text style={styles.myCircleSectionLabel}>In your circle ({connections.length})</Text>
+            {connections.length === 0 ? (
+              <Text style={styles.myCircleEmptyText}>
+                No connections yet. Search for users to add them to your circle.
+              </Text>
+            ) : (
+              connections.slice(0, 3).map((connection) => (
+                <View key={connection.id} style={styles.myCircleRow}>
+                  <Text style={styles.myCircleRowDot}>●</Text>
+                  <Text style={styles.myCircleRowText}>{connection.username}</Text>
+                </View>
+              ))
+            )}
+
+            <View style={styles.myCircleDivider} />
+
+            <View style={styles.myCircleSectionHeader}>
+              <Text style={styles.myCircleSectionLabel}>Groups ({groups.length})</Text>
+              <TouchableOpacity style={styles.myCircleActionButton}>
+                <Text style={styles.myCircleActionButtonText}>+ New Group</Text>
+              </TouchableOpacity>
+            </View>
+            {groups.length === 0 ? (
+              <Text style={styles.myCircleEmptyText}>
+                No groups yet. Create one to start sharing moments!
+              </Text>
+            ) : (
+              groups.slice(0, 1).map((group) => (
+                <View key={group.id} style={styles.myCircleGroupCard}>
+                  <View style={styles.myCircleGroupLeft}>
+                    <Text style={styles.myCircleRowDot}>●</Text>
+                    <Text style={styles.myCircleGroupName}>{group.name}</Text>
+                    <Text style={styles.myCircleGroupMeta}>{group.memberCount || 0} member</Text>
+                  </View>
+                  <View style={styles.myCircleGroupRight}>
+                    <Text style={styles.myCircleGroupIcon}>🎨</Text>
+                    <Text style={styles.myCircleGroupIcon}>🗑</Text>
+                  </View>
+                </View>
+              ))
+            )}
+
+            <View style={styles.myCircleDivider} />
+
+            <View style={styles.myCircleSectionHeader}>
+              <Text style={styles.myCircleSectionLabel}>Babies</Text>
+              <TouchableOpacity style={styles.myCircleActionButton}>
+                <Text style={styles.myCircleActionButtonText}>+ Add Baby</Text>
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.myCircleEmptyText}>Create a baby timeline to track their early years.</Text>
+          </View>
+        </View>
+      </Modal>
 
       {/* New Moment modal */}
       <Modal visible={newMomentOpen} transparent animationType="fade" onRequestClose={handleDiscardMoment}>
@@ -1663,6 +1756,22 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     fontStyle: 'italic',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  myCircleButton: {
+    backgroundColor: '#000',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  myCircleText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   signInButton: {
     backgroundColor: '#000',
@@ -2562,6 +2671,132 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#7a8598',
     marginTop: 2,
+  },
+  myCircleCard: {
+    width: '100%',
+    maxWidth: 760,
+    backgroundColor: '#f4f5f7',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#d6dbe3',
+    padding: 18,
+    gap: 14,
+  },
+  myCircleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  myCircleTitle: {
+    fontSize: 20,
+    color: '#2f3746',
+    fontWeight: '700',
+  },
+  myCircleSubtitle: {
+    marginTop: 4,
+    fontSize: 14,
+    color: '#6c778b',
+  },
+  myCircleSearchWrap: {
+    minHeight: 54,
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    backgroundColor: '#f4f5f7',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  myCircleSearchIcon: {
+    fontSize: 19,
+    color: '#6c778b',
+    marginRight: 8,
+  },
+  myCircleSearchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#303846',
+  },
+  myCircleSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  myCircleSectionLabel: {
+    fontSize: 17,
+    color: '#6c778b',
+    fontWeight: '500',
+  },
+  myCircleEmptyText: {
+    fontSize: 16,
+    color: '#6c778b',
+    textAlign: 'center',
+    lineHeight: 24,
+    paddingHorizontal: 12,
+  },
+  myCircleDivider: {
+    height: 1,
+    backgroundColor: '#d8dde5',
+    marginVertical: 4,
+  },
+  myCircleActionButton: {
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#f4f5f7',
+  },
+  myCircleActionButtonText: {
+    fontSize: 16,
+    color: '#303846',
+    fontWeight: '500',
+  },
+  myCircleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  myCircleRowDot: {
+    fontSize: 16,
+    color: '#9aa3b2',
+  },
+  myCircleRowText: {
+    fontSize: 17,
+    color: '#303846',
+  },
+  myCircleGroupCard: {
+    minHeight: 58,
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  myCircleGroupLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  myCircleGroupName: {
+    fontSize: 17,
+    color: '#303846',
+    fontWeight: '500',
+  },
+  myCircleGroupMeta: {
+    fontSize: 16,
+    color: '#6c778b',
+  },
+  myCircleGroupRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  myCircleGroupIcon: {
+    fontSize: 18,
+    color: '#303846',
   },
   deleteMomentButton: {
     borderTopWidth: 1,

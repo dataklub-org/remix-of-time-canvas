@@ -53,7 +53,7 @@ import {
   isSameMonth,
   isToday,
 } from 'date-fns';
-import { timeToX, getTickInterval, getTimeUnit, ZOOM_LEVELS, getZoomLevelIndex, MIN_MS_PER_PIXEL, MAX_MS_PER_PIXEL, clampZoom } from '../../utils/timeUtils';
+import { timeToX, getTickInterval, getTimeUnit, ZOOM_LEVELS, getZoomLevelIndex, MIN_MS_PER_PIXEL, MAX_MS_PER_PIXEL, clampZoom, getDefaultMomentWidth } from '../../utils/timeUtils';
 import { formatTickLabel } from '../../utils/formatUtils';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -76,6 +76,8 @@ export default function IndexScreen() {
   const [msPerPixel, setMsPerPixel] = useState<number>(ZOOM_LEVELS[3].msPerPixel);
   const [scrollOffset, setScrollOffset] = useState(0);
   const [timelineWrapperHeight, setTimelineWrapperHeight] = useState(0);
+  const [createMomentY, setCreateMomentY] = useState<number | null>(null);
+  const [momentOrder, setMomentOrder] = useState<string[]>([]);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [currentMonth, setCurrentMonth] = useState<Date>(() => new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -125,6 +127,25 @@ export default function IndexScreen() {
   useEffect(() => {
     setAuthenticated(isAuthenticated, user?.id || null);
   }, [isAuthenticated, setAuthenticated, user?.id]);
+
+  useEffect(() => {
+    setMomentOrder((prev) => {
+      const seen = new Set(prev);
+      const next = prev.filter((id) => moments.some((m) => m.id === id));
+      moments.forEach((moment) => {
+        if (!seen.has(moment.id)) next.push(moment.id);
+      });
+      return next;
+    });
+  }, [moments]);
+
+  const bringMomentToFront = (momentId: string) => {
+    setMomentOrder((prev) => {
+      const next = prev.filter((id) => id !== momentId);
+      next.push(momentId);
+      return next;
+    });
+  };
 
   const unitLabels: Record<string, string> = {
     '5min': '5m',
@@ -298,6 +319,7 @@ export default function IndexScreen() {
     setEndPickerMonth(now);
     setKeepOriginalSize(false);
     setPhoto(null);
+    setCreateMomentY(null);
   };
 
   const loadFormFromMoment = (moment: (typeof moments)[number]) => {
@@ -431,17 +453,20 @@ export default function IndexScreen() {
 
     setSavingMoment(true);
     try {
+      const initialY = typeof createMomentY === 'number' ? createMomentY : 70;
+      const initialWidth = getDefaultMomentWidth(msPerPixel);
+
       await addMoment({
         timestamp: startTs,
         endTime: endTs,
-        y: 70 + moments.length * 8,
+        y: initialY,
         description: desc,
         people: people.join(', '),
         location: locationInput.trim(),
         category,
         memorable,
         photo: photo || undefined,
-        width: 260,
+        width: initialWidth,
       });
       return startTs;
     } catch (error) {
@@ -585,12 +610,15 @@ export default function IndexScreen() {
 
   const handleOpenNewMoment = () => {
     const now = new Date();
+    const baseCreateY = viewportHeight / 2 - 60;
+    const adjustedCreateY = baseCreateY - timelineTopOffset;
     setEditingMomentId(null);
     setStartDateInput(format(now, 'MM/dd/yyyy'));
     setStartTimeInput(format(now, 'hh:mm a'));
     setEndDatePickerOpen(false);
     setEndTimePickerOpen(false);
     setEndPickerMonth(now);
+    setCreateMomentY(adjustedCreateY);
     setNewMomentOpen(true);
   };
 
@@ -799,6 +827,15 @@ export default function IndexScreen() {
 
     return inTimeline && inRange && passesZoomRule;
   });
+  const orderIndex = new Map(momentOrder.map((id, idx) => [id, idx]));
+  const orderedVisibleMoments = [...visibleMoments].sort((a, b) => {
+    const aIdx = orderIndex.get(a.id);
+    const bIdx = orderIndex.get(b.id);
+    if (aIdx === undefined && bIdx === undefined) return 0;
+    if (aIdx === undefined) return -1;
+    if (bIdx === undefined) return 1;
+    return aIdx - bIdx;
+  });
 
   function getOrdinalSuffix(day: number): string {
     if (day > 3 && day < 21) return 'th';
@@ -979,7 +1016,8 @@ export default function IndexScreen() {
           </View>
 
           <View pointerEvents="box-none" style={styles.momentsLayer}>
-            {visibleMoments.map((moment) => {
+            {orderedVisibleMoments.map((moment) => {
+              const zIndex = orderIndex.get(moment.id) ?? 0;
               const startX = timeToX(moment.timestamp, centerTime, msPerPixel, viewportWidth);
               const endTimeValue = typeof moment.endTime === 'number'
                 ? moment.endTime
@@ -1037,6 +1075,7 @@ export default function IndexScreen() {
                         top: cardTopRender,
                         width: cardWidth,
                         borderLeftColor: accentColor,
+                        zIndex,
                       },
                     ]}
                     onStartShouldSetResponder={() => true}
@@ -1045,20 +1084,27 @@ export default function IndexScreen() {
                     onResponderGrant={(e) => {
                       const pageY = e.nativeEvent.pageY ?? e.nativeEvent.touches?.[0]?.pageY;
                       if (typeof pageY === 'number') {
+                        bringMomentToFront(moment.id);
                         startMomentDrag(moment.id, cardTop, pageY);
+                        console.log('[Moment] touch start', { id: moment.id, y: cardTop, pageY });
                       }
                     }}
                     onResponderMove={(e) => {
                       const pageY = e.nativeEvent.pageY ?? e.nativeEvent.touches?.[0]?.pageY;
                       if (typeof pageY === 'number') {
                         moveMomentDrag(moment.id, pageY);
+                        console.log('[Moment] touch move', { id: moment.id, pageY });
                       }
                     }}
                     onResponderRelease={(e) => {
                       const pageY = e.nativeEvent.pageY ?? e.nativeEvent.changedTouches?.[0]?.pageY;
+                      console.log('[Moment] touch end', { id: moment.id, pageY });
                       endMomentDrag(moment, typeof pageY === 'number' ? pageY : undefined);
                     }}
-                    onResponderTerminate={() => endMomentDrag(moment)}
+                    onResponderTerminate={() => {
+                      console.log('[Moment] touch terminate', { id: moment.id });
+                      endMomentDrag(moment);
+                    }}
                   >
                     <View style={styles.momentCardMainRow}>
                       <View style={styles.momentTextWrap}>

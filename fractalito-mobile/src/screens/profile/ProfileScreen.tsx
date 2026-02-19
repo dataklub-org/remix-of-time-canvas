@@ -263,18 +263,26 @@ export default function ProfileScreen() {
             console.log('🗑 Deleting all moments...');
             setIsDeleting(true);
             try {
-              const { error } = await supabase
+              const { data, error } = await supabase
                 .from('moments')
                 .delete()
-                .eq('user_id', user.id);
+                .eq('user_id', user.id)
+                .select('id');
 
               if (error) throw error;
 
-              console.log('✅ All moments deleted');
-              Alert.alert('Success', 'All your moments have been deleted');
-            } catch (error) {
+              const deletedCount = data?.length ?? 0;
+              console.log('✅ All moments deleted', { deletedCount });
+              if (deletedCount === 0) {
+                Alert.alert('Nothing to delete', 'No moments were found for your account.');
+              } else {
+                Alert.alert('Success', 'All your moments have been deleted');
+              }
+            } catch (error: any) {
+              const message = error?.message || 'Failed to delete moments';
               console.error('❌ Error deleting moments:', error);
-              Alert.alert('Error', 'Failed to delete moments');
+              Alert.alert('Error', message);
+              setErrorMessage(message);
             } finally {
               setIsDeleting(false);
               setDeleteStep('initial');

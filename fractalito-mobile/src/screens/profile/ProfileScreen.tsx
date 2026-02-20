@@ -16,6 +16,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { supabase } from '../../integrations/supabase/client';
 import { nanoid } from 'nanoid';
 import { toast } from '../../hooks/use-toast';
+import { devLog } from '../../utils/logger';
+import { WEB_BASE_URL } from '../../config/appConfig';
 
 interface InviteCode {
   id: string;
@@ -129,7 +131,7 @@ export default function ProfileScreen() {
 
   const loadInviteCodes = async () => {
     if (!user?.id) return;
-    console.log('📋 Loading invite codes...');
+    devLog('📋 Loading invite codes...');
     setLoadingCodes(true);
     setErrorMessage(null);
     try {
@@ -150,7 +152,7 @@ export default function ProfileScreen() {
           createdAt: row.created_at,
         }))
       );
-      console.log('✅ Loaded', data?.length || 0, 'invite codes');
+      devLog('✅ Loaded', data?.length || 0, 'invite codes');
     } catch (error) {
       console.error('❌ Error loading invite codes:', error);
       setErrorMessage('Failed to load invite codes.');
@@ -161,7 +163,7 @@ export default function ProfileScreen() {
 
   const generateInviteCode = async () => {
     if (!user?.id) return;
-    console.log('🔑 Generating invite code...');
+    devLog('🔑 Generating invite code...');
     setGeneratingCode(true);
     setErrorMessage(null);
     try {
@@ -177,7 +179,7 @@ export default function ProfileScreen() {
 
       if (error) throw error;
 
-      console.log('✅ Generated code:', code);
+      devLog('✅ Generated code:', code);
       await loadInviteCodes();
     } catch (error) {
       console.error('❌ Error generating invite code:', error);
@@ -189,10 +191,10 @@ export default function ProfileScreen() {
   };
 
   const copyInviteLink = async (code: string) => {
-    const inviteLink = `https://fractalito.com/auth?invite=${code}`;
+    const inviteLink = `${WEB_BASE_URL}/auth?invite=${code}`;
     Clipboard.setString(inviteLink);
     setCopiedCode(code);
-    console.log('📋 Copied invite link:', inviteLink);
+    devLog('📋 Copied invite link:', inviteLink);
     setTimeout(() => setCopiedCode(null), 2000);
   };
 
@@ -206,7 +208,7 @@ export default function ProfileScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            console.log('🗑 Deleting code:', codeId);
+            devLog('🗑 Deleting code:', codeId);
             setErrorMessage(null);
             try {
               const { error } = await supabase
@@ -216,7 +218,7 @@ export default function ProfileScreen() {
 
               if (error) throw error;
 
-              console.log('✅ Code deleted');
+              devLog('✅ Code deleted');
               await loadInviteCodes();
             } catch (error) {
               console.error('❌ Error deleting code:', error);
@@ -236,13 +238,13 @@ export default function ProfileScreen() {
         text: 'Sign Out',
         style: 'destructive',
         onPress: async () => {
-          console.log('👋 Signing out...');
+          devLog('👋 Signing out...');
           const { error } = await signOut();
           if (error) {
             console.error('❌ Error signing out:', error);
             Alert.alert('Error', 'Failed to sign out');
           } else {
-            console.log('✅ Signed out successfully');
+            devLog('✅ Signed out successfully');
           }
         },
       },
@@ -260,7 +262,7 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             if (!user?.id) return;
-            console.log('🗑 Deleting all moments...');
+            devLog('🗑 Deleting all moments...');
             setIsDeleting(true);
             try {
               const { data, error } = await supabase
@@ -272,7 +274,7 @@ export default function ProfileScreen() {
               if (error) throw error;
 
               const deletedCount = data?.length ?? 0;
-              console.log('✅ All moments deleted', { deletedCount });
+              devLog('✅ All moments deleted', { deletedCount });
               if (deletedCount === 0) {
                 Alert.alert('Nothing to delete', 'No moments were found for your account.');
               } else {
@@ -303,7 +305,7 @@ export default function ProfileScreen() {
           text: 'Delete Forever',
           style: 'destructive',
           onPress: async () => {
-            console.log('🗑 Deleting account...');
+            devLog('🗑 Deleting account...');
             setIsDeleting(true);
             try {
               // Call the delete account edge function
@@ -311,7 +313,7 @@ export default function ProfileScreen() {
 
               if (error) throw error;
 
-              console.log('✅ Account deleted');
+              devLog('✅ Account deleted');
             } catch (error) {
               // Silent failure: redirect to sign-in regardless
             } finally {

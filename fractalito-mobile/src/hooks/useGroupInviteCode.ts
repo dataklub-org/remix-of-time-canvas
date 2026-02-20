@@ -1,6 +1,7 @@
 import { supabase } from '../integrations/supabase/client';
 import { toast } from './use-toast';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { devLog } from '../utils/logger';
 
 /**
  * Redeem a group invite code - adds user to group and creates bidirectional connections with inviter
@@ -23,7 +24,7 @@ export async function redeemGroupInviteCode(userId: string): Promise<boolean> {
     }
 
     if (!success) {
-      console.log('Group invite code invalid, expired, or already a member');
+      devLog('Group invite code invalid, expired, or already a member');
       return false;
     }
 

@@ -27,6 +27,8 @@ import type { Category } from '../../types/moment';
 import { useConnections } from '../../hooks/useConnections';
 import { useGroups } from '../../hooks/useGroups';
 import * as ImagePicker from 'expo-image-picker';
+import { devLog } from '../../utils/logger';
+import { FEEDBACK_URL } from '../../config/appConfig';
 import {
   format,
   addDays,
@@ -200,7 +202,7 @@ export default function IndexScreen() {
     if (feedbackRating === 0 || feedbackSubmitting) return;
     setFeedbackSubmitting(true);
     try {
-      const response = await fetch('https://formspree.io/f/mwvnlpee', {
+      const response = await fetch(FEEDBACK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1086,23 +1088,23 @@ export default function IndexScreen() {
                       if (typeof pageY === 'number') {
                         bringMomentToFront(moment.id);
                         startMomentDrag(moment.id, cardTop, pageY);
-                        console.log('[Moment] touch start', { id: moment.id, y: cardTop, pageY });
+                        devLog('[Moment] touch start', { id: moment.id, y: cardTop, pageY });
                       }
                     }}
                     onResponderMove={(e) => {
                       const pageY = e.nativeEvent.pageY ?? e.nativeEvent.touches?.[0]?.pageY;
                       if (typeof pageY === 'number') {
                         moveMomentDrag(moment.id, pageY);
-                        console.log('[Moment] touch move', { id: moment.id, pageY });
+                        devLog('[Moment] touch move', { id: moment.id, pageY });
                       }
                     }}
                     onResponderRelease={(e) => {
                       const pageY = e.nativeEvent.pageY ?? e.nativeEvent.changedTouches?.[0]?.pageY;
-                      console.log('[Moment] touch end', { id: moment.id, pageY });
+                      devLog('[Moment] touch end', { id: moment.id, pageY });
                       endMomentDrag(moment, typeof pageY === 'number' ? pageY : undefined);
                     }}
                     onResponderTerminate={() => {
-                      console.log('[Moment] touch terminate', { id: moment.id });
+                      devLog('[Moment] touch terminate', { id: moment.id });
                       endMomentDrag(moment);
                     }}
                   >

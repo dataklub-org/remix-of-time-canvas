@@ -12,6 +12,7 @@ import {
   Image,
 } from 'react-native';
 import { useAuth } from '../../hooks/useAuth';
+import { devLog } from '../../utils/logger';
 
 export default function AuthScreen() {
   const { signUp, signIn, signInWithGoogle, checkUsernameAvailable } = useAuth();
@@ -111,13 +112,13 @@ export default function AuthScreen() {
 
     try {
       if (isSignUp) {
-        console.log('📝 Attempting sign up for:', email);
+        devLog('📝 Attempting sign up for:', email);
         const { error } = await signUp(email, password, username);
         if (error) {
           console.error('❌ Sign up error:', error.message);
           setError(error.message);
         } else {
-          console.log('✅ Sign up successful! Check email.');
+          devLog('✅ Sign up successful! Check email.');
           setSuccessMessage('Check your email to verify your account!');
           // Clear form
           setEmail('');
@@ -126,13 +127,13 @@ export default function AuthScreen() {
           setUsername('');
         }
       } else {
-        console.log('🔑 Attempting sign in for:', email);
+        devLog('🔑 Attempting sign in for:', email);
         const { error } = await signIn(email, password);
         if (error) {
           console.error('❌ Sign in error:', error.message);
           setError(error.message || 'Invalid email or password');
         } else {
-          console.log('✅ Sign in successful!');
+          devLog('✅ Sign in successful!');
         }
         // On success, navigation will be handled by auth state change
       }
@@ -162,7 +163,7 @@ export default function AuthScreen() {
 
   const handleVerifyOtp = () => {
     // Logic will be added when we copy hooks
-    console.log('Verify OTP:', otpCode);
+    devLog('Verify OTP:', otpCode);
   };
 
   const toggleMode = () => {

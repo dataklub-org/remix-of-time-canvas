@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../integrations/supabase/client';
 import { redeemInviteCode } from './useInviteCode';
 import { redeemGroupInviteCode } from './useGroupInviteCode';
+import { devLog } from '../utils/logger';
 
 interface UserProfile {
   username: string;
@@ -36,8 +37,8 @@ export function useAuth() {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        console.log('🔐 Auth event:', event);
-        console.log('👤 User:', session?.user?.email || 'No user');
+        devLog('🔐 Auth event:', event);
+        devLog('👤 User:', session?.user?.email || 'No user');
         
         setSession(session);
         setUser(session?.user ?? null);
@@ -45,7 +46,7 @@ export function useAuth() {
         
         // Fetch profile and handle invite codes when user logs in
         if (session?.user) {
-          console.log('✅ User logged in:', session.user.email);
+          devLog('✅ User logged in:', session.user.email);
           setTimeout(() => {
             fetchProfile(session.user.id);
             // Redeem any pending invite codes on SIGNED_IN event
@@ -55,7 +56,7 @@ export function useAuth() {
             }
           }, 0);
         } else {
-          console.log('❌ User logged out');
+          devLog('❌ User logged out');
           setProfile(null);
         }
       }

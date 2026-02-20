@@ -9,7 +9,9 @@ const queryClient = new QueryClient()
 
 export default function App() {
   useEffect(() => {
-    testSupabaseConnection()
+    if (__DEV__) {
+      testSupabaseConnection()
+    }
   }, [])
 
   return (

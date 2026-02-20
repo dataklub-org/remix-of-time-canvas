@@ -1,5 +1,6 @@
 import { supabase } from '../integrations/supabase/client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { devLog } from '../utils/logger';
 
 /**
  * Redeem an invite code - uses a database function to create bidirectional connections
@@ -24,7 +25,7 @@ export async function redeemInviteCode(userId: string): Promise<boolean> {
     }
 
     if (!success) {
-      console.log('Invite code invalid, expired, or is your own code');
+      devLog('Invite code invalid, expired, or is your own code');
       return false;
     }
 
@@ -43,12 +44,12 @@ export async function redeemInviteCode(userId: string): Promise<boolean> {
         .maybeSingle();
 
       if (profile?.username) {
-        console.log(`You're now connected with @${profile.username}!`);
+        devLog(`You're now connected with @${profile.username}!`);
       } else {
-        console.log('Invite redeemed! You are now connected.');
+        devLog('Invite redeemed! You are now connected.');
       }
     } else {
-      console.log('Invite redeemed! You are now connected.');
+      devLog('Invite redeemed! You are now connected.');
     }
 
     return true;

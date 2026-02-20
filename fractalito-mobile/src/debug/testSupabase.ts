@@ -1,16 +1,14 @@
 import { supabase } from '../integrations/supabase/client';
+import { devLog } from '../utils/logger';
 
 export async function testSupabaseConnection() {
-  console.log('🔍 Testing Supabase connection...')
+  devLog('Testing Supabase connection...');
 
-  const { data, error } = await supabase
-    .from('profiles')  
-    .select('id')
-    .limit(1)
+  const { data, error } = await supabase.from('profiles').select('id').limit(1);
 
   if (error) {
-    console.log('❌ Supabase ERROR:', error)
+    devLog('Supabase error:', error);
   } else {
-    console.log('✅ Supabase CONNECTED. Data:', data)
+    devLog('Supabase connected. Data:', data);
   }
 }

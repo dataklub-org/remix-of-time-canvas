@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "fractalito-mobile",
-    "slug": "fractalito-mobile",
+    "name": "MyLife",
+    "slug": "mylife",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -22,7 +22,8 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.dataklub.mylife"
+      "package": "com.dataklub.mylife",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"

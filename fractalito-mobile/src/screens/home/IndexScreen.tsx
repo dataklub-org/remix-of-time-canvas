@@ -22,7 +22,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useAuth } from '../../hooks/useAuth';
-import { useMomentsStore, DEFAULT_TIMELINE_ID } from '../../stores/useMomentsStore';
+import { useMomentsStore, DEFAULT_TIMELINE_ID, OURLIFE_TIMELINE_ID, BABYLIFE_TIMELINE_ID } from '../../stores/useMomentsStore';
 import type { Category } from '../../types/moment';
 import { useConnections } from '../../hooks/useConnections';
 import { useGroups } from '../../hooks/useGroups';
@@ -69,9 +69,15 @@ export default function IndexScreen() {
   const updateMoment = useMomentsStore((state) => state.updateMoment);
   const deleteMoment = useMomentsStore((state) => state.deleteMoment);
   const updateMomentY = useMomentsStore((state) => state.updateMomentY);
+  const updateGroupMomentY = useMomentsStore((state) => state.updateGroupMomentY);
+  const updateBabyMomentY = useMomentsStore((state) => state.updateBabyMomentY);
   const setAuthenticated = useMomentsStore((state) => state.setAuthenticated);
   const moments = useMomentsStore((state) => state.moments);
+  const groupMoments = useMomentsStore((state) => state.groupMoments);
+  const babyMoments = useMomentsStore((state) => state.babyMoments);
   const userTimelineId = useMomentsStore((state) => state.userTimelineId);
+  const activeTimelineId = useMomentsStore((state) => state.canvasState.activeTimelineId);
+  const setActiveTimeline = useMomentsStore((state) => state.setActiveTimeline);
   const insets = useSafeAreaInsets();
   const { width: viewportWidth, height: viewportHeight } = useWindowDimensions();
   const [centerTime, setCenterTime] = useState<number>(Date.now());
@@ -123,7 +129,11 @@ export default function IndexScreen() {
   const dragCardStartRef = useRef<{ pageY: number; momentY: number } | null>(null);
   const dragMomentCurrentYRef = useRef<Record<string, number>>({});
   const pickerOpenedAtRef = useRef<number>(0);
-  const editingMoment = editingMomentId ? moments.find((m) => m.id === editingMomentId) ?? null : null;
+  const isMyLife = activeTimelineId === DEFAULT_TIMELINE_ID;
+  const isOurLife = activeTimelineId === OURLIFE_TIMELINE_ID;
+  const isBabyLife = activeTimelineId === BABYLIFE_TIMELINE_ID;
+  const activeMoments = isOurLife ? groupMoments : (isBabyLife ? babyMoments : moments);
+  const editingMoment = editingMomentId ? activeMoments.find((m) => m.id === editingMomentId) ?? null : null;
   const isEditingMoment = !!editingMomentId;
 
   useEffect(() => {
@@ -133,13 +143,13 @@ export default function IndexScreen() {
   useEffect(() => {
     setMomentOrder((prev) => {
       const seen = new Set(prev);
-      const next = prev.filter((id) => moments.some((m) => m.id === id));
-      moments.forEach((moment) => {
+      const next = prev.filter((id) => activeMoments.some((m) => m.id === id));
+      activeMoments.forEach((moment) => {
         if (!seen.has(moment.id)) next.push(moment.id);
       });
       return next;
     });
-  }, [moments]);
+  }, [activeMoments]);
 
   const bringMomentToFront = (momentId: string) => {
     setMomentOrder((prev) => {
@@ -324,7 +334,7 @@ export default function IndexScreen() {
     setCreateMomentY(null);
   };
 
-  const loadFormFromMoment = (moment: (typeof moments)[number]) => {
+  const loadFormFromMoment = (moment: (typeof activeMoments)[number]) => {
     const startDate = new Date(moment.timestamp);
     setDescriptionInput(moment.description || '');
     setPeopleInput('');
@@ -352,7 +362,11 @@ export default function IndexScreen() {
     setPhoto(moment.photo || null);
   };
 
-  const openEditMoment = (moment: (typeof moments)[number]) => {
+  const openEditMoment = (moment: (typeof activeMoments)[number]) => {
+    if (!isMyLife) {
+      Alert.alert('Read Only', 'Editing is only available in MyLife.');
+      return;
+    }
     setEditingMomentId(moment.id);
     loadFormFromMoment(moment);
     setNewMomentOpen(true);
@@ -428,6 +442,10 @@ export default function IndexScreen() {
   };
 
   const saveMoment = async (): Promise<number | null> => {
+    if (!isMyLife) {
+      Alert.alert('Read Only', 'Creating moments is only available in MyLife.');
+      return null;
+    }
     const desc = descriptionInput.trim();
     if (!desc) return null;
 
@@ -491,6 +509,10 @@ export default function IndexScreen() {
   };
 
   const handleSaveEditedMoment = async () => {
+    if (!isMyLife) {
+      Alert.alert('Read Only', 'Editing is only available in MyLife.');
+      return;
+    }
     if (!editingMomentId || !editingMoment) return;
     const desc = descriptionInput.trim();
     if (!desc) return;
@@ -560,6 +582,10 @@ export default function IndexScreen() {
   };
 
   const handleDeleteEditedMoment = () => {
+    if (!isMyLife) {
+      Alert.alert('Read Only', 'Deleting is only available in MyLife.');
+      return;
+    }
     if (!editingMomentId) return;
     Alert.alert('Delete Moment', 'Are you sure you want to delete this moment?', [
       { text: 'Cancel', style: 'cancel' },
@@ -611,6 +637,10 @@ export default function IndexScreen() {
   };
 
   const handleOpenNewMoment = () => {
+    if (!isMyLife) {
+      Alert.alert('Read Only', 'Creating moments is only available in MyLife.');
+      return;
+    }
     const now = new Date();
     const baseCreateY = viewportHeight / 2 - 60;
     const adjustedCreateY = baseCreateY - timelineTopOffset;
@@ -817,17 +847,21 @@ export default function IndexScreen() {
   const centerDate = new Date(centerTime);
   const dateLabel = format(centerDate, 'EEEE, MMM d, yyyy');
   const timelineY = 60;
-  const visibleMoments = moments.filter((moment) => {
-    const inTimeline =
-      moment.timelineId === DEFAULT_TIMELINE_ID ||
-      (!!userTimelineId && moment.timelineId === userTimelineId);
+  const visibleMoments = activeMoments.filter((moment) => {
     const inRange =
       moment.timestamp >= startTime - visibleTimeRange * 0.1 &&
       moment.timestamp <= endTime + visibleTimeRange * 0.1;
     const passesZoomRule =
       isWeekLevel || isMonthLevel || isYearLevel ? moment.memorable === true : true;
 
-    return inTimeline && inRange && passesZoomRule;
+    if (isMyLife) {
+      const inTimeline =
+        moment.timelineId === DEFAULT_TIMELINE_ID ||
+        (!!userTimelineId && moment.timelineId === userTimelineId);
+      return inTimeline && inRange && passesZoomRule;
+    }
+
+    return inRange && passesZoomRule;
   });
   const orderIndex = new Map(momentOrder.map((id, idx) => [id, idx]));
   const orderedVisibleMoments = [...visibleMoments].sort((a, b) => {
@@ -879,7 +913,7 @@ export default function IndexScreen() {
     setDragMomentYById((prev) => ({ ...prev, [momentId]: nextY }));
   };
 
-  const endMomentDrag = (moment: (typeof moments)[number], releasePageY?: number) => {
+  const endMomentDrag = (moment: (typeof activeMoments)[number], releasePageY?: number) => {
     const momentId = moment.id;
     const start = dragCardStartRef.current;
     const safeMomentY = typeof moment.y === 'number' && Number.isFinite(moment.y) ? moment.y : 70;
@@ -891,7 +925,13 @@ export default function IndexScreen() {
     if (movedDistance < 6) {
       openEditMoment(moment);
     } else {
-      updateMomentY(momentId, finalY);
+      if (isMyLife) {
+        updateMomentY(momentId, finalY);
+      } else if (isOurLife) {
+        updateGroupMomentY(momentId, finalY);
+      } else if (isBabyLife) {
+        updateBabyMomentY(momentId, finalY);
+      }
     }
 
     setDragMomentYById((prev) => {
@@ -921,14 +961,23 @@ export default function IndexScreen() {
 
       {/* Tabs */}
       <View style={styles.tabs}>
-        <TouchableOpacity style={styles.tabActive}>
-          <Text style={styles.tabTextActive}>MyLife</Text>
+        <TouchableOpacity
+          style={isMyLife ? styles.tabActive : styles.tab}
+          onPress={() => setActiveTimeline(DEFAULT_TIMELINE_ID)}
+        >
+          <Text style={isMyLife ? styles.tabTextActive : styles.tabText}>MyLife</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tab}>
-          <Text style={styles.tabText}>OurLife</Text>
+        <TouchableOpacity
+          style={isOurLife ? styles.tabActive : styles.tab}
+          onPress={() => setActiveTimeline(OURLIFE_TIMELINE_ID)}
+        >
+          <Text style={isOurLife ? styles.tabTextActive : styles.tabText}>OurLife</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.tab}>
-          <Text style={styles.tabText}>BabyLife</Text>
+        <TouchableOpacity
+          style={isBabyLife ? styles.tabActive : styles.tab}
+          onPress={() => setActiveTimeline(BABYLIFE_TIMELINE_ID)}
+        >
+          <Text style={isBabyLife ? styles.tabTextActive : styles.tabText}>BabyLife</Text>
         </TouchableOpacity>
       </View>
 

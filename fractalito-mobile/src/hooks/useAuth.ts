@@ -4,6 +4,10 @@ import { supabase } from '../integrations/supabase/client';
 import { redeemInviteCode } from './useInviteCode';
 import { redeemGroupInviteCode } from './useGroupInviteCode';
 import { devLog } from '../utils/logger';
+import * as AuthSession from 'expo-auth-session';
+import * as WebBrowser from 'expo-web-browser';
+
+WebBrowser.maybeCompleteAuthSession();
 
 interface UserProfile {
   username: string;
@@ -133,10 +137,39 @@ export function useAuth() {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
+    const redirectTo = AuthSession.makeRedirectUri({
+      scheme: 'mylife',
+      path: 'auth/callback',
     });
-    return { error };
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo,
+        skipBrowserRedirect: true,
+      },
+    });
+
+    if (error || !data?.url) {
+      return { error: error ?? { message: 'Failed to start Google sign-in' } };
+    }
+
+    const result = await AuthSession.startAsync({
+      authUrl: data.url,
+      returnUrl: redirectTo,
+    });
+
+    if (result.type !== 'success') {
+      return { error: { message: 'Google sign-in was cancelled' } };
+    }
+
+    const code = result.params?.code as string | undefined;
+    if (!code) {
+      return { error: { message: 'Missing auth code from Google sign-in' } };
+    }
+
+    const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+    return { error: exchangeError };
   }, []);
 
   return {

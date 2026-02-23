@@ -2,6 +2,7 @@
   "expo": {
     "name": "MyLife",
     "slug": "mylife",
+    "scheme": "mylife",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

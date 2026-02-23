@@ -3,15 +3,17 @@
 App Name: MyLife
 Publisher: DataKlub
 Contact: altay.said@dataklub.xyz
-Effective Date: February 17, 2026
+Effective Date: February 20, 2026
 
 ## 1. Overview
 This Privacy Policy explains how DataKlub ("we," "us," or "our") collects, uses, and shares information when you use the MyLife mobile application ("the App").
 
 ## 2. Information We Collect
 We collect the following types of information:
-- Account Information: name and email address.
-- User Content: photos you upload to the App.
+- Account Information: email address, and authentication data from sign-in (including Google OAuth if you choose it).
+- Profile Information: username, display name, and avatar image (if you upload one).
+- User Content: timelines and moments you create (for example: descriptions, timestamps, categories, optional people or location tags, and optional photos you attach).
+- Social/Sharing Data: invite codes you generate and their usage, group membership and group moments, and baby timeline access and baby moments if you use those features.
 
 We do not knowingly collect data from anyone under 18 years of age.
 
@@ -23,7 +25,9 @@ We use the information collected to:
 - Respond to support requests.
 
 ## 4. Third-Party Services
-We use Supabase for authentication (login and signup). Supabase may process your account information to provide these services.
+We use Supabase for authentication, database storage, file storage (avatars/photos), and serverless functions. Supabase processes your data to provide these services.
+
+We use Formspree to receive in-app feedback messages you submit.
 
 ## 5. Data Sharing
 We do not sell your personal information. We may share information only:

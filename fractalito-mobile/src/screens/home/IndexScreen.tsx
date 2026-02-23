@@ -63,9 +63,17 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export default function IndexScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user, profile, isAuthenticated } = useAuth();
-  const { connections } = useConnections(user?.id || null);
-  const { groups } = useGroups(user?.id || null);
+  const {
+    connections,
+    searchResults,
+    searching: searchingConnections,
+    searchUsers,
+    addConnection,
+    clearSearchResults,
+  } = useConnections(user?.id || null);
+  const { groups, createGroup, addMemberToGroup } = useGroups(user?.id || null);
   const addMoment = useMomentsStore((state) => state.addMoment);
+  const addGroupMoment = useMomentsStore((state) => state.addGroupMoment);
   const updateMoment = useMomentsStore((state) => state.updateMoment);
   const deleteMoment = useMomentsStore((state) => state.deleteMoment);
   const updateMomentY = useMomentsStore((state) => state.updateMomentY);
@@ -92,6 +100,7 @@ export default function IndexScreen() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [myCircleOpen, setMyCircleOpen] = useState(false);
   const [myCircleSearch, setMyCircleSearch] = useState('');
+  const [addingUserId, setAddingUserId] = useState<string | null>(null);
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
@@ -101,6 +110,7 @@ export default function IndexScreen() {
   const [descriptionInput, setDescriptionInput] = useState('');
   const [peopleInput, setPeopleInput] = useState('');
   const [people, setPeople] = useState<string[]>([]);
+  const [selectedShareGroupIds, setSelectedShareGroupIds] = useState<string[]>([]);
   const [locationInput, setLocationInput] = useState('');
   const [category, setCategory] = useState<Category>('personal');
   const [startDateInput, setStartDateInput] = useState(format(new Date(), 'MM/dd/yyyy'));
@@ -132,7 +142,9 @@ export default function IndexScreen() {
   const isMyLife = activeTimelineId === DEFAULT_TIMELINE_ID;
   const isOurLife = activeTimelineId === OURLIFE_TIMELINE_ID;
   const isBabyLife = activeTimelineId === BABYLIFE_TIMELINE_ID;
-  const activeMoments = isOurLife ? groupMoments : (isBabyLife ? babyMoments : moments);
+  const activeMoments = isOurLife
+    ? (groups.length > 0 ? groupMoments : moments)
+    : (isBabyLife ? babyMoments : moments);
   const editingMoment = editingMomentId ? activeMoments.find((m) => m.id === editingMomentId) ?? null : null;
   const isEditingMoment = !!editingMomentId;
 
@@ -150,6 +162,16 @@ export default function IndexScreen() {
       return next;
     });
   }, [activeMoments]);
+
+  useEffect(() => {
+    if (!myCircleOpen) return;
+    const q = myCircleSearch.trim();
+    if (!q) return;
+    const timer = setTimeout(() => {
+      searchUsers(q);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [myCircleOpen, myCircleSearch, searchUsers]);
 
   const bringMomentToFront = (momentId: string) => {
     setMomentOrder((prev) => {
@@ -331,6 +353,7 @@ export default function IndexScreen() {
     setEndPickerMonth(now);
     setKeepOriginalSize(false);
     setPhoto(null);
+    setSelectedShareGroupIds([]);
     setCreateMomentY(null);
   };
 
@@ -442,8 +465,8 @@ export default function IndexScreen() {
   };
 
   const saveMoment = async (): Promise<number | null> => {
-    if (!isMyLife) {
-      Alert.alert('Read Only', 'Creating moments is only available in MyLife.');
+    if (!isMyLife && !isOurLife) {
+      Alert.alert('Read Only', 'Creating moments is only available in MyLife and OurLife.');
       return null;
     }
     const desc = descriptionInput.trim();
@@ -475,8 +498,7 @@ export default function IndexScreen() {
     try {
       const initialY = typeof createMomentY === 'number' ? createMomentY : 70;
       const initialWidth = getDefaultMomentWidth(msPerPixel);
-
-      await addMoment({
+      const payload = {
         timestamp: startTs,
         endTime: endTs,
         y: initialY,
@@ -487,7 +509,24 @@ export default function IndexScreen() {
         memorable,
         photo: photo || undefined,
         width: initialWidth,
-      });
+      };
+
+      if (isOurLife) {
+        if (groups.length === 0) {
+          await addMoment(payload);
+        } else {
+          if (selectedShareGroupIds.length === 0) {
+            Alert.alert('Select Group', 'Choose at least one group in Share to groups.');
+            return null;
+          }
+          await Promise.all(selectedShareGroupIds.map((groupId) => addGroupMoment(groupId, payload)));
+        }
+      } else {
+        await addMoment(payload);
+        if (selectedShareGroupIds.length > 0) {
+          await Promise.all(selectedShareGroupIds.map((groupId) => addGroupMoment(groupId, payload)));
+        }
+      }
       return startTs;
     } catch (error) {
       console.error('Error creating moment:', error);
@@ -609,6 +648,55 @@ export default function IndexScreen() {
     setPeopleInput('');
   };
 
+  const handleAddToCircleAndCreateGroup = async (targetUser: { userId: string; username: string }) => {
+    if (addingUserId) return;
+    setAddingUserId(targetUser.userId);
+    try {
+      const { error: addErr } = await addConnection(targetUser.userId);
+      if (addErr) {
+        Alert.alert('Could not add to circle', addErr);
+        return;
+      }
+
+      const existingGroup = groups.find((g) => g.name.toLowerCase() === targetUser.username.toLowerCase());
+      if (existingGroup) {
+        await addMemberToGroup(existingGroup.id, targetUser.userId);
+        Alert.alert('Done', `${targetUser.username} was added to your circle and invited to group "${existingGroup.name}".`);
+      } else {
+        const newGroup = await createGroup(targetUser.username, [targetUser.userId]);
+        if (!newGroup) {
+          Alert.alert('Partial success', `${targetUser.username} was added to your circle, but group creation failed.`);
+          return;
+        }
+        Alert.alert('Done', `${targetUser.username} was added to your circle and invited to group "${newGroup.name}".`);
+      }
+      setMyCircleSearch('');
+      clearSearchResults();
+    } finally {
+      setAddingUserId(null);
+    }
+  };
+
+  const handleCreateGroupFromSearch = async () => {
+    if (searchResults.length === 0) {
+      Alert.alert('No user selected', 'Search a username first, then tap Add next to that user.');
+      return;
+    }
+    await handleAddToCircleAndCreateGroup(searchResults[0]);
+  };
+
+  const handleCloseMyCircle = () => {
+    setMyCircleOpen(false);
+    setMyCircleSearch('');
+    clearSearchResults();
+  };
+
+  const toggleShareGroup = (groupId: string) => {
+    setSelectedShareGroupIds((prev) =>
+      prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
+    );
+  };
+
   const handlePickPhoto = async (fromCamera: boolean) => {
     try {
       if (fromCamera) {
@@ -637,8 +725,8 @@ export default function IndexScreen() {
   };
 
   const handleOpenNewMoment = () => {
-    if (!isMyLife) {
-      Alert.alert('Read Only', 'Creating moments is only available in MyLife.');
+    if (!isMyLife && !isOurLife) {
+      Alert.alert('Read Only', 'Creating moments is only available in MyLife and OurLife.');
       return;
     }
     const now = new Date();
@@ -650,6 +738,7 @@ export default function IndexScreen() {
     setEndDatePickerOpen(false);
     setEndTimePickerOpen(false);
     setEndPickerMonth(now);
+    setSelectedShareGroupIds(isOurLife && groups[0] ? [groups[0].id] : []);
     setCreateMomentY(adjustedCreateY);
     setNewMomentOpen(true);
   };
@@ -1237,8 +1326,8 @@ export default function IndexScreen() {
         </View>
       </View>
 
-      <Modal visible={myCircleOpen} transparent animationType="fade" onRequestClose={() => setMyCircleOpen(false)}>
-        <Pressable style={styles.newMomentOverlay} onPress={() => setMyCircleOpen(false)}>
+      <Modal visible={myCircleOpen} transparent animationType="fade" onRequestClose={handleCloseMyCircle}>
+        <Pressable style={styles.newMomentOverlay} onPress={handleCloseMyCircle}>
           <View />
         </Pressable>
         <View style={styles.newMomentOverlayCard}>
@@ -1248,7 +1337,7 @@ export default function IndexScreen() {
                 <Text style={styles.myCircleTitle}>My Circle</Text>
                 <Text style={styles.myCircleSubtitle}>Manage your connections and groups</Text>
               </View>
-              <TouchableOpacity onPress={() => setMyCircleOpen(false)}>
+              <TouchableOpacity onPress={handleCloseMyCircle}>
                 <Text style={styles.newMomentClose}>x</Text>
               </TouchableOpacity>
             </View>
@@ -1263,6 +1352,38 @@ export default function IndexScreen() {
                 onChangeText={setMyCircleSearch}
               />
             </View>
+
+            {myCircleSearch.trim().length > 0 && (
+              <View style={styles.myCircleSearchResults}>
+                {searchingConnections ? (
+                  <Text style={styles.myCircleSearchState}>Searching...</Text>
+                ) : searchResults.length === 0 ? (
+                  <Text style={styles.myCircleSearchState}>No user found with that username.</Text>
+                ) : (
+                  searchResults.map((result) => (
+                    <View key={result.userId} style={styles.myCircleSearchResultRow}>
+                      <View style={styles.myCircleSearchResultLeft}>
+                        <View style={styles.myCircleSearchAvatar}>
+                          <Text style={styles.myCircleSearchAvatarText}>
+                            {result.username.charAt(0).toUpperCase()}
+                          </Text>
+                        </View>
+                        <Text style={styles.myCircleSearchUsername}>@{result.username}</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={styles.myCircleSearchAddBtn}
+                        onPress={() => handleAddToCircleAndCreateGroup(result)}
+                        disabled={addingUserId === result.userId}
+                      >
+                        <Text style={styles.myCircleSearchAddText}>
+                          {addingUserId === result.userId ? '...' : 'Add'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
 
             <Text style={styles.myCircleSectionLabel}>In your circle ({connections.length})</Text>
             {connections.length === 0 ? (
@@ -1282,7 +1403,7 @@ export default function IndexScreen() {
 
             <View style={styles.myCircleSectionHeader}>
               <Text style={styles.myCircleSectionLabel}>Groups ({groups.length})</Text>
-              <TouchableOpacity style={styles.myCircleActionButton}>
+              <TouchableOpacity style={styles.myCircleActionButton} onPress={handleCreateGroupFromSearch}>
                 <Text style={styles.myCircleActionButtonText}>+ New Group</Text>
               </TouchableOpacity>
             </View>
@@ -1568,6 +1689,31 @@ export default function IndexScreen() {
                   </View>
                   <Switch value={keepOriginalSize} onValueChange={setKeepOriginalSize} />
                 </View>
+
+                {!isEditingMoment && (
+                  <View style={styles.shareGroupsSection}>
+                    <Text style={styles.newMomentLabel}>Share to groups</Text>
+                    {groups.length === 0 ? (
+                      <Text style={styles.shareGroupsEmptyText}>No groups yet. Create one in My Circle.</Text>
+                    ) : (
+                      groups.map((group) => {
+                        const selected = selectedShareGroupIds.includes(group.id);
+                        return (
+                          <TouchableOpacity
+                            key={group.id}
+                            style={styles.shareGroupRow}
+                            onPress={() => toggleShareGroup(group.id)}
+                          >
+                            <View style={[styles.shareGroupCheckbox, selected && styles.shareGroupCheckboxActive]}>
+                              {selected && <Text style={styles.shareGroupCheckmark}>✓</Text>}
+                            </View>
+                            <Text style={styles.shareGroupName}>{group.name}</Text>
+                          </TouchableOpacity>
+                        );
+                      })
+                    )}
+                  </View>
+                )}
                 {isEditingMoment && (
                   <TouchableOpacity style={styles.deleteMomentButton} onPress={handleDeleteEditedMoment}>
                     <Text style={styles.deleteMomentText}>Delete Moment</Text>
@@ -2769,6 +2915,46 @@ const styles = StyleSheet.create({
     color: '#7a8598',
     marginTop: 2,
   },
+  shareGroupsSection: {
+    borderTopWidth: 1,
+    borderTopColor: '#d8dde5',
+    paddingTop: 14,
+    gap: 10,
+  },
+  shareGroupRow: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  shareGroupCheckbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#c2cad8',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareGroupCheckboxActive: {
+    backgroundColor: '#111827',
+    borderColor: '#111827',
+  },
+  shareGroupCheckmark: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
+  shareGroupName: {
+    fontSize: 16,
+    color: '#303846',
+  },
+  shareGroupsEmptyText: {
+    fontSize: 14,
+    color: '#6c778b',
+  },
   myCircleCard: {
     width: '100%',
     maxWidth: 760,
@@ -2813,6 +2999,66 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     color: '#303846',
+  },
+  myCircleSearchResults: {
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    borderRadius: 10,
+    backgroundColor: '#f4f5f7',
+    overflow: 'hidden',
+  },
+  myCircleSearchState: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#6c778b',
+  },
+  myCircleSearchResultRow: {
+    minHeight: 64,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: '#e2e7ef',
+  },
+  myCircleSearchResultLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  myCircleSearchAvatar: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#e9edf3',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  myCircleSearchAvatarText: {
+    fontSize: 20,
+    color: '#2f3746',
+  },
+  myCircleSearchUsername: {
+    fontSize: 22,
+    color: '#303846',
+    fontWeight: '500',
+  },
+  myCircleSearchAddBtn: {
+    minWidth: 64,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  myCircleSearchAddText: {
+    fontSize: 15,
+    color: '#303846',
+    fontWeight: '600',
   },
   myCircleSectionHeader: {
     flexDirection: 'row',

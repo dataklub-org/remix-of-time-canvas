@@ -86,26 +86,45 @@ export function useConnections(userId: string | null) {
   // Search for users by exact username match (prevents user enumeration)
   const searchUsers = useCallback(async (query: string) => {
     const trimmedQuery = query.trim();
-    if (!trimmedQuery) {
+    const normalizedQuery = trimmedQuery.replace(/^@+/, '').toLowerCase();
+    if (!normalizedQuery) {
       setSearchResults([]);
       return;
     }
 
     setSearching(true);
     try {
-      // Use secure RPC function for exact match lookup (prevents enumeration)
-      const { data, error } = await supabase
-        .rpc('lookup_username_exact', { search_username: trimmedQuery });
+      type UsernameRow = { user_id: string; username: string };
+      let rows: UsernameRow[] = [];
 
-      if (error) throw error;
+      // Prefer exact lookup RPC when available.
+      const { data: exactData, error: exactError } = await supabase
+        .rpc('lookup_username_exact', { search_username: normalizedQuery });
+
+      if (!exactError && exactData) {
+        rows = exactData as UsernameRow[];
+      }
+
+      // Fallback for broader search behavior in clients (e.g. partial username typing).
+      if (rows.length === 0 && normalizedQuery.length >= 2) {
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('public_usernames')
+          .select('user_id, username')
+          .ilike('username', `%${normalizedQuery}%`)
+          .limit(10);
+
+        if (!fallbackError && fallbackData) {
+          rows = fallbackData as UsernameRow[];
+        }
+      }
 
       // Filter out current user and already connected users
       const connectedIds = new Set(connections.map(c => c.connectedUserId));
       connectedIds.add(userId || '');
 
-      const results: UserSearchResult[] = (data || [])
-        .filter((p: { user_id: string; username: string }) => !connectedIds.has(p.user_id))
-        .map((p: { user_id: string; username: string }) => ({
+      const results: UserSearchResult[] = rows
+        .filter((p) => !connectedIds.has(p.user_id))
+        .map((p) => ({
           userId: p.user_id,
           username: p.username,
           displayName: null, // Not exposed for non-connected users

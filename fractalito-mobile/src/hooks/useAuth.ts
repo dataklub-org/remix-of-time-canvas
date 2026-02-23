@@ -6,6 +6,7 @@ import { redeemGroupInviteCode } from './useGroupInviteCode';
 import { devLog } from '../utils/logger';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
+import Constants from 'expo-constants';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -137,10 +138,14 @@ export function useAuth() {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
+    devLog('[GoogleAuth] start');
+    const useProxy = Constants.appOwnership === 'expo';
     const redirectTo = AuthSession.makeRedirectUri({
       scheme: 'mylife',
       path: 'auth/callback',
+      useProxy,
     });
+    devLog('[GoogleAuth] redirectTo', redirectTo, { useProxy });
 
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -151,24 +156,26 @@ export function useAuth() {
     });
 
     if (error || !data?.url) {
+      devLog('[GoogleAuth] signInWithOAuth error', error);
       return { error: error ?? { message: 'Failed to start Google sign-in' } };
     }
 
-    const result = await AuthSession.startAsync({
-      authUrl: data.url,
-      returnUrl: redirectTo,
-    });
-
-    if (result.type !== 'success') {
+    devLog('[GoogleAuth] authUrl', data.url);
+    const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+    devLog('[GoogleAuth] authSession result', result);
+    if (result.type !== 'success' || !result.url) {
       return { error: { message: 'Google sign-in was cancelled' } };
     }
 
-    const code = result.params?.code as string | undefined;
+    const parsed = AuthSession.parseUrl(result.url);
+    devLog('[GoogleAuth] parsed callback', parsed);
+    const code = parsed.params?.code as string | undefined;
     if (!code) {
       return { error: { message: 'Missing auth code from Google sign-in' } };
     }
 
     const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+    devLog('[GoogleAuth] exchange result', exchangeError ? 'error' : 'success');
     return { error: exchangeError };
   }, []);
 

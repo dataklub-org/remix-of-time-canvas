@@ -1039,11 +1039,15 @@ export default function IndexScreen() {
       <View style={styles.header}>
         <Text style={styles.logo}>fractalito</Text>
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.myCircleButton} onPress={() => setMyCircleOpen(true)}>
-            <Text style={styles.myCircleText}>My Circle</Text>
+          <TouchableOpacity style={styles.myCircleButton} onPress={() => setMyCircleOpen(true)} activeOpacity={0.85}>
+            <Text style={styles.myCircleText}>👥  My Circle</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.signInButton} onPress={() => navigation.navigate('Profile')}>
-            <Text style={styles.signInText}>{profile?.username || user?.email || 'Profile'}</Text>
+          <TouchableOpacity
+            style={styles.myProfileButton}
+            onPress={() => navigation.navigate('Profile')}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.myProfileText}>👤  My Profile</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1984,7 +1988,7 @@ export default function IndexScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fafafa',
+    backgroundColor: '#ffffff',
     position: 'relative',
   },
   header: {
@@ -1992,38 +1996,48 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
+    paddingTop: 10,
+    paddingBottom: 12,
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#efefef',
   },
   logo: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    fontStyle: 'italic',
+    fontSize: 21,
+    fontWeight: '700',
+    letterSpacing: -0.4,
+    color: '#111111',
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
   },
   myCircleButton: {
-    backgroundColor: '#000',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    height: 38,
+    paddingHorizontal: 14,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: '#111111',
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   myCircleText: {
-    color: '#fff',
+    color: '#111111',
     fontSize: 14,
     fontWeight: '600',
   },
-  signInButton: {
-    backgroundColor: '#000',
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
+  myProfileButton: {
+    height: 38,
+    paddingHorizontal: 14,
+    borderRadius: 19,
+    backgroundColor: '#111111',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  signInText: {
-    color: '#fff',
+  myProfileText: {
+    color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -2032,7 +2046,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 12,
-    backgroundColor: '#fafafa',
+    backgroundColor: '#ffffff',
   },
   tab: {
     paddingHorizontal: 20,

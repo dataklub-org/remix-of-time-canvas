@@ -40,7 +40,9 @@ interface MomentsStore {
   addMoment: (moment: Omit<Moment, 'id' | 'createdAt' | 'updatedAt' | 'timelineId'>) => Promise<void>;
   addGroupMoment: (groupId: string, moment: Omit<Moment, 'id' | 'createdAt' | 'updatedAt' | 'timelineId'>) => Promise<void>;
   updateMoment: (id: string, updates: Partial<Omit<Moment, 'id' | 'createdAt'>>) => Promise<void>;
+  updateGroupMoment: (id: string, updates: Partial<Omit<Moment, 'id' | 'createdAt'>>) => Promise<void>;
   deleteMoment: (id: string) => Promise<void>;
+  deleteGroupMoment: (id: string) => Promise<void>;
   updateMomentY: (id: string, y: number) => void;
   updateGroupMomentY: (id: string, y: number) => void;
   updateBabyMomentY: (id: string, y: number) => void;
@@ -445,6 +447,41 @@ export const useMomentsStore = create<MomentsStore>()(
           }));
         }
       },
+      updateGroupMoment: async (id, updates) => {
+        const { userId } = get();
+        if (!userId) return;
+
+        try {
+          const supabaseUpdates: any = {};
+
+          if (updates.timestamp !== undefined) supabaseUpdates.start_time = updates.timestamp;
+          if (updates.endTime !== undefined) supabaseUpdates.end_time = updates.endTime || null;
+          if (updates.y !== undefined) supabaseUpdates.y_position = updates.y;
+          if (updates.description !== undefined) supabaseUpdates.description = updates.description;
+          if (updates.people !== undefined) supabaseUpdates.people = updates.people || null;
+          if (updates.location !== undefined) supabaseUpdates.location = updates.location || null;
+          if (updates.category !== undefined) supabaseUpdates.category = updates.category;
+          if (updates.memorable !== undefined) supabaseUpdates.memorable = updates.memorable;
+          if (updates.photo !== undefined) supabaseUpdates.photo_url = updates.photo || null;
+          if (updates.width !== undefined) supabaseUpdates.width = updates.width;
+          if (updates.height !== undefined) supabaseUpdates.height = updates.height;
+
+          const { error } = await supabase
+            .from('group_moments')
+            .update(supabaseUpdates)
+            .eq('id', id);
+
+          if (error) throw error;
+
+          set((state) => ({
+            groupMoments: state.groupMoments.map((m) =>
+              m.id === id ? { ...m, ...updates, updatedAt: Date.now() } : m
+            ),
+          }));
+        } catch (error) {
+          console.error('Error updating group moment:', error);
+        }
+      },
 
       deleteMoment: async (id) => {
         const { isAuthenticated, userId } = get();
@@ -471,6 +508,22 @@ export const useMomentsStore = create<MomentsStore>()(
           set((state) => ({
             moments: state.moments.filter((m) => m.id !== id),
           }));
+        }
+      },
+      deleteGroupMoment: async (id) => {
+        try {
+          const { error } = await supabase
+            .from('group_moments')
+            .delete()
+            .eq('id', id);
+
+          if (error) throw error;
+
+          set((state) => ({
+            groupMoments: state.groupMoments.filter((m) => m.id !== id),
+          }));
+        } catch (error) {
+          console.error('Error deleting group moment:', error);
         }
       },
 

@@ -14,6 +14,7 @@ import {
   Platform,
   ScrollView,
   Image,
+  Clipboard,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -25,10 +26,12 @@ import { useAuth } from '../../hooks/useAuth';
 import { useMomentsStore, DEFAULT_TIMELINE_ID, OURLIFE_TIMELINE_ID, BABYLIFE_TIMELINE_ID } from '../../stores/useMomentsStore';
 import type { Category } from '../../types/moment';
 import { useConnections } from '../../hooks/useConnections';
-import { useGroups } from '../../hooks/useGroups';
+import { useGroups, type GroupMember } from '../../hooks/useGroups';
 import * as ImagePicker from 'expo-image-picker';
 import { devLog } from '../../utils/logger';
 import { FEEDBACK_URL } from '../../config/appConfig';
+import { supabase } from '../../integrations/supabase/client';
+import { nanoid } from 'nanoid';
 import {
   format,
   addDays,
@@ -71,11 +74,13 @@ export default function IndexScreen() {
     addConnection,
     clearSearchResults,
   } = useConnections(user?.id || null);
-  const { groups, createGroup, addMemberToGroup } = useGroups(user?.id || null);
+  const { groups, createGroup, addMemberToGroup, getGroupMembers, deleteGroup } = useGroups(user?.id || null);
   const addMoment = useMomentsStore((state) => state.addMoment);
   const addGroupMoment = useMomentsStore((state) => state.addGroupMoment);
   const updateMoment = useMomentsStore((state) => state.updateMoment);
+  const updateGroupMoment = useMomentsStore((state) => state.updateGroupMoment);
   const deleteMoment = useMomentsStore((state) => state.deleteMoment);
+  const deleteGroupMoment = useMomentsStore((state) => state.deleteGroupMoment);
   const updateMomentY = useMomentsStore((state) => state.updateMomentY);
   const updateGroupMomentY = useMomentsStore((state) => state.updateGroupMomentY);
   const updateBabyMomentY = useMomentsStore((state) => state.updateBabyMomentY);
@@ -126,6 +131,17 @@ export default function IndexScreen() {
   const [endPickerHour, setEndPickerHour] = useState<number>(10);
   const [endPickerMinute, setEndPickerMinute] = useState<number>(0);
   const [endPickerPeriod, setEndPickerPeriod] = useState<'AM' | 'PM'>('AM');
+  const [selectedOurLifeGroupId, setSelectedOurLifeGroupId] = useState<string | null>(null);
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
+  const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
+  const [loadingGroupMembers, setLoadingGroupMembers] = useState(false);
+  const [inviteCodes, setInviteCodes] = useState<Record<string, { id: string; code: string; createdAt: string } | null>>({});
+  const [loadingInviteGroupId, setLoadingInviteGroupId] = useState<string | null>(null);
+  const [generatingInviteGroupId, setGeneratingInviteGroupId] = useState<string | null>(null);
+  const [deletingInviteGroupId, setDeletingInviteGroupId] = useState<string | null>(null);
+  const [copiedInviteGroupId, setCopiedInviteGroupId] = useState<string | null>(null);
   const endDateFieldRef = useRef<any>(null);
   const endTimeFieldRef = useRef<any>(null);
   const [endDateAnchor, setEndDateAnchor] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -151,9 +167,16 @@ export default function IndexScreen() {
     });
     return merged;
   }, [isMyLife, moments, groupMoments]);
+  const filteredGroupMoments = useMemo(
+    () =>
+      selectedOurLifeGroupId
+        ? groupMoments.filter((m) => m.groupId === selectedOurLifeGroupId)
+        : groupMoments,
+    [groupMoments, selectedOurLifeGroupId]
+  );
   const activeMoments = useMemo(
-    () => (isOurLife ? groupMoments : (isBabyLife ? babyMoments : myLifeMoments)),
-    [isOurLife, isBabyLife, groupMoments, babyMoments, myLifeMoments]
+    () => (isOurLife ? filteredGroupMoments : (isBabyLife ? babyMoments : myLifeMoments)),
+    [isOurLife, isBabyLife, filteredGroupMoments, babyMoments, myLifeMoments]
   );
   const editingMoment = editingMomentId ? activeMoments.find((m) => m.id === editingMomentId) ?? null : null;
   const isEditingMoment = !!editingMomentId;
@@ -161,6 +184,12 @@ export default function IndexScreen() {
   useEffect(() => {
     setAuthenticated(isAuthenticated, user?.id || null);
   }, [isAuthenticated, setAuthenticated, user?.id]);
+
+  useEffect(() => {
+    if (!selectedOurLifeGroupId) return;
+    if (groups.some((g) => g.id === selectedOurLifeGroupId)) return;
+    setSelectedOurLifeGroupId(null);
+  }, [groups, selectedOurLifeGroupId]);
 
   useEffect(() => {
     setMomentOrder((prev) => {
@@ -400,10 +429,6 @@ export default function IndexScreen() {
       Alert.alert('Read Only', 'Editing is only available in MyLife.');
       return;
     }
-    if (moment.groupId) {
-      Alert.alert('Read Only', 'Shared moments are read-only in MyLife. Open OurLife to edit.');
-      return;
-    }
     setEditingMomentId(moment.id);
     loadFormFromMoment(moment);
     setNewMomentOpen(true);
@@ -567,10 +592,6 @@ export default function IndexScreen() {
       return;
     }
     if (!editingMomentId || !editingMoment) return;
-    if (editingMoment.groupId) {
-      Alert.alert('Read Only', 'Shared moments are read-only in MyLife.');
-      return;
-    }
     const desc = descriptionInput.trim();
     if (!desc) return;
 
@@ -598,7 +619,8 @@ export default function IndexScreen() {
 
     setSavingMoment(true);
     try {
-      await updateMoment(editingMomentId, {
+      const updater = editingMoment.groupId ? updateGroupMoment : updateMoment;
+      await updater(editingMomentId, {
         timestamp: startTs,
         endTime: endTs,
         description: desc,
@@ -644,17 +666,14 @@ export default function IndexScreen() {
       return;
     }
     if (!editingMomentId) return;
-    if (editingMoment?.groupId) {
-      Alert.alert('Read Only', 'Shared moments are read-only in MyLife.');
-      return;
-    }
     Alert.alert('Delete Moment', 'Are you sure you want to delete this moment?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
-          await deleteMoment(editingMomentId);
+          const deleter = editingMoment?.groupId ? deleteGroupMoment : deleteMoment;
+          await deleter(editingMomentId);
           setEditingMomentId(null);
           resetNewMomentForm();
           setNewMomentOpen(false);
@@ -711,12 +730,138 @@ export default function IndexScreen() {
     setMyCircleOpen(false);
     setMyCircleSearch('');
     clearSearchResults();
+    setCreatingGroup(false);
+    setNewGroupName('');
+    setExpandedGroupId(null);
+    setGroupMembers([]);
   };
 
   const toggleShareGroup = (groupId: string) => {
     setSelectedShareGroupIds((prev) =>
       prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
     );
+  };
+
+  const handleCreateGroupFromName = async () => {
+    const name = newGroupName.trim();
+    if (!name) return;
+    try {
+      const group = await createGroup(name, []);
+      if (!group) {
+        Alert.alert('Error', 'Failed to create group');
+        return;
+      }
+      setNewGroupName('');
+      setCreatingGroup(false);
+      await handleExpandGroup(group.id);
+    } catch (error) {
+      console.error('Error creating group:', error);
+      Alert.alert('Error', 'Failed to create group');
+    }
+  };
+
+  const handleExpandGroup = async (groupId: string) => {
+    if (expandedGroupId === groupId) {
+      setExpandedGroupId(null);
+      return;
+    }
+    setExpandedGroupId(groupId);
+    setLoadingGroupMembers(true);
+    try {
+      const members = await getGroupMembers(groupId);
+      setGroupMembers(members);
+    } finally {
+      setLoadingGroupMembers(false);
+    }
+    await loadGroupInviteCode(groupId);
+  };
+
+  const loadGroupInviteCode = async (groupId: string) => {
+    if (!user?.id) return;
+    setLoadingInviteGroupId(groupId);
+    try {
+      const { data, error } = await supabase
+        .from('group_invite_codes')
+        .select('id, code, created_at')
+        .eq('group_id', groupId)
+        .eq('inviter_user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      setInviteCodes((prev) => ({
+        ...prev,
+        [groupId]: data
+          ? { id: data.id, code: data.code, createdAt: data.created_at }
+          : null,
+      }));
+    } catch (error) {
+      console.error('Error loading group invite code:', error);
+    } finally {
+      setLoadingInviteGroupId(null);
+    }
+  };
+
+  const generateGroupInviteCode = async (groupId: string) => {
+    if (!user?.id) return;
+    setGeneratingInviteGroupId(groupId);
+    try {
+      const code = nanoid(10);
+      const { data, error } = await supabase
+        .from('group_invite_codes')
+        .insert({
+          code,
+          group_id: groupId,
+          inviter_user_id: user.id,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      setInviteCodes((prev) => ({
+        ...prev,
+        [groupId]: { id: data.id, code: data.code, createdAt: data.created_at },
+      }));
+      Alert.alert('Invite link generated');
+    } catch (error) {
+      console.error('Error generating group invite code:', error);
+      Alert.alert('Error', 'Failed to generate invite link');
+    } finally {
+      setGeneratingInviteGroupId(null);
+    }
+  };
+
+  const deleteGroupInviteCode = async (groupId: string) => {
+    const invite = inviteCodes[groupId];
+    if (!invite) return;
+    setDeletingInviteGroupId(groupId);
+    try {
+      const { error } = await supabase
+        .from('group_invite_codes')
+        .delete()
+        .eq('id', invite.id);
+      if (error) throw error;
+      setInviteCodes((prev) => ({ ...prev, [groupId]: null }));
+      Alert.alert('Invite link deleted');
+    } catch (error) {
+      console.error('Error deleting group invite code:', error);
+      Alert.alert('Error', 'Failed to delete invite link');
+    } finally {
+      setDeletingInviteGroupId(null);
+    }
+  };
+
+  const copyGroupInviteLink = async (groupId: string) => {
+    const invite = inviteCodes[groupId];
+    if (!invite) return;
+    const inviteLink = `mylife://auth?group_invite=${invite.code}`;
+    Clipboard.setString(inviteLink);
+    setCopiedInviteGroupId(groupId);
+    Alert.alert('Copied', 'Invite link copied');
+    setTimeout(() => {
+      setCopiedInviteGroupId((current) => (current === groupId ? null : current));
+    }, 2000);
   };
 
   const handlePickPhoto = async (fromCamera: boolean) => {
@@ -1041,7 +1186,7 @@ export default function IndexScreen() {
     } else {
       if (isMyLife) {
         if (moment.groupId) {
-          // Shared moments are read-only in MyLife.
+          updateGroupMomentY(momentId, finalY);
         } else {
           updateMomentY(momentId, finalY);
         }
@@ -1102,6 +1247,32 @@ export default function IndexScreen() {
           <Text style={isBabyLife ? styles.tabTextActive : styles.tabText}>BabyLife</Text>
         </TouchableOpacity>
       </View>
+      {isOurLife && (
+        <View style={styles.groupSwitcher}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <TouchableOpacity
+              style={!selectedOurLifeGroupId ? styles.groupChipActive : styles.groupChip}
+              onPress={() => setSelectedOurLifeGroupId(null)}
+            >
+              <Text style={!selectedOurLifeGroupId ? styles.groupChipTextActive : styles.groupChipText}>All groups</Text>
+            </TouchableOpacity>
+            {groups.map((group) => {
+              const isActive = selectedOurLifeGroupId === group.id;
+              return (
+                <TouchableOpacity
+                  key={group.id}
+                  style={isActive ? styles.groupChipActive : styles.groupChip}
+                  onPress={() => setSelectedOurLifeGroupId(group.id)}
+                >
+                  <Text style={isActive ? styles.groupChipTextActive : styles.groupChipText}>
+                    {group.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+      )}
 
       {/* Timeline Canvas */}
       <View style={styles.canvasContainer}>
@@ -1436,28 +1607,157 @@ export default function IndexScreen() {
 
             <View style={styles.myCircleSectionHeader}>
               <Text style={styles.myCircleSectionLabel}>Groups ({groups.length})</Text>
-              <TouchableOpacity style={styles.myCircleActionButton} onPress={handleCreateGroupFromSearch}>
-                <Text style={styles.myCircleActionButtonText}>+ New Group</Text>
-              </TouchableOpacity>
+              {!creatingGroup && (
+                <TouchableOpacity style={styles.myCircleActionButton} onPress={() => setCreatingGroup(true)}>
+                  <Text style={styles.myCircleActionButtonText}>+ New Group</Text>
+                </TouchableOpacity>
+              )}
             </View>
+            {creatingGroup && (
+              <View style={styles.myCircleCreateGroupCard}>
+                <TextInput
+                  style={styles.myCircleCreateInput}
+                  placeholder="Group name..."
+                  placeholderTextColor="#7a8598"
+                  value={newGroupName}
+                  onChangeText={setNewGroupName}
+                />
+                <View style={styles.myCircleCreateActions}>
+                  <TouchableOpacity
+                    style={[styles.myCircleCreateButton, !newGroupName.trim() && styles.myCircleCreateButtonDisabled]}
+                    onPress={handleCreateGroupFromName}
+                    disabled={!newGroupName.trim()}
+                  >
+                    <Text style={styles.myCircleCreateButtonText}>Create Group</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.myCircleCreateCancelButton}
+                    onPress={() => {
+                      setCreatingGroup(false);
+                      setNewGroupName('');
+                    }}
+                  >
+                    <Text style={styles.myCircleCreateCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
             {groups.length === 0 ? (
               <Text style={styles.myCircleEmptyText}>
                 No groups yet. Create one to start sharing moments!
               </Text>
             ) : (
-              groups.slice(0, 1).map((group) => (
-                <View key={group.id} style={styles.myCircleGroupCard}>
-                  <View style={styles.myCircleGroupLeft}>
-                    <Text style={styles.myCircleRowDot}>●</Text>
-                    <Text style={styles.myCircleGroupName}>{group.name}</Text>
-                    <Text style={styles.myCircleGroupMeta}>{group.memberCount || 0} member</Text>
+              groups.map((group) => {
+                const isExpanded = expandedGroupId === group.id;
+                const invite = inviteCodes[group.id] || null;
+                return (
+                  <View key={group.id} style={styles.myCircleGroupCard}>
+                    <TouchableOpacity
+                      style={styles.myCircleGroupHeader}
+                      onPress={() => handleExpandGroup(group.id)}
+                      activeOpacity={0.85}
+                    >
+                      <View style={styles.myCircleGroupLeft}>
+                        <Text style={styles.myCircleRowDot}>?</Text>
+                        <Text style={styles.myCircleGroupName}>{group.name}</Text>
+                        <Text style={styles.myCircleGroupMeta}>
+                          {group.memberCount || 0} member{(group.memberCount || 0) === 1 ? '' : 's'}
+                        </Text>
+                      </View>
+                      <Text style={styles.myCircleGroupExpand}>{isExpanded ? '?' : '+'}</Text>
+                    </TouchableOpacity>
+                    {isExpanded && (
+                      <View style={styles.myCircleGroupExpanded}>
+                        {loadingGroupMembers ? (
+                          <ActivityIndicator size="small" color="#666" />
+                        ) : (
+                          <View>
+                            {groupMembers.length === 0 ? (
+                              <Text style={styles.myCircleEmptyText}>No members yet.</Text>
+                            ) : (
+                              groupMembers.map((member) => (
+                                <View key={member.id} style={styles.myCircleMemberRow}>
+                                  <View style={styles.myCircleMemberAvatar}>
+                                    <Text style={styles.myCircleMemberAvatarText}>
+                                      {(member.username || '?').charAt(0).toUpperCase()}
+                                    </Text>
+                                  </View>
+                                  <Text style={styles.myCircleMemberText}>
+                                    @{member.username || 'unknown'}
+                                    {member.userId === user?.id ? ' (you)' : ''}
+                                  </Text>
+                                </View>
+                              ))
+                            )}
+                          </View>
+                        )}
+                        <View style={styles.myCircleInviteSection}>
+                          <Text style={styles.myCircleInviteLabel}>Invite others to join:</Text>
+                          {loadingInviteGroupId === group.id ? (
+                            <ActivityIndicator size="small" color="#666" />
+                          ) : invite ? (
+                            <View style={styles.myCircleInviteActions}>
+                              <TouchableOpacity
+                                style={styles.myCircleInviteButton}
+                                onPress={() => copyGroupInviteLink(group.id)}
+                              >
+                                <Text style={styles.myCircleInviteButtonText}>
+                                  {copiedInviteGroupId === group.id ? 'Copied!' : 'Copy Invite Link'}
+                                </Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
+                                style={styles.myCircleInviteDeleteButton}
+                                onPress={() => deleteGroupInviteCode(group.id)}
+                                disabled={deletingInviteGroupId === group.id}
+                              >
+                                <Text style={styles.myCircleInviteDeleteText}>
+                                  {deletingInviteGroupId === group.id ? '...' : 'Delete'}
+                                </Text>
+                              </TouchableOpacity>
+                            </View>
+                          ) : (
+                            <TouchableOpacity
+                              style={styles.myCircleInviteButton}
+                              onPress={() => generateGroupInviteCode(group.id)}
+                              disabled={generatingInviteGroupId === group.id}
+                            >
+                              <Text style={styles.myCircleInviteButtonText}>
+                                {generatingInviteGroupId === group.id ? 'Generating...' : 'Generate Invite Link'}
+                              </Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                        {group.createdBy === user?.id && (
+                          <TouchableOpacity
+                            style={styles.myCircleDeleteGroupButton}
+                            onPress={() => {
+                              Alert.alert(
+                                'Delete Group',
+                                'Are you sure you want to delete this group? This is a temporary action.',
+                                [
+                                  { text: 'Cancel', style: 'cancel' },
+                                  {
+                                    text: 'Delete',
+                                    style: 'destructive',
+                                    onPress: async () => {
+                                      await deleteGroup(group.id);
+                                      if (expandedGroupId === group.id) {
+                                        setExpandedGroupId(null);
+                                      }
+                                    },
+                                  },
+                                ]
+                              );
+                            }}
+                          >
+                            <Text style={styles.myCircleDeleteGroupText}>Delete Group (temp)</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
                   </View>
-                  <View style={styles.myCircleGroupRight}>
-                    <Text style={styles.myCircleGroupIcon}>🎨</Text>
-                    <Text style={styles.myCircleGroupIcon}>🗑</Text>
-                  </View>
-                </View>
-              ))
+                );
+              })
             )}
 
             <View style={styles.myCircleDivider} />
@@ -2076,6 +2376,39 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingVertical: 12,
     backgroundColor: '#ffffff',
+  },
+  groupSwitcher: {
+    paddingHorizontal: 12,
+    paddingBottom: 10,
+    backgroundColor: '#ffffff',
+  },
+  groupChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#d3dae5',
+    backgroundColor: '#f7f9fc',
+    marginRight: 8,
+  },
+  groupChipActive: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#1f2937',
+    backgroundColor: '#1f2937',
+    marginRight: 8,
+  },
+  groupChipText: {
+    fontSize: 13,
+    color: '#1f2937',
+    fontWeight: '600',
+  },
+  groupChipTextActive: {
+    fontSize: 13,
+    color: '#ffffff',
+    fontWeight: '600',
   },
   tab: {
     paddingHorizontal: 20,
@@ -3138,6 +3471,56 @@ const styles = StyleSheet.create({
     color: '#303846',
     fontWeight: '500',
   },
+  myCircleCreateGroupCard: {
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: '#f7f8fa',
+    gap: 10,
+  },
+  myCircleCreateInput: {
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#303846',
+    backgroundColor: '#ffffff',
+  },
+  myCircleCreateActions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  myCircleCreateButton: {
+    flex: 1,
+    backgroundColor: '#111827',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  myCircleCreateButtonDisabled: {
+    opacity: 0.5,
+  },
+  myCircleCreateButtonText: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  myCircleCreateCancelButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    backgroundColor: '#ffffff',
+  },
+  myCircleCreateCancelText: {
+    fontSize: 15,
+    color: '#303846',
+    fontWeight: '500',
+  },
   myCircleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -3152,11 +3535,15 @@ const styles = StyleSheet.create({
     color: '#303846',
   },
   myCircleGroupCard: {
-    minHeight: 58,
     borderWidth: 1,
     borderColor: '#d3d8e1',
     borderRadius: 10,
     paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#ffffff',
+    gap: 8,
+  },
+  myCircleGroupHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -3175,14 +3562,89 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6c778b',
   },
-  myCircleGroupRight: {
+  myCircleGroupExpand: {
+    fontSize: 20,
+    color: '#6c778b',
+    fontWeight: '600',
+  },
+  myCircleGroupExpanded: {
+    borderTopWidth: 1,
+    borderTopColor: '#e2e7ee',
+    paddingTop: 10,
+    gap: 10,
+  },
+  myCircleMemberRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    paddingVertical: 4,
   },
-  myCircleGroupIcon: {
-    fontSize: 18,
+  myCircleMemberAvatar: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#e7ebf2',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  myCircleMemberAvatarText: {
     color: '#303846',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  myCircleMemberText: {
+    fontSize: 15,
+    color: '#303846',
+  },
+  myCircleInviteSection: {
+    gap: 8,
+  },
+  myCircleInviteLabel: {
+    fontSize: 14,
+    color: '#6c778b',
+  },
+  myCircleInviteActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  myCircleInviteButton: {
+    flex: 1,
+    backgroundColor: '#111827',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  myCircleInviteButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  myCircleInviteDeleteButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    backgroundColor: '#ffffff',
+  },
+  myCircleInviteDeleteText: {
+    fontSize: 14,
+    color: '#b42318',
+    fontWeight: '600',
+  },
+  myCircleDeleteGroupButton: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#f2c4c4',
+    backgroundColor: '#fff5f5',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  myCircleDeleteGroupText: {
+    color: '#b42318',
+    fontSize: 14,
+    fontWeight: '600',
   },
   deleteMomentButton: {
     borderTopWidth: 1,

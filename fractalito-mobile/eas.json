@@ -5,13 +5,22 @@
   },
   "build": {
     "development": {
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://tyzysdtqzppjoruqyfbv.supabase.co"
+      },
       "developmentClient": true,
       "distribution": "internal"
     },
     "preview": {
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://tyzysdtqzppjoruqyfbv.supabase.co"
+      },
       "distribution": "internal"
     },
     "production": {
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://tyzysdtqzppjoruqyfbv.supabase.co"
+      },
       "autoIncrement": true
     }
   },

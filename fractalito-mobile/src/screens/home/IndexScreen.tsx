@@ -16,7 +16,7 @@ import {
   Image,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -142,9 +142,19 @@ export default function IndexScreen() {
   const isMyLife = activeTimelineId === DEFAULT_TIMELINE_ID;
   const isOurLife = activeTimelineId === OURLIFE_TIMELINE_ID;
   const isBabyLife = activeTimelineId === BABYLIFE_TIMELINE_ID;
-  const activeMoments = isOurLife
-    ? (groups.length > 0 ? groupMoments : moments)
-    : (isBabyLife ? babyMoments : moments);
+  const myLifeMoments = useMemo(() => {
+    if (!isMyLife) return moments;
+    const seen = new Set(moments.map((m) => m.id));
+    const merged = [...moments];
+    groupMoments.forEach((m) => {
+      if (!seen.has(m.id)) merged.push(m);
+    });
+    return merged;
+  }, [isMyLife, moments, groupMoments]);
+  const activeMoments = useMemo(
+    () => (isOurLife ? groupMoments : (isBabyLife ? babyMoments : myLifeMoments)),
+    [isOurLife, isBabyLife, groupMoments, babyMoments, myLifeMoments]
+  );
   const editingMoment = editingMomentId ? activeMoments.find((m) => m.id === editingMomentId) ?? null : null;
   const isEditingMoment = !!editingMomentId;
 
@@ -390,6 +400,10 @@ export default function IndexScreen() {
       Alert.alert('Read Only', 'Editing is only available in MyLife.');
       return;
     }
+    if (moment.groupId) {
+      Alert.alert('Read Only', 'Shared moments are read-only in MyLife. Open OurLife to edit.');
+      return;
+    }
     setEditingMomentId(moment.id);
     loadFormFromMoment(moment);
     setNewMomentOpen(true);
@@ -553,6 +567,10 @@ export default function IndexScreen() {
       return;
     }
     if (!editingMomentId || !editingMoment) return;
+    if (editingMoment.groupId) {
+      Alert.alert('Read Only', 'Shared moments are read-only in MyLife.');
+      return;
+    }
     const desc = descriptionInput.trim();
     if (!desc) return;
 
@@ -626,6 +644,10 @@ export default function IndexScreen() {
       return;
     }
     if (!editingMomentId) return;
+    if (editingMoment?.groupId) {
+      Alert.alert('Read Only', 'Shared moments are read-only in MyLife.');
+      return;
+    }
     Alert.alert('Delete Moment', 'Are you sure you want to delete this moment?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -944,6 +966,9 @@ export default function IndexScreen() {
       isWeekLevel || isMonthLevel || isYearLevel ? moment.memorable === true : true;
 
     if (isMyLife) {
+      if (moment.groupId) {
+        return inRange && passesZoomRule;
+      }
       const inTimeline =
         moment.timelineId === DEFAULT_TIMELINE_ID ||
         (!!userTimelineId && moment.timelineId === userTimelineId);
@@ -1015,7 +1040,11 @@ export default function IndexScreen() {
       openEditMoment(moment);
     } else {
       if (isMyLife) {
-        updateMomentY(momentId, finalY);
+        if (moment.groupId) {
+          // Shared moments are read-only in MyLife.
+        } else {
+          updateMomentY(momentId, finalY);
+        }
       } else if (isOurLife) {
         updateGroupMomentY(momentId, finalY);
       } else if (isBabyLife) {

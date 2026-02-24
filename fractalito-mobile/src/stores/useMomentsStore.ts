@@ -212,18 +212,19 @@ export const useMomentsStore = create<MomentsStore>()(
         if (!userId) return;
 
         try {
-          // Get all groups user is a member of
-          const { data: groups, error: groupsError } = await supabase
-            .from('groups')
-            .select('id');
+          // Get all groups the user is a member of
+          const { data: memberships, error: groupsError } = await supabase
+            .from('group_members')
+            .select('group_id')
+            .eq('user_id', userId);
 
           if (groupsError) throw groupsError;
-          if (!groups || groups.length === 0) {
+          if (!memberships || memberships.length === 0) {
             set({ groupMoments: [] });
             return;
           }
 
-          const groupIds = groups.map(g => g.id);
+          const groupIds = memberships.map(m => m.group_id);
 
           // Fetch all moments from those groups
           const { data: gMoments, error: momentsError } = await supabase

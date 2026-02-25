@@ -74,6 +74,7 @@ export default function IndexScreen() {
     searching: searchingConnections,
     searchUsers,
     addConnection,
+    removeConnection,
     clearSearchResults,
   } = useConnections(user?.id || null);
   const { groups, createGroup, addMemberToGroup, getGroupMembers, deleteGroup, updateGroupColor } = useGroups(user?.id || null);
@@ -691,7 +692,7 @@ export default function IndexScreen() {
     setPeopleInput('');
   };
 
-  const handleAddToCircleAndCreateGroup = async (targetUser: { userId: string; username: string }) => {
+  const handleAddToCircle = async (targetUser: { userId: string; username: string }) => {
     if (addingUserId) return;
     setAddingUserId(targetUser.userId);
     try {
@@ -700,19 +701,7 @@ export default function IndexScreen() {
         Alert.alert('Could not add to circle', addErr);
         return;
       }
-
-      const existingGroup = groups.find((g) => g.name.toLowerCase() === targetUser.username.toLowerCase());
-      if (existingGroup) {
-        await addMemberToGroup(existingGroup.id, targetUser.userId);
-        Alert.alert('Done', `${targetUser.username} was added to your circle and invited to group "${existingGroup.name}".`);
-      } else {
-        const newGroup = await createGroup(targetUser.username, [targetUser.userId]);
-        if (!newGroup) {
-          Alert.alert('Partial success', `${targetUser.username} was added to your circle, but group creation failed.`);
-          return;
-        }
-        Alert.alert('Done', `${targetUser.username} was added to your circle and invited to group "${newGroup.name}".`);
-      }
+      Alert.alert('Done', `${targetUser.username} was added to your circle.`);
       setMyCircleSearch('');
       clearSearchResults();
     } finally {
@@ -721,11 +710,7 @@ export default function IndexScreen() {
   };
 
   const handleCreateGroupFromSearch = async () => {
-    if (searchResults.length === 0) {
-      Alert.alert('No user selected', 'Search a username first, then tap Add next to that user.');
-      return;
-    }
-    await handleAddToCircleAndCreateGroup(searchResults[0]);
+    Alert.alert('Create Group', 'Use the "+ New Group" button to create a group.');
   };
 
   const handleCloseMyCircle = () => {
@@ -1566,7 +1551,7 @@ export default function IndexScreen() {
                       </View>
                       <TouchableOpacity
                         style={styles.myCircleSearchAddBtn}
-                        onPress={() => handleAddToCircleAndCreateGroup(result)}
+                        onPress={() => handleAddToCircle(result)}
                         disabled={addingUserId === result.userId}
                       >
                         <Text style={styles.myCircleSearchAddText}>
@@ -1589,6 +1574,30 @@ export default function IndexScreen() {
                 <View key={connection.id} style={styles.myCircleRow}>
                   <Text style={styles.myCircleRowDot}>●</Text>
                   <Text style={styles.myCircleRowText}>{connection.username}</Text>
+                  <TouchableOpacity
+                    style={styles.myCircleRemoveButton}
+                    onPress={() => {
+                      Alert.alert(
+                        'Remove From Circle',
+                        `Remove @${connection.username} from your circle?`,
+                        [
+                          { text: 'Cancel', style: 'cancel' },
+                          {
+                            text: 'Remove',
+                            style: 'destructive',
+                            onPress: async () => {
+                              const { error } = await removeConnection(connection.id);
+                              if (error) {
+                                Alert.alert('Error', error);
+                              }
+                            },
+                          },
+                        ]
+                      );
+                    }}
+                  >
+                    <Text style={styles.myCircleRemoveText}>Remove</Text>
+                  </TouchableOpacity>
                 </View>
               ))
             )}
@@ -3545,6 +3554,20 @@ const styles = StyleSheet.create({
   myCircleRowText: {
     fontSize: 17,
     color: '#303846',
+  },
+  myCircleRemoveButton: {
+    marginLeft: 'auto',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#f2c4c4',
+    backgroundColor: '#fff5f5',
+  },
+  myCircleRemoveText: {
+    color: '#b42318',
+    fontSize: 12,
+    fontWeight: '600',
   },
   myCircleGroupCard: {
     borderWidth: 1,

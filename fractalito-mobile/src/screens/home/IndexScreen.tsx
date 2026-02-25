@@ -28,6 +28,7 @@ import { useMomentsStore, DEFAULT_TIMELINE_ID, OURLIFE_TIMELINE_ID, BABYLIFE_TIM
 import type { Category } from '../../types/moment';
 import { useConnections } from '../../hooks/useConnections';
 import { useGroups, type GroupMember } from '../../hooks/useGroups';
+import { useBabies } from '../../hooks/useBabies';
 import * as ImagePicker from 'expo-image-picker';
 import { devLog } from '../../utils/logger';
 import { FEEDBACK_URL, WEB_BASE_URL } from '../../config/appConfig';
@@ -78,6 +79,7 @@ export default function IndexScreen() {
     clearSearchResults,
   } = useConnections(user?.id || null);
   const { groups, createGroup, addMemberToGroup, getGroupMembers, deleteGroup, updateGroupColor } = useGroups(user?.id || null);
+  const { createBaby } = useBabies(user?.id || null);
   const addMoment = useMomentsStore((state) => state.addMoment);
   const addGroupMoment = useMomentsStore((state) => state.addGroupMoment);
   const updateMoment = useMomentsStore((state) => state.updateMoment);
@@ -107,11 +109,13 @@ export default function IndexScreen() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [myCircleOpen, setMyCircleOpen] = useState(false);
+  const [addBabyOpen, setAddBabyOpen] = useState(false);
   const [myCircleSearch, setMyCircleSearch] = useState('');
   const [addingUserId, setAddingUserId] = useState<string | null>(null);
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [creatingBaby, setCreatingBaby] = useState(false);
   const [newMomentOpen, setNewMomentOpen] = useState(false);
   const [editingMomentId, setEditingMomentId] = useState<string | null>(null);
   const [savingMoment, setSavingMoment] = useState(false);
@@ -134,6 +138,17 @@ export default function IndexScreen() {
   const [endPickerHour, setEndPickerHour] = useState<number>(10);
   const [endPickerMinute, setEndPickerMinute] = useState<number>(0);
   const [endPickerPeriod, setEndPickerPeriod] = useState<'AM' | 'PM'>('AM');
+  const [babyNameInput, setBabyNameInput] = useState('');
+  const [babyUsernameInput, setBabyUsernameInput] = useState('');
+  const [babyDateOfBirthInput, setBabyDateOfBirthInput] = useState('');
+  const [babyTimeOfBirthInput, setBabyTimeOfBirthInput] = useState('');
+  const [babyPlaceOfBirthInput, setBabyPlaceOfBirthInput] = useState('');
+  const [babyDatePickerOpen, setBabyDatePickerOpen] = useState(false);
+  const [babyTimePickerOpen, setBabyTimePickerOpen] = useState(false);
+  const [babyPickerMonth, setBabyPickerMonth] = useState<Date>(() => new Date());
+  const [babyPickerHour, setBabyPickerHour] = useState<number>(10);
+  const [babyPickerMinute, setBabyPickerMinute] = useState<number>(0);
+  const [babyPickerPeriod, setBabyPickerPeriod] = useState<'AM' | 'PM'>('AM');
   const [selectedOurLifeGroupId, setSelectedOurLifeGroupId] = useState<string | null>(null);
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
@@ -438,6 +453,11 @@ export default function IndexScreen() {
   const endCalendarWeeks = Array.from({ length: 6 }, (_, weekIdx) =>
     endCalendarDays.slice(weekIdx * 7, weekIdx * 7 + 7)
   );
+  const babyCalendarStart = startOfWeek(startOfMonth(babyPickerMonth), { weekStartsOn: 1 });
+  const babyCalendarDays = Array.from({ length: 42 }, (_, i) => addDays(babyCalendarStart, i));
+  const babyCalendarWeeks = Array.from({ length: 6 }, (_, weekIdx) =>
+    babyCalendarDays.slice(weekIdx * 7, weekIdx * 7 + 7)
+  );
 
   const applyEndTime = (hour: number, minute: number, period: 'AM' | 'PM') => {
     const nextValue = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${period}`;
@@ -445,6 +465,14 @@ export default function IndexScreen() {
     setEndPickerMinute(minute);
     setEndPickerPeriod(period);
     setEndTimeInput(nextValue);
+  };
+
+  const applyBabyTime = (hour: number, minute: number, period: 'AM' | 'PM') => {
+    const nextValue = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')} ${period}`;
+    setBabyPickerHour(hour);
+    setBabyPickerMinute(minute);
+    setBabyPickerPeriod(period);
+    setBabyTimeOfBirthInput(nextValue);
   };
 
   const openEndDatePicker = () => {
@@ -500,6 +528,96 @@ export default function IndexScreen() {
     const d = new Date(year, month - 1, day, hour, minute, 0, 0);
     if (d.getMonth() !== month - 1 || d.getDate() !== day || d.getFullYear() !== year) return null;
     return d.getTime();
+  };
+
+  const parseDateOnly = (dateInput: string): Date | null => {
+    const dateMatch = dateInput.trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!dateMatch) return null;
+    const month = Number(dateMatch[1]);
+    const day = Number(dateMatch[2]);
+    const year = Number(dateMatch[3]);
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    const d = new Date(year, month - 1, day, 0, 0, 0, 0);
+    if (d.getMonth() !== month - 1 || d.getDate() !== day || d.getFullYear() !== year) return null;
+    return d;
+  };
+
+  const parseTimeForSql = (timeInput: string): string | undefined => {
+    const trimmed = timeInput.trim();
+    if (!trimmed) return undefined;
+    const timeMatch = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!timeMatch) return undefined;
+    const rawHour = Number(timeMatch[1]);
+    const minute = Number(timeMatch[2]);
+    if (rawHour < 1 || rawHour > 12 || minute < 0 || minute > 59) return undefined;
+    let hour = rawHour % 12;
+    if (timeMatch[3].toUpperCase() === 'PM') hour += 12;
+    return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
+  };
+
+  const resetAddBabyForm = () => {
+    const now = new Date();
+    setBabyNameInput('');
+    setBabyUsernameInput('');
+    setBabyDateOfBirthInput('');
+    setBabyTimeOfBirthInput('');
+    setBabyPlaceOfBirthInput('');
+    setBabyDatePickerOpen(false);
+    setBabyTimePickerOpen(false);
+    setBabyPickerMonth(now);
+    setBabyPickerHour(Number(format(now, 'hh')));
+    setBabyPickerMinute(now.getMinutes());
+    setBabyPickerPeriod(format(now, 'a').toUpperCase() as 'AM' | 'PM');
+  };
+
+  const handleOpenAddBaby = () => {
+    resetAddBabyForm();
+    setMyCircleOpen(false);
+    setTimeout(() => setAddBabyOpen(true), 0);
+  };
+
+  const handleCreateBaby = async () => {
+    const name = babyNameInput.trim();
+    const username = babyUsernameInput.trim().toLowerCase();
+    if (!name) {
+      Alert.alert('Missing Name', "Please enter the baby's name.");
+      return;
+    }
+    if (!username) {
+      Alert.alert('Missing Username', "Please enter the baby's username.");
+      return;
+    }
+    if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+      Alert.alert('Invalid Username', 'Username can only contain letters, numbers, and underscores.');
+      return;
+    }
+    const dateOfBirth = parseDateOnly(babyDateOfBirthInput);
+    if (!dateOfBirth) {
+      Alert.alert('Invalid Date of Birth', 'Use date format MM/DD/YYYY.');
+      return;
+    }
+    const parsedTime = parseTimeForSql(babyTimeOfBirthInput);
+    if (babyTimeOfBirthInput.trim() && !parsedTime) {
+      Alert.alert('Invalid Time of Birth', 'Use time format hh:mm AM/PM.');
+      return;
+    }
+
+    setCreatingBaby(true);
+    try {
+      const created = await createBaby({
+        name,
+        username,
+        dateOfBirth,
+        timeOfBirth: parsedTime,
+        placeOfBirth: babyPlaceOfBirthInput.trim() || undefined,
+      });
+      if (created) {
+        setAddBabyOpen(false);
+        resetAddBabyForm();
+      }
+    } finally {
+      setCreatingBaby(false);
+    }
   };
 
   const saveMoment = async (): Promise<number | null> => {
@@ -1846,13 +1964,218 @@ export default function IndexScreen() {
 
             <View style={styles.myCircleSectionHeader}>
               <Text style={styles.myCircleSectionLabel}>Babies</Text>
-              <TouchableOpacity style={styles.myCircleActionButton}>
+              <TouchableOpacity style={styles.myCircleActionButton} onPress={handleOpenAddBaby}>
                 <Text style={styles.myCircleActionButtonText}>+ Add Baby</Text>
               </TouchableOpacity>
             </View>
             <Text style={styles.myCircleEmptyText}>Create a baby timeline to track their early years.</Text>
             </ScrollView>
           </View>
+        </View>
+      </Modal>
+
+      <Modal visible={addBabyOpen} transparent animationType="fade" onRequestClose={() => setAddBabyOpen(false)}>
+        <Pressable style={styles.newMomentOverlay} onPress={() => setAddBabyOpen(false)}>
+          <View />
+        </Pressable>
+        <View style={styles.newMomentOverlayCard}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.newMomentKeyboard}>
+            <View style={styles.newMomentCard}>
+              <View style={styles.newMomentHeader}>
+                <View>
+                  <View style={styles.addBabyTitleRow}>
+                    <Text style={styles.addBabyTitleIcon}>👶</Text>
+                    <Text style={styles.newMomentTitle}>Add Baby</Text>
+                  </View>
+                  <Text style={styles.myCircleSubtitle}>Create a dedicated timeline for your baby's first 3 years.</Text>
+                </View>
+                <TouchableOpacity onPress={() => setAddBabyOpen(false)}>
+                  <Text style={styles.newMomentClose}>x</Text>
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.newMomentScroll} contentContainerStyle={styles.newMomentBody} showsVerticalScrollIndicator>
+                <Text style={styles.newMomentLabel}>Name *</Text>
+                <TextInput
+                  style={styles.newMomentInput}
+                  placeholder="Baby's name"
+                  placeholderTextColor="#7e8a9d"
+                  value={babyNameInput}
+                  onChangeText={setBabyNameInput}
+                />
+
+                <Text style={styles.newMomentLabel}>Username *</Text>
+                <TextInput
+                  style={styles.newMomentInput}
+                  placeholder="unique_username"
+                  placeholderTextColor="#7e8a9d"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  value={babyUsernameInput}
+                  onChangeText={setBabyUsernameInput}
+                />
+                <Text style={styles.addBabyHint}>Reserved for this baby's future account</Text>
+
+                <Text style={styles.newMomentLabel}>Date of Birth *</Text>
+                <TouchableOpacity
+                  style={[styles.newMomentInput, styles.newMomentPickerField]}
+                  onPress={() => {
+                    setBabyTimePickerOpen(false);
+                    setBabyDatePickerOpen((prev) => !prev);
+                  }}
+                >
+                  <Text style={babyDateOfBirthInput ? styles.newMomentPickerValue : styles.newMomentPickerPlaceholder}>
+                    {babyDateOfBirthInput || 'mm/dd/yyyy'}
+                  </Text>
+                  <Text style={styles.newMomentPickerIcon}>📅</Text>
+                </TouchableOpacity>
+                {babyDatePickerOpen && (
+                  <View style={styles.endPickerInline}>
+                    <View style={styles.endPickerHeader}>
+                      <Text style={styles.endPickerTitle} numberOfLines={1} allowFontScaling={false}>
+                        {format(babyPickerMonth, 'MMMM yyyy')}
+                      </Text>
+                      <View style={styles.endPickerHeaderActions}>
+                        <TouchableOpacity onPress={() => setBabyPickerMonth((m) => subMonths(m, 1))} style={styles.endPickerNavBtn}>
+                          <Text style={styles.endPickerNavText} allowFontScaling={false}>↑</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setBabyPickerMonth((m) => addMonths(m, 1))} style={styles.endPickerNavBtn}>
+                          <Text style={styles.endPickerNavText} allowFontScaling={false}>↓</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                    <View style={styles.endPickerWeekRow}>
+                      {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map((day) => (
+                        <Text key={day} style={styles.endPickerWeekLabel} allowFontScaling={false}>{day}</Text>
+                      ))}
+                    </View>
+                    <View style={styles.endPickerWeeks}>
+                      {babyCalendarWeeks.map((week, idx) => (
+                        <View key={`baby-w-inline-${idx}`} style={styles.endPickerWeek}>
+                          {week.map((day) => {
+                            const selected = (() => {
+                              if (!babyDateOfBirthInput) return false;
+                              const parts = babyDateOfBirthInput.split('/');
+                              if (parts.length !== 3) return false;
+                              const parsed = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
+                              return isSameDay(day, parsed);
+                            })();
+                            const inCurrentMonth = isSameMonth(day, babyPickerMonth);
+                            return (
+                              <TouchableOpacity
+                                key={`baby-inline-${day.toISOString()}`}
+                                style={[styles.endPickerDayCell, selected && styles.endPickerDayCellSelected]}
+                                onPress={() => {
+                                  setBabyDateOfBirthInput(format(day, 'MM/dd/yyyy'));
+                                  setBabyDatePickerOpen(false);
+                                }}
+                              >
+                                <Text
+                                  style={[styles.endPickerDayText, !inCurrentMonth && styles.endPickerDayTextMuted, selected && styles.endPickerDayTextSelected]}
+                                  allowFontScaling={false}
+                                >
+                                  {format(day, 'd')}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      ))}
+                    </View>
+                    <View style={styles.endPickerFooter}>
+                      <TouchableOpacity onPress={() => setBabyDateOfBirthInput('')}>
+                        <Text style={styles.endPickerFooterLink} allowFontScaling={false}>Clear</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => {
+                        const now = new Date();
+                        setBabyDateOfBirthInput(format(now, 'MM/dd/yyyy'));
+                        setBabyPickerMonth(now);
+                      }}>
+                        <Text style={styles.endPickerFooterLink} allowFontScaling={false}>Today</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                <Text style={styles.newMomentLabel}>Time of Birth (optional)</Text>
+                <TouchableOpacity
+                  style={[styles.newMomentInput, styles.newMomentPickerField]}
+                  onPress={() => {
+                    setBabyDatePickerOpen(false);
+                    setBabyTimePickerOpen((prev) => !prev);
+                  }}
+                >
+                  <Text style={babyTimeOfBirthInput ? styles.newMomentPickerValue : styles.newMomentPickerPlaceholder}>
+                    {babyTimeOfBirthInput || '--:-- --'}
+                  </Text>
+                  <Text style={styles.newMomentPickerIcon}>🕒</Text>
+                </TouchableOpacity>
+                {babyTimePickerOpen && (
+                  <View style={styles.endTimeInline}>
+                    <View style={styles.endTimeColumns}>
+                      <ScrollView style={styles.endTimeCol} showsVerticalScrollIndicator={false}>
+                        {Array.from({ length: 12 }, (_, i) => i + 1).map((hour) => (
+                          <TouchableOpacity
+                            key={`baby-h-inline-${hour}`}
+                            style={[styles.endTimeOption, babyPickerHour === hour && styles.endTimeOptionActive]}
+                            onPress={() => applyBabyTime(hour, babyPickerMinute, babyPickerPeriod)}
+                          >
+                            <Text style={[styles.endTimeOptionText, babyPickerHour === hour && styles.endTimeOptionTextActive]}>
+                              {hour.toString().padStart(2, '0')}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                      <ScrollView style={styles.endTimeCol} showsVerticalScrollIndicator={false}>
+                        {Array.from({ length: 60 }, (_, i) => i).map((minute) => (
+                          <TouchableOpacity
+                            key={`baby-m-inline-${minute}`}
+                            style={[styles.endTimeOption, babyPickerMinute === minute && styles.endTimeOptionActive]}
+                            onPress={() => applyBabyTime(babyPickerHour, minute, babyPickerPeriod)}
+                          >
+                            <Text style={[styles.endTimeOptionText, babyPickerMinute === minute && styles.endTimeOptionTextActive]}>
+                              {minute.toString().padStart(2, '0')}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </ScrollView>
+                      <View style={styles.endPeriodCol}>
+                        {(['AM', 'PM'] as const).map((period) => (
+                          <TouchableOpacity
+                            key={`baby-p-inline-${period}`}
+                            style={[styles.endTimeOption, babyPickerPeriod === period && styles.endTimeOptionActive]}
+                            onPress={() => applyBabyTime(babyPickerHour, babyPickerMinute, period)}
+                          >
+                            <Text style={[styles.endTimeOptionText, babyPickerPeriod === period && styles.endTimeOptionTextActive]}>
+                              {period}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                <Text style={styles.newMomentLabel}>Place of Birth (optional)</Text>
+                <TextInput
+                  style={styles.newMomentInput}
+                  placeholder="City, Hospital..."
+                  placeholderTextColor="#7e8a9d"
+                  value={babyPlaceOfBirthInput}
+                  onChangeText={setBabyPlaceOfBirthInput}
+                />
+
+                <TouchableOpacity
+                  style={styles.newMomentCreateBtn}
+                  onPress={handleCreateBaby}
+                  disabled={creatingBaby}
+                >
+                  <Text style={styles.newMomentCreateText}>
+                    {creatingBaby ? 'Creating...' : 'Create Baby Timeline'}
+                  </Text>
+                </TouchableOpacity>
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
 
@@ -3351,6 +3674,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#7a8598',
     marginTop: 2,
+  },
+  addBabyTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  addBabyTitleIcon: {
+    fontSize: 18,
+  },
+  addBabyHint: {
+    fontSize: 13,
+    color: '#7a8598',
+    marginTop: -6,
   },
   shareGroupsSection: {
     borderTopWidth: 1,

@@ -137,6 +137,7 @@ export default function IndexScreen() {
   const [selectedOurLifeGroupId, setSelectedOurLifeGroupId] = useState<string | null>(null);
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
+  const [selectedGroupMemberIds, setSelectedGroupMemberIds] = useState<string[]>([]);
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [loadingGroupMembers, setLoadingGroupMembers] = useState(false);
@@ -719,6 +720,7 @@ export default function IndexScreen() {
     clearSearchResults();
     setCreatingGroup(false);
     setNewGroupName('');
+    setSelectedGroupMemberIds([]);
     setExpandedGroupId(null);
     setGroupMembers([]);
     setColorPickerGroupId(null);
@@ -734,13 +736,14 @@ export default function IndexScreen() {
     const name = newGroupName.trim();
     if (!name) return;
     try {
-      const group = await createGroup(name, []);
+      const group = await createGroup(name, selectedGroupMemberIds);
       if (!group) {
         Alert.alert('Error', 'Failed to create group');
         return;
       }
       setNewGroupName('');
       setCreatingGroup(false);
+      setSelectedGroupMemberIds([]);
       await handleExpandGroup(group.id);
     } catch (error) {
       console.error('Error creating group:', error);
@@ -1621,6 +1624,41 @@ export default function IndexScreen() {
                   value={newGroupName}
                   onChangeText={setNewGroupName}
                 />
+                {connections.length > 0 && (
+                  <View style={styles.myCircleCreateMembers}>
+                    <Text style={styles.myCircleCreateMembersLabel}>Add members from your circle:</Text>
+                    <View style={styles.myCircleCreateMembersList}>
+                      {connections.map((connection) => {
+                        const isSelected = selectedGroupMemberIds.includes(connection.connectedUserId);
+                        return (
+                          <TouchableOpacity
+                            key={connection.id}
+                            style={[
+                              styles.myCircleCreateMemberChip,
+                              isSelected && styles.myCircleCreateMemberChipActive,
+                            ]}
+                            onPress={() => {
+                              setSelectedGroupMemberIds((prev) =>
+                                prev.includes(connection.connectedUserId)
+                                  ? prev.filter((id) => id !== connection.connectedUserId)
+                                  : [...prev, connection.connectedUserId]
+                              );
+                            }}
+                          >
+                            <Text
+                              style={[
+                                styles.myCircleCreateMemberChipText,
+                                isSelected && styles.myCircleCreateMemberChipTextActive,
+                              ]}
+                            >
+                              @{connection.username}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
                 <View style={styles.myCircleCreateActions}>
                   <TouchableOpacity
                     style={[styles.myCircleCreateButton, !newGroupName.trim() && styles.myCircleCreateButtonDisabled]}
@@ -3509,6 +3547,39 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#303846',
     backgroundColor: '#ffffff',
+  },
+  myCircleCreateMembers: {
+    gap: 8,
+  },
+  myCircleCreateMembersLabel: {
+    fontSize: 13,
+    color: '#6c778b',
+    fontWeight: '500',
+  },
+  myCircleCreateMembersList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  myCircleCreateMemberChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    backgroundColor: '#f7f8fa',
+  },
+  myCircleCreateMemberChipActive: {
+    borderColor: '#111827',
+    backgroundColor: '#111827',
+  },
+  myCircleCreateMemberChipText: {
+    fontSize: 12,
+    color: '#303846',
+    fontWeight: '600',
+  },
+  myCircleCreateMemberChipTextActive: {
+    color: '#ffffff',
   },
   myCircleCreateActions: {
     flexDirection: 'row',

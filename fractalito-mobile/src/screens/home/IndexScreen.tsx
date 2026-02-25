@@ -15,6 +15,7 @@ import {
   ScrollView,
   Image,
   Clipboard,
+  Share,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -29,9 +30,10 @@ import { useConnections } from '../../hooks/useConnections';
 import { useGroups, type GroupMember } from '../../hooks/useGroups';
 import * as ImagePicker from 'expo-image-picker';
 import { devLog } from '../../utils/logger';
-import { FEEDBACK_URL } from '../../config/appConfig';
+import { FEEDBACK_URL, WEB_BASE_URL } from '../../config/appConfig';
 import { supabase } from '../../integrations/supabase/client';
 import { nanoid } from 'nanoid';
+import { COLOR_PALETTE, DEFAULT_GROUP_COLOR } from '../../utils/colorPalette';
 import {
   format,
   addDays,
@@ -74,7 +76,7 @@ export default function IndexScreen() {
     addConnection,
     clearSearchResults,
   } = useConnections(user?.id || null);
-  const { groups, createGroup, addMemberToGroup, getGroupMembers, deleteGroup } = useGroups(user?.id || null);
+  const { groups, createGroup, addMemberToGroup, getGroupMembers, deleteGroup, updateGroupColor } = useGroups(user?.id || null);
   const addMoment = useMomentsStore((state) => state.addMoment);
   const addGroupMoment = useMomentsStore((state) => state.addGroupMoment);
   const updateMoment = useMomentsStore((state) => state.updateMoment);
@@ -137,6 +139,7 @@ export default function IndexScreen() {
   const [expandedGroupId, setExpandedGroupId] = useState<string | null>(null);
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [loadingGroupMembers, setLoadingGroupMembers] = useState(false);
+  const [colorPickerGroupId, setColorPickerGroupId] = useState<string | null>(null);
   const [inviteCodes, setInviteCodes] = useState<Record<string, { id: string; code: string; createdAt: string } | null>>({});
   const [loadingInviteGroupId, setLoadingInviteGroupId] = useState<string | null>(null);
   const [generatingInviteGroupId, setGeneratingInviteGroupId] = useState<string | null>(null);
@@ -184,12 +187,6 @@ export default function IndexScreen() {
   useEffect(() => {
     setAuthenticated(isAuthenticated, user?.id || null);
   }, [isAuthenticated, setAuthenticated, user?.id]);
-
-  useEffect(() => {
-    if (!selectedOurLifeGroupId) return;
-    if (groups.some((g) => g.id === selectedOurLifeGroupId)) return;
-    setSelectedOurLifeGroupId(null);
-  }, [groups, selectedOurLifeGroupId]);
 
   useEffect(() => {
     setMomentOrder((prev) => {
@@ -559,6 +556,11 @@ export default function IndexScreen() {
             return null;
           }
           await Promise.all(selectedShareGroupIds.map((groupId) => addGroupMoment(groupId, payload)));
+          if (selectedShareGroupIds.length === 1) {
+            setSelectedOurLifeGroupId(selectedShareGroupIds[0]);
+          } else {
+            setSelectedOurLifeGroupId(null);
+          }
         }
       } else {
         await addMoment(payload);
@@ -734,6 +736,7 @@ export default function IndexScreen() {
     setNewGroupName('');
     setExpandedGroupId(null);
     setGroupMembers([]);
+    setColorPickerGroupId(null);
   };
 
   const toggleShareGroup = (groupId: string) => {
@@ -855,13 +858,27 @@ export default function IndexScreen() {
   const copyGroupInviteLink = async (groupId: string) => {
     const invite = inviteCodes[groupId];
     if (!invite) return;
-    const inviteLink = `mylife://auth?group_invite=${invite.code}`;
+    const inviteLink = `${WEB_BASE_URL}/auth?group_invite=${invite.code}`;
     Clipboard.setString(inviteLink);
     setCopiedInviteGroupId(groupId);
     Alert.alert('Copied', 'Invite link copied');
     setTimeout(() => {
       setCopiedInviteGroupId((current) => (current === groupId ? null : current));
     }, 2000);
+  };
+
+  const shareGroupInviteLink = async (groupId: string) => {
+    const invite = inviteCodes[groupId];
+    if (!invite) return;
+    const inviteLink = `${WEB_BASE_URL}/auth?group_invite=${invite.code}`;
+    try {
+      await Share.share({
+        message: inviteLink,
+      });
+    } catch (error) {
+      console.error('Error sharing invite link:', error);
+      Alert.alert('Error', 'Failed to share invite link');
+    }
   };
 
   const handlePickPhoto = async (fromCamera: boolean) => {
@@ -1247,33 +1264,6 @@ export default function IndexScreen() {
           <Text style={isBabyLife ? styles.tabTextActive : styles.tabText}>BabyLife</Text>
         </TouchableOpacity>
       </View>
-      {isOurLife && (
-        <View style={styles.groupSwitcher}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <TouchableOpacity
-              style={!selectedOurLifeGroupId ? styles.groupChipActive : styles.groupChip}
-              onPress={() => setSelectedOurLifeGroupId(null)}
-            >
-              <Text style={!selectedOurLifeGroupId ? styles.groupChipTextActive : styles.groupChipText}>All groups</Text>
-            </TouchableOpacity>
-            {groups.map((group) => {
-              const isActive = selectedOurLifeGroupId === group.id;
-              return (
-                <TouchableOpacity
-                  key={group.id}
-                  style={isActive ? styles.groupChipActive : styles.groupChip}
-                  onPress={() => setSelectedOurLifeGroupId(group.id)}
-                >
-                  <Text style={isActive ? styles.groupChipTextActive : styles.groupChipText}>
-                    {group.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-      )}
-
       {/* Timeline Canvas */}
       <View style={styles.canvasContainer}>
         <View
@@ -1658,14 +1648,78 @@ export default function IndexScreen() {
                       activeOpacity={0.85}
                     >
                       <View style={styles.myCircleGroupLeft}>
-                        <Text style={styles.myCircleRowDot}>?</Text>
+                        <View
+                          style={[
+                            styles.myCircleGroupDot,
+                            { backgroundColor: group.color || DEFAULT_GROUP_COLOR },
+                          ]}
+                        />
+                        <Text style={styles.myCircleGroupChevron}>{isExpanded ? 'v' : '>'}</Text>
                         <Text style={styles.myCircleGroupName}>{group.name}</Text>
                         <Text style={styles.myCircleGroupMeta}>
                           {group.memberCount || 0} member{(group.memberCount || 0) === 1 ? '' : 's'}
                         </Text>
                       </View>
-                      <Text style={styles.myCircleGroupExpand}>{isExpanded ? '?' : '+'}</Text>
+                      <View style={styles.myCircleGroupActions}>
+                        <TouchableOpacity
+                          style={styles.myCircleGroupActionButton}
+                          onPress={() =>
+                            setColorPickerGroupId((current) => (current === group.id ? null : group.id))
+                          }
+                        >
+                          <Text style={styles.myCircleGroupActionText}>🎨</Text>
+                        </TouchableOpacity>
+                        {group.createdBy === user?.id && (
+                          <TouchableOpacity
+                            style={styles.myCircleGroupActionButton}
+                            onPress={() => {
+                              Alert.alert(
+                                'Delete Group',
+                                'Are you sure you want to delete this group? This is a temporary action.',
+                                [
+                                  { text: 'Cancel', style: 'cancel' },
+                                  {
+                                    text: 'Delete',
+                                    style: 'destructive',
+                                    onPress: async () => {
+                                      await deleteGroup(group.id);
+                                      if (expandedGroupId === group.id) {
+                                        setExpandedGroupId(null);
+                                      }
+                                    },
+                                  },
+                                ]
+                              );
+                            }}
+                          >
+                            <Text style={styles.myCircleGroupActionText}>🗑</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
                     </TouchableOpacity>
+                    {colorPickerGroupId === group.id && (
+                      <View style={styles.myCircleColorPicker}>
+                        {COLOR_PALETTE.map((color) => (
+                          <TouchableOpacity
+                            key={color}
+                            style={[
+                              styles.myCircleColorSwatch,
+                              { backgroundColor: color },
+                              group.color === color && styles.myCircleColorSwatchActive,
+                            ]}
+                            onPress={() => updateGroupColor(group.id, color)}
+                          />
+                        ))}
+                        {group.color && (
+                          <TouchableOpacity
+                            style={styles.myCircleColorClear}
+                            onPress={() => updateGroupColor(group.id, null)}
+                          >
+                            <Text style={styles.myCircleColorClearText}>Clear</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
                     {isExpanded && (
                       <View style={styles.myCircleGroupExpanded}>
                         {loadingGroupMembers ? (
@@ -1706,6 +1760,12 @@ export default function IndexScreen() {
                                 </Text>
                               </TouchableOpacity>
                               <TouchableOpacity
+                                style={styles.myCircleInviteShareButton}
+                                onPress={() => shareGroupInviteLink(group.id)}
+                              >
+                                <Text style={styles.myCircleInviteShareText}>Share</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity
                                 style={styles.myCircleInviteDeleteButton}
                                 onPress={() => deleteGroupInviteCode(group.id)}
                                 disabled={deletingInviteGroupId === group.id}
@@ -1727,32 +1787,6 @@ export default function IndexScreen() {
                             </TouchableOpacity>
                           )}
                         </View>
-                        {group.createdBy === user?.id && (
-                          <TouchableOpacity
-                            style={styles.myCircleDeleteGroupButton}
-                            onPress={() => {
-                              Alert.alert(
-                                'Delete Group',
-                                'Are you sure you want to delete this group? This is a temporary action.',
-                                [
-                                  { text: 'Cancel', style: 'cancel' },
-                                  {
-                                    text: 'Delete',
-                                    style: 'destructive',
-                                    onPress: async () => {
-                                      await deleteGroup(group.id);
-                                      if (expandedGroupId === group.id) {
-                                        setExpandedGroupId(null);
-                                      }
-                                    },
-                                  },
-                                ]
-                              );
-                            }}
-                          >
-                            <Text style={styles.myCircleDeleteGroupText}>Delete Group (temp)</Text>
-                          </TouchableOpacity>
-                        )}
                       </View>
                     )}
                   </View>
@@ -2317,7 +2351,7 @@ export default function IndexScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#fafafa',
     position: 'relative',
   },
   header: {
@@ -2327,9 +2361,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 12,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#efefef',
+    backgroundColor: '#fafafa',
+    borderBottomWidth: 0,
+    borderBottomColor: 'transparent',
   },
   logo: {
     fontSize: 21,
@@ -2372,63 +2406,41 @@ const styles = StyleSheet.create({
   },
   tabs: {
     flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    backgroundColor: '#ffffff',
-  },
-  groupSwitcher: {
-    paddingHorizontal: 12,
-    paddingBottom: 10,
-    backgroundColor: '#ffffff',
-  },
-  groupChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#d3dae5',
-    backgroundColor: '#f7f9fc',
-    marginRight: 8,
-  },
-  groupChipActive: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#1f2937',
-    backgroundColor: '#1f2937',
-    marginRight: 8,
-  },
-  groupChipText: {
-    fontSize: 13,
-    color: '#1f2937',
-    fontWeight: '600',
-  },
-  groupChipTextActive: {
-    fontSize: 13,
-    color: '#ffffff',
-    fontWeight: '600',
+    alignSelf: 'center',
+    gap: 6,
+    padding: 6,
+    marginVertical: 12,
+    backgroundColor: 'transparent',
+    borderRadius: 999,
+    borderWidth: 0,
+    borderColor: 'transparent',
+    shadowColor: 'transparent',
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 0,
   },
   tab: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
+    borderRadius: 999,
+    backgroundColor: 'transparent',
   },
   tabActive: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#000',
+    borderRadius: 999,
+    backgroundColor: '#000000',
   },
   tabText: {
     fontSize: 14,
-    color: '#666',
+    color: '#6c778b',
+    fontWeight: '600',
   },
   tabTextActive: {
     fontSize: 14,
-    color: '#fff',
-    fontWeight: '600',
+    color: '#ffffff',
+    fontWeight: '700',
   },
   canvasContainer: {
     flex: 1,
@@ -3553,6 +3565,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  myCircleGroupDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#9aa3b2',
+  },
+  myCircleGroupChevron: {
+    fontSize: 16,
+    color: '#6c778b',
+    fontWeight: '600',
+  },
   myCircleGroupName: {
     fontSize: 17,
     color: '#303846',
@@ -3562,9 +3585,55 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6c778b',
   },
-  myCircleGroupExpand: {
-    fontSize: 20,
-    color: '#6c778b',
+  myCircleGroupActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  myCircleGroupActionButton: {
+    borderWidth: 1,
+    borderColor: '#e0e6ef',
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  myCircleGroupActionText: {
+    color: '#303846',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  myCircleColorPicker: {
+    marginTop: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#e2e7ee',
+    borderRadius: 10,
+    backgroundColor: '#ffffff',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  myCircleColorSwatch: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+  },
+  myCircleColorSwatchActive: {
+    borderWidth: 2,
+    borderColor: '#111827',
+  },
+  myCircleColorClear: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: '#e0e6ef',
+    borderRadius: 8,
+    backgroundColor: '#f7f8fa',
+  },
+  myCircleColorClearText: {
+    fontSize: 12,
+    color: '#303846',
     fontWeight: '600',
   },
   myCircleGroupExpanded: {
@@ -3632,18 +3701,17 @@ const styles = StyleSheet.create({
     color: '#b42318',
     fontWeight: '600',
   },
-  myCircleDeleteGroupButton: {
-    marginTop: 8,
-    borderWidth: 1,
-    borderColor: '#f2c4c4',
-    backgroundColor: '#fff5f5',
-    borderRadius: 10,
+  myCircleInviteShareButton: {
     paddingVertical: 10,
-    alignItems: 'center',
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    backgroundColor: '#ffffff',
   },
-  myCircleDeleteGroupText: {
-    color: '#b42318',
+  myCircleInviteShareText: {
     fontSize: 14,
+    color: '#303846',
     fontWeight: '600',
   },
   deleteMomentButton: {

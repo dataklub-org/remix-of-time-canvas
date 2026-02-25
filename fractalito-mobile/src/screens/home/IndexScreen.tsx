@@ -1523,6 +1523,7 @@ export default function IndexScreen() {
                 <Text style={styles.newMomentClose}>x</Text>
               </TouchableOpacity>
             </View>
+            <ScrollView style={styles.myCircleScroll} contentContainerStyle={styles.myCircleScrollContent}>
 
             <View style={styles.myCircleSearchWrap}>
               <Text style={styles.myCircleSearchIcon}>⌕</Text>
@@ -1850,6 +1851,7 @@ export default function IndexScreen() {
               </TouchableOpacity>
             </View>
             <Text style={styles.myCircleEmptyText}>Create a baby timeline to track their early years.</Text>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -3399,6 +3401,13 @@ const styles = StyleSheet.create({
     borderColor: '#d6dbe3',
     padding: 18,
     gap: 14,
+  },
+  myCircleScroll: {
+    maxHeight: 520,
+  },
+  myCircleScrollContent: {
+    paddingBottom: 8,
+    gap: 16,
   },
   myCircleHeader: {
     flexDirection: 'row',

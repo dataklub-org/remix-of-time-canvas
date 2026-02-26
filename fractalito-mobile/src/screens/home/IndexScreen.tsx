@@ -29,7 +29,7 @@ import { useMomentsStore, DEFAULT_TIMELINE_ID, OURLIFE_TIMELINE_ID, BABYLIFE_TIM
 import type { Category } from '../../types/moment';
 import { useConnections } from '../../hooks/useConnections';
 import { useGroups, type GroupMember } from '../../hooks/useGroups';
-import { useBabies } from '../../hooks/useBabies';
+import { useBabies, useShareMomentToBaby } from '../../hooks/useBabies';
 import * as ImagePicker from 'expo-image-picker';
 import { devLog } from '../../utils/logger';
 import { FEEDBACK_URL, WEB_BASE_URL } from '../../config/appConfig';
@@ -88,7 +88,8 @@ export default function IndexScreen() {
     markAllAsRead,
     deleteNotification,
   } = useNotifications(user?.id || null);
-  const { createBaby } = useBabies(user?.id || null);
+  const { babies, createBaby } = useBabies(user?.id || null);
+  const { shareMomentToBaby } = useShareMomentToBaby(user?.id || null);
   const addMoment = useMomentsStore((state) => state.addMoment);
   const addGroupMoment = useMomentsStore((state) => state.addGroupMoment);
   const updateMoment = useMomentsStore((state) => state.updateMoment);
@@ -98,6 +99,7 @@ export default function IndexScreen() {
   const updateMomentY = useMomentsStore((state) => state.updateMomentY);
   const updateGroupMomentY = useMomentsStore((state) => state.updateGroupMomentY);
   const updateBabyMomentY = useMomentsStore((state) => state.updateBabyMomentY);
+  const loadBabyMoments = useMomentsStore((state) => state.loadBabyMoments);
   const setAuthenticated = useMomentsStore((state) => state.setAuthenticated);
   const moments = useMomentsStore((state) => state.moments);
   const groupMoments = useMomentsStore((state) => state.groupMoments);
@@ -160,6 +162,7 @@ export default function IndexScreen() {
   const [babyPickerMinute, setBabyPickerMinute] = useState<number>(0);
   const [babyPickerPeriod, setBabyPickerPeriod] = useState<'AM' | 'PM'>('AM');
   const [selectedOurLifeGroupId, setSelectedOurLifeGroupId] = useState<string | null>(null);
+  const [selectedBabyId, setSelectedBabyId] = useState<string | null>(null);
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState('');
   const [selectedGroupMemberIds, setSelectedGroupMemberIds] = useState<string[]>([]);
@@ -204,9 +207,16 @@ export default function IndexScreen() {
         : groupMoments,
     [groupMoments, selectedOurLifeGroupId]
   );
+  const filteredBabyMoments = useMemo(
+    () =>
+      selectedBabyId
+        ? babyMoments.filter((m) => m.groupId === selectedBabyId)
+        : babyMoments,
+    [babyMoments, selectedBabyId]
+  );
   const activeMoments = useMemo(
-    () => (isOurLife ? filteredGroupMoments : (isBabyLife ? babyMoments : myLifeMoments)),
-    [isOurLife, isBabyLife, filteredGroupMoments, babyMoments, myLifeMoments]
+    () => (isOurLife ? filteredGroupMoments : (isBabyLife ? filteredBabyMoments : myLifeMoments)),
+    [isOurLife, isBabyLife, filteredGroupMoments, filteredBabyMoments, myLifeMoments]
   );
   const editingMoment = editingMomentId ? activeMoments.find((m) => m.id === editingMomentId) ?? null : null;
   const isEditingMoment = !!editingMomentId;
@@ -235,6 +245,14 @@ export default function IndexScreen() {
     }, 300);
     return () => clearTimeout(timer);
   }, [myCircleOpen, myCircleSearch, searchUsers]);
+
+  useEffect(() => {
+    if (!babies.length) {
+      setSelectedBabyId(null);
+      return;
+    }
+    setSelectedBabyId((prev) => (prev && babies.some((b) => b.id === prev) ? prev : babies[0].id));
+  }, [babies]);
 
   const bringMomentToFront = (momentId: string) => {
     setMomentOrder((prev) => {
@@ -678,10 +696,16 @@ export default function IndexScreen() {
       };
 
       if (isBabyLife) {
-        Alert.alert(
-          'BabyLife (UI Preview)',
-          'Create flow is enabled for UI testing. BabyLife persistence will be wired after DB columns are finalized.'
-        );
+        if (!selectedBabyId) {
+          Alert.alert('Select Baby', 'Select one baby in BabyLife before creating a moment.');
+          return null;
+        }
+        const ok = await shareMomentToBaby(selectedBabyId, payload);
+        if (!ok) {
+          Alert.alert('Error', 'Failed to create baby moment');
+          return null;
+        }
+        await loadBabyMoments();
       } else if (isOurLife) {
         if (groups.length === 0) {
           await addMoment(payload);
@@ -1034,6 +1058,10 @@ export default function IndexScreen() {
       Alert.alert('Read Only', 'Creating moments is only available in MyLife, OurLife, and BabyLife.');
       return;
     }
+    if (isBabyLife && !selectedBabyId) {
+      Alert.alert('No Baby Selected', 'Add or select a baby first in BabyLife.');
+      return;
+    }
     const now = new Date();
     const baseCreateY = viewportHeight / 2 - 60;
     const adjustedCreateY = baseCreateY - timelineTopOffset;
@@ -1241,6 +1269,43 @@ export default function IndexScreen() {
   const centerDate = new Date(centerTime);
   const dateLabel = format(centerDate, 'EEEE, MMM d, yyyy');
   const timelineY = 60;
+  const getBabyAgeLabel = (birthDate: Date, referenceTimeMs: number) => {
+    const reference = new Date(referenceTimeMs);
+    const diffMs = Math.max(0, reference.getTime() - birthDate.getTime());
+    const totalDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+    const totalWeeks = Math.floor(totalDays / 7);
+    const totalMonths = Math.floor(totalDays / 30.4375);
+    const totalYears = Math.floor(totalDays / 365.25);
+
+    if (totalMonths < 2) {
+      const week = totalWeeks;
+      const day = totalDays % 7;
+      return {
+        detail: `Week ${week}, Day ${day}`,
+        short: week > 0 ? `Week ${week}` : `Day ${day}`,
+      };
+    }
+    if (totalYears < 1) {
+      const month = Math.max(1, totalMonths);
+      const weekInMonth = Math.floor((totalDays % 30.4375) / 7);
+      return {
+        detail: `Month ${month}, Week ${weekInMonth}`,
+        short: `Month ${month}`,
+      };
+    }
+    const year = totalYears;
+    const monthInYear = Math.floor((totalDays % 365.25) / 30.4375);
+    return {
+      detail: `Year ${year}, Month ${monthInYear}`,
+      short: `Year ${year}`,
+    };
+  };
+  const babyGuideRows = babies.map((baby) => ({
+    id: baby.id,
+    name: baby.name,
+    centerAge: getBabyAgeLabel(baby.dateOfBirth, centerTime),
+    nowAge: getBabyAgeLabel(baby.dateOfBirth, Date.now()),
+  }));
   const visibleMoments = activeMoments.filter((moment) => {
     const inRange =
       moment.timestamp >= startTime - visibleTimeRange * 0.1 &&
@@ -1550,6 +1615,17 @@ export default function IndexScreen() {
               <View style={[styles.nowMarker, { left: nowX }]}>
                 <Text style={styles.nowText}>Now</Text>
                 <View style={styles.nowLine} />
+              </View>
+            )}
+            {isBabyLife && babyGuideRows.length > 0 && (
+              <View pointerEvents="none" style={styles.babyGuidesLayer}>
+                {babyGuideRows.map((row, idx) => (
+                  <View key={row.id} style={[styles.babyGuideRow, { top: idx * 54 }]}>
+                    <View style={styles.babyGuideLine} />
+                    <Text style={styles.babyGuideLeft}>{row.name}</Text>
+                    <Text style={styles.babyGuideRight}>{row.nowAge.short}</Text>
+                  </View>
+                ))}
               </View>
             )}
 
@@ -3027,6 +3103,53 @@ const styles = StyleSheet.create({
     width: 2,
     height: 40,
     backgroundColor: '#4a7dff',
+  },
+  babyGuidesLayer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 108,
+    pointerEvents: 'none',
+  },
+  babyGuideRow: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 44,
+    justifyContent: 'center',
+  },
+  babyGuideLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 2,
+    backgroundColor: '#efb7c5',
+  },
+  babyGuideLeft: {
+    position: 'absolute',
+    left: '4%',
+    top: -7,
+    color: '#e5a5ba',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  babyGuideCenter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: -10,
+    textAlign: 'center',
+    color: '#e5a5ba',
+    fontSize: 8,
+    fontWeight: '600',
+  },
+  babyGuideRight: {
+    position: 'absolute',
+    right: 8,
+    top: -7,
+    color: '#e5a5ba',
+    fontSize: 10,
+    fontWeight: '700',
   },
   momentConnector: {
     position: 'absolute',

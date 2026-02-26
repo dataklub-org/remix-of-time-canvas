@@ -120,8 +120,8 @@ export function useBabies(userId: string | null) {
         p_name: data.name,
         p_username: data.username,
         p_date_of_birth: data.dateOfBirth.toISOString().split('T')[0],
-        p_time_of_birth: data.timeOfBirth ?? null,
-        p_place_of_birth: data.placeOfBirth ?? null,
+        p_time_of_birth: data.timeOfBirth ?? undefined,
+        p_place_of_birth: data.placeOfBirth ?? undefined,
       });
 
       if (error) throw error;

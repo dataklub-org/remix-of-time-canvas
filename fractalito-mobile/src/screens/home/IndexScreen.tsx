@@ -24,6 +24,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useAuth } from '../../hooks/useAuth';
+import { useNotifications } from '../../hooks/useNotifications';
 import { useMomentsStore, DEFAULT_TIMELINE_ID, OURLIFE_TIMELINE_ID, BABYLIFE_TIMELINE_ID } from '../../stores/useMomentsStore';
 import type { Category } from '../../types/moment';
 import { useConnections } from '../../hooks/useConnections';
@@ -79,6 +80,14 @@ export default function IndexScreen() {
     clearSearchResults,
   } = useConnections(user?.id || null);
   const { groups, createGroup, addMemberToGroup, getGroupMembers, deleteGroup, updateGroupColor } = useGroups(user?.id || null);
+  const {
+    notifications,
+    unreadCount,
+    loading: notificationsLoading,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+  } = useNotifications(user?.id || null);
   const { createBaby } = useBabies(user?.id || null);
   const addMoment = useMomentsStore((state) => state.addMoment);
   const addGroupMoment = useMomentsStore((state) => state.addGroupMoment);
@@ -109,6 +118,7 @@ export default function IndexScreen() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [myCircleOpen, setMyCircleOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [addBabyOpen, setAddBabyOpen] = useState(false);
   const [myCircleSearch, setMyCircleSearch] = useState('');
   const [addingUserId, setAddingUserId] = useState<string | null>(null);
@@ -1339,20 +1349,105 @@ export default function IndexScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.logo}>fractalito</Text>
+        <View style={styles.headerLeft}>
+          <Text style={styles.logo}>fractalito</Text>
+          <TouchableOpacity style={styles.notificationsButton} onPress={() => setNotificationsOpen(true)} activeOpacity={0.85}>
+            <Image
+              source={require('../../../assets/bell.webp')}
+              style={styles.notificationsIconImage}
+              resizeMode="contain"
+            />
+            {unreadCount > 0 && (
+              <View style={styles.notificationsBadge}>
+                <Text style={styles.notificationsBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.myCircleButton} onPress={() => setMyCircleOpen(true)} activeOpacity={0.85}>
-            <Text style={styles.myCircleText}>👥  My Circle</Text>
+            <Text style={styles.myCircleText}>
+              <Text style={styles.headerEmoji}>{'\uD83D\uDC65 '}</Text>
+              My Circle
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.myProfileButton}
             onPress={() => navigation.navigate('Profile')}
             activeOpacity={0.85}
           >
-            <Text style={styles.myProfileText}>👤  My Profile</Text>
+            <Text style={styles.myProfileText}>
+              <Text style={styles.headerEmoji}>{'\uD83D\uDC64 '}</Text>
+              My Profile
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
+
+
+      <Modal visible={notificationsOpen} transparent animationType="fade" onRequestClose={() => setNotificationsOpen(false)}>
+        <Pressable style={styles.newMomentOverlay} onPress={() => setNotificationsOpen(false)}>
+          <View />
+        </Pressable>
+        <View style={styles.notificationsContainer}>
+          <View style={styles.notificationsCard}>
+            <View style={styles.notificationsHeader}>
+              <Text style={styles.notificationsTitle}>Notifications</Text>
+              <View style={styles.notificationsHeaderActions}>
+                <TouchableOpacity
+                  style={styles.notificationsMarkAll}
+                  onPress={() => markAllAsRead()}
+                  disabled={notifications.length === 0}
+                >
+                  <Text style={styles.notificationsMarkAllText}>Mark all read</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setNotificationsOpen(false)}>
+                  <Text style={styles.newMomentClose}>x</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {notificationsLoading ? (
+              <ActivityIndicator size="small" color="#666" />
+            ) : notifications.length === 0 ? (
+              <Text style={styles.notificationsEmpty}>No notifications yet</Text>
+            ) : (
+              <ScrollView style={styles.notificationsList} contentContainerStyle={styles.notificationsListContent}>
+                {notifications.map((notification) => (
+                  <View
+                    key={notification.id}
+                    style={[
+                      styles.notificationItem,
+                      !notification.read && styles.notificationItemUnread,
+                    ]}
+                  >
+                    <View style={styles.notificationTextWrap}>
+                      <Text style={styles.notificationTitle}>{notification.title}</Text>
+                      <Text style={styles.notificationMessage}>{notification.message}</Text>
+                    </View>
+                    <View style={styles.notificationActions}>
+                      {!notification.read && (
+                        <TouchableOpacity
+                          style={styles.notificationActionButton}
+                          onPress={() => markAsRead(notification.id)}
+                        >
+                          <Text style={styles.notificationActionText}>Read</Text>
+                        </TouchableOpacity>
+                      )}
+                      <TouchableOpacity
+                        style={styles.notificationDeleteButton}
+                        onPress={() => deleteNotification(notification.id)}
+                      >
+                        <Text style={styles.notificationDeleteText}>Delete</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Tabs */}
       <View style={styles.tabs}>
@@ -2742,6 +2837,11 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0,
     borderBottomColor: 'transparent',
   },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   logo: {
     fontSize: 21,
     fontWeight: '700',
@@ -2753,10 +2853,45 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
   },
+  notificationsButton: {
+    height: 30,
+    width: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  notificationsIcon: {
+    fontSize: 16,
+  },
+  notificationsIconImage: {
+    width: 14,
+    height: 14,
+  },
+  notificationsBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  notificationsBadgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
   myCircleButton: {
-    height: 38,
-    paddingHorizontal: 14,
-    borderRadius: 19,
+    height: 32,
+    paddingHorizontal: 10,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#111111',
     backgroundColor: '#ffffff',
@@ -2765,21 +2900,24 @@ const styles = StyleSheet.create({
   },
   myCircleText: {
     color: '#111111',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
   },
   myProfileButton: {
-    height: 38,
-    paddingHorizontal: 14,
-    borderRadius: 19,
+    height: 32,
+    paddingHorizontal: 10,
+    borderRadius: 16,
     backgroundColor: '#111111',
     alignItems: 'center',
     justifyContent: 'center',
   },
   myProfileText: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
+  },
+  headerEmoji: {
+    fontSize: 11,
   },
   tabs: {
     flexDirection: 'row',
@@ -3749,6 +3887,119 @@ const styles = StyleSheet.create({
   myCircleScrollContent: {
     paddingBottom: 8,
     gap: 16,
+  },
+  notificationsContainer: {
+    position: 'absolute',
+    top: 80,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  notificationsCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 16,
+    maxHeight: 520,
+    borderWidth: 1,
+    borderColor: '#e2e7ee',
+    width: '100%',
+    maxWidth: 420,
+  },
+  notificationsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  notificationsTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  notificationsHeaderActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  notificationsMarkAll: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    backgroundColor: '#f7f8fa',
+  },
+  notificationsMarkAllText: {
+    fontSize: 12,
+    color: '#303846',
+    fontWeight: '600',
+  },
+  notificationsEmpty: {
+    fontSize: 14,
+    color: '#6c778b',
+    textAlign: 'center',
+    paddingVertical: 16,
+  },
+  notificationsList: {
+    marginTop: 4,
+  },
+  notificationsListContent: {
+    gap: 10,
+    paddingBottom: 8,
+  },
+  notificationItem: {
+    borderWidth: 1,
+    borderColor: '#e2e7ee',
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: '#ffffff',
+  },
+  notificationItemUnread: {
+    backgroundColor: '#f4f7ff',
+  },
+  notificationTextWrap: {
+    gap: 4,
+  },
+  notificationTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  notificationMessage: {
+    fontSize: 12,
+    color: '#6c778b',
+  },
+  notificationActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
+  notificationActionButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    backgroundColor: '#ffffff',
+  },
+  notificationActionText: {
+    fontSize: 12,
+    color: '#303846',
+    fontWeight: '600',
+  },
+  notificationDeleteButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#f2c4c4',
+    backgroundColor: '#fff5f5',
+  },
+  notificationDeleteText: {
+    fontSize: 12,
+    color: '#b42318',
+    fontWeight: '600',
   },
   myCircleHeader: {
     flexDirection: 'row',

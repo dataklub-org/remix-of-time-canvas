@@ -621,8 +621,8 @@ export default function IndexScreen() {
   };
 
   const saveMoment = async (): Promise<number | null> => {
-    if (!isMyLife && !isOurLife) {
-      Alert.alert('Read Only', 'Creating moments is only available in MyLife and OurLife.');
+    if (!isMyLife && !isOurLife && !isBabyLife) {
+      Alert.alert('Read Only', 'Creating moments is only available in MyLife, OurLife, and BabyLife.');
       return null;
     }
     const desc = descriptionInput.trim();
@@ -667,7 +667,12 @@ export default function IndexScreen() {
         width: initialWidth,
       };
 
-      if (isOurLife) {
+      if (isBabyLife) {
+        Alert.alert(
+          'BabyLife (UI Preview)',
+          'Create flow is enabled for UI testing. BabyLife persistence will be wired after DB columns are finalized.'
+        );
+      } else if (isOurLife) {
         if (groups.length === 0) {
           await addMoment(payload);
         } else {
@@ -1015,8 +1020,8 @@ export default function IndexScreen() {
   };
 
   const handleOpenNewMoment = () => {
-    if (!isMyLife && !isOurLife) {
-      Alert.alert('Read Only', 'Creating moments is only available in MyLife and OurLife.');
+    if (!isMyLife && !isOurLife && !isBabyLife) {
+      Alert.alert('Read Only', 'Creating moments is only available in MyLife, OurLife, and BabyLife.');
       return;
     }
     const now = new Date();

@@ -2551,6 +2551,17 @@ export default function IndexScreen() {
                             ))}
                           </View>
                         </View>
+                        <View style={styles.endTimeActions}>
+                          <TouchableOpacity
+                            style={styles.endTimeSaveButton}
+                            onPress={() => {
+                              applyEndTime(endPickerHour, endPickerMinute, endPickerPeriod);
+                              setEndTimePickerOpen(false);
+                            }}
+                          >
+                            <Text style={styles.endTimeSaveText}>Save</Text>
+                          </TouchableOpacity>
+                        </View>
                       </View>
                     )}
                   </View>
@@ -3836,6 +3847,21 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#fff',
     padding: 10,
+  },
+  endTimeActions: {
+    marginTop: 10,
+    alignItems: 'flex-end',
+  },
+  endTimeSaveButton: {
+    backgroundColor: '#111827',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  endTimeSaveText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   endTimeCol: {
     flex: 1,

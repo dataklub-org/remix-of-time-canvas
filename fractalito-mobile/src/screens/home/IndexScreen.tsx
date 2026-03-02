@@ -2379,15 +2379,6 @@ export default function IndexScreen() {
                   onChangeText={setDescriptionInput}
                   multiline
                 />
-                <TouchableOpacity
-                  style={styles.newMomentCreateBtn}
-                  onPress={isEditingMoment ? handleSaveEditedMoment : handleCreateMoment}
-                  disabled={savingMoment}
-                >
-                  <Text style={styles.newMomentCreateText}>
-                    {savingMoment ? (isEditingMoment ? 'Saving...' : 'Creating...') : (isEditingMoment ? 'Save Changes' : 'Create')}
-                  </Text>
-                </TouchableOpacity>
 
                 <Text style={styles.newMomentLabel}>People</Text>
                 <View style={styles.newMomentPeopleRow}>
@@ -2635,6 +2626,17 @@ export default function IndexScreen() {
                   </TouchableOpacity>
                 )}
               </ScrollView>
+              <View style={styles.newMomentFooter}>
+                <TouchableOpacity
+                  style={styles.newMomentCreateBtn}
+                  onPress={isEditingMoment ? handleSaveEditedMoment : handleCreateMoment}
+                  disabled={savingMoment}
+                >
+                  <Text style={styles.newMomentCreateText}>
+                    {savingMoment ? (isEditingMoment ? 'Saving...' : 'Creating...') : (isEditingMoment ? 'Save Changes' : 'Create')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
           </KeyboardAvoidingView>
         </View>
@@ -3641,7 +3643,14 @@ const styles = StyleSheet.create({
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4,
+  },
+  newMomentFooter: {
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e2e7ee',
+    backgroundColor: '#f4f5f7',
   },
   newMomentCreateText: {
     color: '#fff',

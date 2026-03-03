@@ -299,6 +299,7 @@ export default function IndexScreen() {
 
   const handleJumpToNow = () => {
     setCenterTime(Date.now());
+    setScrollOffset(0);
   };
 
   const handleSelectDate = (date: Date) => {

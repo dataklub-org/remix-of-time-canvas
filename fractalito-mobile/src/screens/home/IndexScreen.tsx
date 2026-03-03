@@ -492,6 +492,9 @@ export default function IndexScreen() {
     setEndPickerHour(hour);
     setEndPickerMinute(minute);
     setEndPickerPeriod(period);
+    if (!endDateInput.trim()) {
+      setEndDateInput(startDateInput);
+    }
     setEndTimeInput(nextValue);
   };
 
@@ -568,6 +571,12 @@ export default function IndexScreen() {
     const d = new Date(year, month - 1, day, 0, 0, 0, 0);
     if (d.getMonth() !== month - 1 || d.getDate() !== day || d.getFullYear() !== year) return null;
     return d;
+  };
+
+  const minEndDate = parseDateOnly(startDateInput);
+  const isEndDateBeforeStart = (day: Date) => {
+    if (!minEndDate) return false;
+    return startOfDay(day).getTime() < startOfDay(minEndDate).getTime();
   };
 
   const parseTimeForSql = (timeInput: string): string | undefined => {
@@ -654,7 +663,10 @@ export default function IndexScreen() {
       return null;
     }
     const desc = descriptionInput.trim();
-    if (!desc) return null;
+    if (!desc) {
+      Alert.alert('Missing Description', 'Please add a description before creating a moment.');
+      return null;
+    }
 
     const startTs = parseDateTime(startDateInput, startTimeInput);
     if (!startTs) {
@@ -671,8 +683,8 @@ export default function IndexScreen() {
     }
     if (hasEndDate && hasEndTime) {
       const parsedEnd = parseDateTime(endDateInput, endTimeInput);
-      if (!parsedEnd || parsedEnd <= startTs) {
-        Alert.alert('Invalid End', 'End must be after Start.');
+      if (!parsedEnd || parsedEnd < startTs) {
+        Alert.alert('Invalid End', 'End cannot be before Start.');
         return null;
       }
       endTs = parsedEnd;
@@ -754,7 +766,10 @@ export default function IndexScreen() {
     }
     if (!editingMomentId || !editingMoment) return;
     const desc = descriptionInput.trim();
-    if (!desc) return;
+    if (!desc) {
+      Alert.alert('Missing Description', 'Please add a description before saving this moment.');
+      return;
+    }
 
     const startTs = parseDateTime(startDateInput, startTimeInput);
     if (!startTs) {
@@ -771,8 +786,8 @@ export default function IndexScreen() {
     }
     if (hasEndDate && hasEndTime) {
       const parsedEnd = parseDateTime(endDateInput, endTimeInput);
-      if (!parsedEnd || parsedEnd <= startTs) {
-        Alert.alert('Invalid End', 'End must be after Start.');
+      if (!parsedEnd || parsedEnd < startTs) {
+        Alert.alert('Invalid End', 'End cannot be before Start.');
         return;
       }
       endTs = parsedEnd;
@@ -2461,17 +2476,29 @@ export default function IndexScreen() {
                                   return isSameDay(day, parsed);
                                 })();
                                 const inCurrentMonth = isSameMonth(day, endPickerMonth);
+                                const disabled = isEndDateBeforeStart(day);
                                 return (
                                   <TouchableOpacity
                                     key={`inline-${day.toISOString()}`}
-                                    style={[styles.endPickerDayCell, selected && styles.endPickerDayCellSelected]}
+                                    style={[
+                                      styles.endPickerDayCell,
+                                      selected && styles.endPickerDayCellSelected,
+                                      disabled && styles.endPickerDayCellDisabled,
+                                    ]}
                                     onPress={() => {
+                                      if (disabled) return;
                                       setEndDateInput(format(day, 'MM/dd/yyyy'));
                                       setEndDatePickerOpen(false);
                                     }}
+                                    disabled={disabled}
                                   >
                                     <Text
-                                      style={[styles.endPickerDayText, !inCurrentMonth && styles.endPickerDayTextMuted, selected && styles.endPickerDayTextSelected]}
+                                      style={[
+                                        styles.endPickerDayText,
+                                        !inCurrentMonth && styles.endPickerDayTextMuted,
+                                        selected && styles.endPickerDayTextSelected,
+                                        disabled && styles.endPickerDayTextDisabled,
+                                      ]}
                                       allowFontScaling={false}
                                     >
                                       {format(day, 'd')}
@@ -2488,8 +2515,11 @@ export default function IndexScreen() {
                           </TouchableOpacity>
                           <TouchableOpacity onPress={() => {
                             const now = new Date();
-                            setEndDateInput(format(now, 'MM/dd/yyyy'));
-                            setEndPickerMonth(now);
+                            const nextDate = minEndDate && startOfDay(now).getTime() < startOfDay(minEndDate).getTime()
+                              ? minEndDate
+                              : now;
+                            setEndDateInput(format(nextDate, 'MM/dd/yyyy'));
+                            setEndPickerMonth(nextDate);
                           }}>
                             <Text style={styles.endPickerFooterLink} allowFontScaling={false}>Today</Text>
                           </TouchableOpacity>
@@ -2701,22 +2731,36 @@ export default function IndexScreen() {
                     const parsed = new Date(Number(parts[2]), Number(parts[0]) - 1, Number(parts[1]));
                     return isSameDay(day, parsed);
                   })();
-                  const inCurrentMonth = isSameMonth(day, endPickerMonth);
-                  return (
-                    <TouchableOpacity
-                      key={day.toISOString()}
-                      style={[styles.endPickerDayCell, selected && styles.endPickerDayCellSelected]}
-                      onPress={() => {
-                        setEndDateInput(format(day, 'MM/dd/yyyy'));
-                        setEndDatePickerOpen(false);
-                      }}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Choose ${format(day, 'MMMM d, yyyy')}`}
-                    >
-                      <Text style={[styles.endPickerDayText, !inCurrentMonth && styles.endPickerDayTextMuted, selected && styles.endPickerDayTextSelected]}>
-                        {format(day, 'd')}
-                      </Text>
-                    </TouchableOpacity>
+	                  const inCurrentMonth = isSameMonth(day, endPickerMonth);
+	                  const disabled = isEndDateBeforeStart(day);
+	                  return (
+	                    <TouchableOpacity
+	                      key={day.toISOString()}
+	                      style={[
+	                        styles.endPickerDayCell,
+	                        selected && styles.endPickerDayCellSelected,
+	                        disabled && styles.endPickerDayCellDisabled,
+	                      ]}
+	                      onPress={() => {
+	                        if (disabled) return;
+	                        setEndDateInput(format(day, 'MM/dd/yyyy'));
+	                        setEndDatePickerOpen(false);
+	                      }}
+	                      disabled={disabled}
+	                      accessibilityRole="button"
+	                      accessibilityLabel={`Choose ${format(day, 'MMMM d, yyyy')}`}
+	                    >
+	                      <Text
+	                        style={[
+	                          styles.endPickerDayText,
+	                          !inCurrentMonth && styles.endPickerDayTextMuted,
+	                          selected && styles.endPickerDayTextSelected,
+	                          disabled && styles.endPickerDayTextDisabled,
+	                        ]}
+	                      >
+	                        {format(day, 'd')}
+	                      </Text>
+	                    </TouchableOpacity>
                   );
                 })}
               </View>
@@ -2727,13 +2771,16 @@ export default function IndexScreen() {
               <Text style={styles.endPickerFooterLink}>Clear</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              onPress={() => {
-                const now = new Date();
-                setEndDateInput(format(now, 'MM/dd/yyyy'));
-                setEndPickerMonth(now);
-              }}
-              accessibilityRole="button"
-              accessibilityLabel="Set end date to today"
+	              onPress={() => {
+	                const now = new Date();
+	                const nextDate = minEndDate && startOfDay(now).getTime() < startOfDay(minEndDate).getTime()
+	                  ? minEndDate
+	                  : now;
+	                setEndDateInput(format(nextDate, 'MM/dd/yyyy'));
+	                setEndPickerMonth(nextDate);
+	              }}
+	              accessibilityRole="button"
+	              accessibilityLabel="Set end date to today"
             >
               <Text style={styles.endPickerFooterLink}>Today</Text>
             </TouchableOpacity>
@@ -3807,6 +3854,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#1d70e7',
     borderRadius: 4,
   },
+  endPickerDayCellDisabled: {
+    opacity: 0.35,
+  },
   endPickerDayText: {
     fontSize: 15,
     lineHeight: 18,
@@ -3816,6 +3866,9 @@ const styles = StyleSheet.create({
   },
   endPickerDayTextMuted: {
     color: '#b5bbc6',
+  },
+  endPickerDayTextDisabled: {
+    color: '#c9ced8',
   },
   endPickerDayTextSelected: {
     color: '#fff',

@@ -1281,6 +1281,8 @@ export default function IndexScreen() {
 
   const nowX = timeToX(Date.now(), centerTime, msPerPixel, viewportWidth);
   const nowVisible = nowX >= 0 && nowX <= viewportWidth;
+  const futureStartX = Math.max(0, Math.min(viewportWidth, nowX + 2));
+  const showFutureHint = futureStartX < viewportWidth - 24;
   const centerDate = new Date(centerTime);
   const dateLabel = format(centerDate, 'EEEE, MMM d, yyyy');
   const timelineY = 60;
@@ -1624,6 +1626,13 @@ export default function IndexScreen() {
 
             {isWeekOrHigher && (
               <Text style={styles.yearLabel}>{format(centerDate, 'yyyy')}</Text>
+            )}
+
+            {showFutureHint && (
+              <View pointerEvents="none" style={[styles.futureRangeHint, { left: futureStartX, width: viewportWidth - futureStartX }]}>
+                <View style={styles.futureRangeLine} />
+                <Text style={styles.futureRangeText}>Future</Text>
+              </View>
             )}
 
             {nowVisible && (
@@ -3163,6 +3172,25 @@ const styles = StyleSheet.create({
     width: 2,
     height: 40,
     backgroundColor: '#4a7dff',
+  },
+  futureRangeHint: {
+    position: 'absolute',
+    top: 38,
+    alignItems: 'flex-end',
+  },
+  futureRangeLine: {
+    width: '100%',
+    borderTopWidth: 1,
+    borderTopColor: '#9ca3af',
+    borderStyle: 'dashed',
+    opacity: 0.7,
+  },
+  futureRangeText: {
+    marginTop: 4,
+    fontSize: 11,
+    color: '#6b7280',
+    fontWeight: '600',
+    paddingRight: 4,
   },
   babyGuidesLayer: {
     position: 'absolute',

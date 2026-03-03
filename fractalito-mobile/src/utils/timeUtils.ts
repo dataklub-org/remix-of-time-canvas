@@ -34,10 +34,21 @@ export function getZoomLevelIndex(msPerPixel: number): number {
   return ZOOM_LEVELS.length - 1;
 }
 
-// Snap to nearest zoom level
+// Snap to nearest zoom level (by absolute distance)
 export function clampZoom(msPerPixel: number): number {
-  const index = getZoomLevelIndex(msPerPixel);
-  return ZOOM_LEVELS[index].msPerPixel;
+  let closest = ZOOM_LEVELS[0].msPerPixel;
+  let smallestDiff = Math.abs(msPerPixel - closest);
+
+  for (let i = 1; i < ZOOM_LEVELS.length; i++) {
+    const candidate = ZOOM_LEVELS[i].msPerPixel;
+    const diff = Math.abs(msPerPixel - candidate);
+    if (diff < smallestDiff) {
+      smallestDiff = diff;
+      closest = candidate;
+    }
+  }
+
+  return closest;
 }
 
 // Get appropriate time unit for current zoom level

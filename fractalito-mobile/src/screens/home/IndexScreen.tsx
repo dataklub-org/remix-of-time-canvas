@@ -135,6 +135,7 @@ export default function IndexScreen() {
   const [peopleInput, setPeopleInput] = useState('');
   const [people, setPeople] = useState<string[]>([]);
   const [selectedShareGroupIds, setSelectedShareGroupIds] = useState<string[]>([]);
+  const [selectedShareBabyIds, setSelectedShareBabyIds] = useState<string[]>([]);
   const [locationInput, setLocationInput] = useState('');
   const [category, setCategory] = useState<Category>('personal');
   const [startDateInput, setStartDateInput] = useState(format(new Date(), 'MM/dd/yyyy'));
@@ -438,6 +439,7 @@ export default function IndexScreen() {
     setKeepOriginalSize(false);
     setPhoto(null);
     setSelectedShareGroupIds([]);
+    setSelectedShareBabyIds([]);
     setCreateMomentY(null);
   };
 
@@ -788,6 +790,10 @@ export default function IndexScreen() {
         if (selectedShareGroupIds.length > 0) {
           await Promise.all(selectedShareGroupIds.map((groupId) => addGroupMoment(groupId, payload)));
         }
+        if (selectedShareBabyIds.length > 0) {
+          await Promise.all(selectedShareBabyIds.map((babyId) => shareMomentToBaby(babyId, payload)));
+          await loadBabyMoments();
+        }
       }
       return startTs;
     } catch (error) {
@@ -951,6 +957,12 @@ export default function IndexScreen() {
   const toggleShareGroup = (groupId: string) => {
     setSelectedShareGroupIds((prev) =>
       prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
+    );
+  };
+
+  const toggleShareBaby = (babyId: string) => {
+    setSelectedShareBabyIds((prev) =>
+      prev.includes(babyId) ? prev.filter((id) => id !== babyId) : [...prev, babyId]
     );
   };
 
@@ -2698,28 +2710,50 @@ export default function IndexScreen() {
 
                 {!isEditingMoment && (
                   <View style={styles.shareGroupsSection}>
-                    <Text style={styles.newMomentLabel}>Share to groups</Text>
-                    {groups.length === 0 ? (
-                      <Text style={styles.shareGroupsEmptyText}>No groups yet. Create one in My Circle.</Text>
-                    ) : (
-                      groups.map((group) => {
-                        const selected = selectedShareGroupIds.includes(group.id);
-                        return (
-                          <TouchableOpacity
-                            key={group.id}
-                            style={styles.shareGroupRow}
-                            onPress={() => toggleShareGroup(group.id)}
-                          >
-                            <View style={[styles.shareGroupCheckbox, selected && styles.shareGroupCheckboxActive]}>
-                              {selected && <Text style={styles.shareGroupCheckmark}>✓</Text>}
-                            </View>
-                            <Text style={styles.shareGroupName}>{group.name}</Text>
-                          </TouchableOpacity>
-                        );
-                      })
-                    )}
-                  </View>
+                <Text style={styles.newMomentLabel}>Share to groups</Text>
+                {groups.length === 0 ? (
+                  <Text style={styles.shareGroupsEmptyText}>No groups yet. Create one in My Circle.</Text>
+                ) : (
+                  groups.map((group) => {
+                    const selected = selectedShareGroupIds.includes(group.id);
+                    return (
+                      <TouchableOpacity
+                        key={group.id}
+                        style={styles.shareGroupRow}
+                        onPress={() => toggleShareGroup(group.id)}
+                      >
+                        <View style={[styles.shareGroupCheckbox, selected && styles.shareGroupCheckboxActive]}>
+                          {selected && <Text style={styles.shareGroupCheckmark}>✓</Text>}
+                        </View>
+                        <Text style={styles.shareGroupName}>{group.name}</Text>
+                      </TouchableOpacity>
+                    );
+                  })
                 )}
+              </View>
+            )}
+            <View style={styles.shareGroupsSection}>
+              <Text style={styles.newMomentLabel}>Share to baby timeline</Text>
+              {babies.length === 0 ? (
+                <Text style={styles.shareGroupsEmptyText}>No babies yet. Add one in My Circle.</Text>
+              ) : (
+                babies.map((baby) => {
+                  const selected = selectedShareBabyIds.includes(baby.id);
+                  return (
+                    <TouchableOpacity
+                      key={baby.id}
+                      style={styles.shareGroupRow}
+                      onPress={() => toggleShareBaby(baby.id)}
+                    >
+                      <View style={[styles.shareGroupCheckbox, selected && styles.shareGroupCheckboxActive]}>
+                        {selected && <Text style={styles.shareGroupCheckmark}>✓</Text>}
+                      </View>
+                      <Text style={styles.shareGroupName}>{baby.name}</Text>
+                    </TouchableOpacity>
+                  );
+                })
+              )}
+            </View>
                 {isEditingMoment && (
                   <TouchableOpacity style={styles.deleteMomentButton} onPress={handleDeleteEditedMoment}>
                     <Text style={styles.deleteMomentText}>Delete Moment</Text>

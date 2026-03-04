@@ -593,6 +593,53 @@ export default function IndexScreen() {
     return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}:00`;
   };
 
+  const isMomentFormEligible = useMemo(() => {
+    if (isEditingMoment) {
+      if (!isMyLife) return false;
+      if (!descriptionInput.trim()) return false;
+      const startTs = parseDateTime(startDateInput, startTimeInput);
+      if (!startTs) return false;
+      const hasEndDate = !!endDateInput.trim();
+      const hasEndTime = !!endTimeInput.trim();
+      if (hasEndDate !== hasEndTime) return false;
+      if (hasEndDate && hasEndTime) {
+        const parsedEnd = parseDateTime(endDateInput, endTimeInput);
+        if (!parsedEnd || parsedEnd < startTs) return false;
+      }
+      return true;
+    }
+
+    if (!isMyLife && !isOurLife && !isBabyLife) return false;
+    if (!descriptionInput.trim()) return false;
+    const startTs = parseDateTime(startDateInput, startTimeInput);
+    if (!startTs) return false;
+
+    const hasEndDate = !!endDateInput.trim();
+    const hasEndTime = !!endTimeInput.trim();
+    if (hasEndDate !== hasEndTime) return false;
+    if (hasEndDate && hasEndTime) {
+      const parsedEnd = parseDateTime(endDateInput, endTimeInput);
+      if (!parsedEnd || parsedEnd < startTs) return false;
+    }
+
+    if (isBabyLife && !selectedBabyId) return false;
+    if (isOurLife && groups.length > 0 && selectedShareGroupIds.length === 0) return false;
+    return true;
+  }, [
+    isEditingMoment,
+    isMyLife,
+    isOurLife,
+    isBabyLife,
+    descriptionInput,
+    startDateInput,
+    startTimeInput,
+    endDateInput,
+    endTimeInput,
+    selectedBabyId,
+    groups.length,
+    selectedShareGroupIds.length,
+  ]);
+
   const resetAddBabyForm = () => {
     const now = new Date();
     setBabyNameInput('');
@@ -2679,7 +2726,10 @@ export default function IndexScreen() {
               </ScrollView>
               <View style={styles.newMomentFooter}>
                 <TouchableOpacity
-                  style={styles.newMomentCreateBtn}
+                  style={[
+                    styles.newMomentCreateBtn,
+                    isMomentFormEligible && styles.newMomentCreateBtnActive,
+                  ]}
                   onPress={isEditingMoment ? handleSaveEditedMoment : handleCreateMoment}
                   disabled={savingMoment}
                 >
@@ -3730,6 +3780,9 @@ const styles = StyleSheet.create({
     minHeight: 52,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  newMomentCreateBtnActive: {
+    backgroundColor: '#000000',
   },
   newMomentFooter: {
     paddingHorizontal: 18,

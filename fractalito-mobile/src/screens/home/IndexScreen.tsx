@@ -2230,7 +2230,30 @@ export default function IndexScreen() {
                 <Text style={styles.myCircleActionButtonText}>+ Add Baby</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.myCircleEmptyText}>Create a baby timeline to track their early years.</Text>
+            {babies.length === 0 ? (
+              <Text style={styles.myCircleEmptyText}>Create a baby timeline to track their early years.</Text>
+            ) : (
+              <View style={styles.myCircleBabyList}>
+                {babies.map((baby) => (
+                  <View key={baby.id} style={styles.myCircleBabyCard}>
+                    <View style={styles.myCircleBabyAvatar}>
+                      <Text style={styles.myCircleBabyAvatarText}>{baby.name.charAt(0).toUpperCase()}</Text>
+                    </View>
+                    <View style={styles.myCircleBabyInfo}>
+                      <Text style={styles.myCircleBabyName}>{baby.name}</Text>
+                      <Text style={styles.myCircleBabyMeta}>
+                        @{baby.username} • {format(baby.dateOfBirth, 'MMM d, yyyy')}
+                      </Text>
+                    </View>
+                    {baby.createdBy === user?.id && (
+                      <View style={styles.myCircleBabyBadge}>
+                        <Text style={styles.myCircleBabyBadgeText}>You</Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </View>
+            )}
             </ScrollView>
           </View>
         </View>
@@ -4555,6 +4578,57 @@ const styles = StyleSheet.create({
   myCircleRowText: {
     fontSize: 17,
     color: '#303846',
+  },
+  myCircleBabyList: {
+    gap: 10,
+  },
+  myCircleBabyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderColor: '#dfe5ee',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#ffffff',
+  },
+  myCircleBabyAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f2cfe5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  myCircleBabyAvatarText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#6a2f63',
+  },
+  myCircleBabyInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  myCircleBabyName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#303846',
+  },
+  myCircleBabyMeta: {
+    fontSize: 13,
+    color: '#6c778b',
+  },
+  myCircleBabyBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: '#eef2ff',
+  },
+  myCircleBabyBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#3b4a8c',
   },
   myCircleRemoveButton: {
     marginLeft: 'auto',

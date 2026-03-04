@@ -298,6 +298,8 @@ export default function IndexScreen() {
   };
 
   const handleJumpToNow = () => {
+    const hourlyZoom = ZOOM_LEVELS.find((z) => z.unit === 'hour')?.msPerPixel ?? 36_000;
+    setMsPerPixel(hourlyZoom);
     setCenterTime(Date.now());
     setScrollOffset(0);
   };

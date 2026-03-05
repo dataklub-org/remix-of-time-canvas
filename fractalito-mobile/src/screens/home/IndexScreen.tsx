@@ -24,7 +24,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../navigation/AppNavigator';
 import { useAuth } from '../../hooks/useAuth';
-import { useNotifications } from '../../hooks/useNotifications';
+import { useNotifications, type Notification } from '../../hooks/useNotifications';
 import { useMomentsStore, DEFAULT_TIMELINE_ID, OURLIFE_TIMELINE_ID, BABYLIFE_TIMELINE_ID } from '../../stores/useMomentsStore';
 import type { Category } from '../../types/moment';
 import { useConnections } from '../../hooks/useConnections';
@@ -100,6 +100,7 @@ export default function IndexScreen() {
   const updateGroupMomentY = useMomentsStore((state) => state.updateGroupMomentY);
   const updateBabyMomentY = useMomentsStore((state) => state.updateBabyMomentY);
   const loadBabyMoments = useMomentsStore((state) => state.loadBabyMoments);
+  const loadGroupMoments = useMomentsStore((state) => state.loadGroupMoments);
   const setAuthenticated = useMomentsStore((state) => state.setAuthenticated);
   const moments = useMomentsStore((state) => state.moments);
   const groupMoments = useMomentsStore((state) => state.groupMoments);
@@ -192,6 +193,7 @@ export default function IndexScreen() {
   const isMyLife = activeTimelineId === DEFAULT_TIMELINE_ID;
   const isOurLife = activeTimelineId === OURLIFE_TIMELINE_ID;
   const isBabyLife = activeTimelineId === BABYLIFE_TIMELINE_ID;
+  const groupNameById = useMemo(() => new Map(groups.map((g) => [g.id, g.name])), [groups]);
   const myLifeMoments = useMemo(() => {
     if (!isMyLife) return moments;
     const seenIds = new Set(moments.map((m) => m.id));
@@ -211,12 +213,40 @@ export default function IndexScreen() {
     });
     return merged;
   }, [isMyLife, moments, groupMoments]);
+  type OurLifeMoment = (typeof groupMoments)[number] & {
+    sharedGroupIds?: string[];
+    sharedGroupMomentIds?: string[];
+  };
+  const mergedOurLifeMoments = useMemo<OurLifeMoment[]>(() => {
+    const grouped = new Map<string, { moment: OurLifeMoment; groupIds: string[]; momentIds: string[] }>();
+    groupMoments.forEach((m) => {
+      const key = m.originalMomentId
+        ? `orig:${m.originalMomentId}`
+        : `shared:${m.sharedBy ?? 'unknown'}:${m.timestamp}:${m.endTime ?? ''}:${m.description}:${m.people}:${m.location}:${m.category}`;
+      const existing = grouped.get(key);
+      if (existing) {
+        if (m.groupId && !existing.groupIds.includes(m.groupId)) existing.groupIds.push(m.groupId);
+        if (!existing.momentIds.includes(m.id)) existing.momentIds.push(m.id);
+        return;
+      }
+      grouped.set(key, {
+        moment: m,
+        groupIds: m.groupId ? [m.groupId] : [],
+        momentIds: [m.id],
+      });
+    });
+    return Array.from(grouped.values()).map(({ moment, groupIds, momentIds }) => ({
+      ...moment,
+      sharedGroupIds: groupIds,
+      sharedGroupMomentIds: momentIds,
+    }));
+  }, [groupMoments]);
   const filteredGroupMoments = useMemo(
     () =>
       selectedOurLifeGroupId
-        ? groupMoments.filter((m) => m.groupId === selectedOurLifeGroupId)
-        : groupMoments,
-    [groupMoments, selectedOurLifeGroupId]
+        ? mergedOurLifeMoments.filter((m) => (m.sharedGroupIds ?? []).includes(selectedOurLifeGroupId))
+        : mergedOurLifeMoments,
+    [mergedOurLifeMoments, selectedOurLifeGroupId]
   );
   const filteredBabyMoments = useMemo(
     () =>
@@ -976,6 +1006,25 @@ export default function IndexScreen() {
     );
   };
 
+  const handleNotificationRead = async (notification: Notification) => {
+    await markAsRead(notification.id);
+    if (notification.type !== 'moment_shared') return;
+    const data = (notification.data || {}) as Record<string, unknown>;
+    const momentId = typeof data.moment_id === 'string' ? data.moment_id : undefined;
+    const groupId = typeof data.group_id === 'string' ? data.group_id : undefined;
+    if (!momentId || !groupId) return;
+
+    await loadGroupMoments();
+    setSelectedOurLifeGroupId(groupId);
+    setActiveTimeline(OURLIFE_TIMELINE_ID);
+    const latest = useMomentsStore.getState().groupMoments;
+    const target = latest.find((m) => m.id === momentId);
+    if (target) {
+      setCenterTime(target.timestamp);
+    }
+    setNotificationsOpen(false);
+  };
+
   const handleCreateGroupFromName = async () => {
     const name = newGroupName.trim();
     if (!name) return;
@@ -1565,7 +1614,7 @@ export default function IndexScreen() {
                       {!notification.read && (
                         <TouchableOpacity
                           style={styles.notificationActionButton}
-                          onPress={() => markAsRead(notification.id)}
+                          onPress={() => handleNotificationRead(notification)}
                         >
                           <Text style={styles.notificationActionText}>Read</Text>
                         </TouchableOpacity>
@@ -1734,6 +1783,14 @@ export default function IndexScreen() {
               const svgYOffset = viewportHeight;
               const curveStartY = (isAboveTimeline ? cardBottomRender : cardTopRender) + svgYOffset;
               const curveTimelineY = timelineYRender + svgYOffset;
+              const ourLifeGroups = isOurLife
+                ? (moment as any).sharedGroupIds ?? (moment.groupId ? [moment.groupId] : [])
+                : [];
+              const ourLifeGroupNames = isOurLife
+                ? ourLifeGroups
+                    .map((id: string) => groupNameById.get(id))
+                    .filter((name: string | undefined): name is string => !!name)
+                : [];
 
               return (
                 <View key={moment.id}>
@@ -1821,6 +1878,19 @@ export default function IndexScreen() {
                     {moment.memorable && (
                       <View style={styles.momentBadge}>
                         <Text style={styles.momentBadgeText}>M</Text>
+                      </View>
+                    )}
+                    {isOurLife && ourLifeGroupNames.length > 0 && (
+                      <View style={styles.momentFooter}>
+                        <View style={styles.momentChips}>
+                          {ourLifeGroupNames.map((name) => (
+                            <View key={`${moment.id}-${name}`} style={styles.momentChip}>
+                              <Text style={styles.momentChipText} numberOfLines={1}>
+                                {name}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
                       </View>
                     )}
                   </View>
@@ -3410,6 +3480,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: '700',
+  },
+  momentFooter: {
+    marginTop: 6,
+  },
+  momentChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  momentChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: '#eef2ff',
+    borderWidth: 1,
+    borderColor: '#d9e0ff',
+  },
+  momentChipText: {
+    fontSize: 11,
+    color: '#3b4a8c',
+    fontWeight: '600',
   },
   dateLabel: {
     position: 'absolute',

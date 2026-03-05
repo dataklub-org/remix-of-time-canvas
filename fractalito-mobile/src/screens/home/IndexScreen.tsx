@@ -1352,31 +1352,13 @@ export default function IndexScreen() {
     const reference = new Date(referenceTimeMs);
     const diffMs = Math.max(0, reference.getTime() - birthDate.getTime());
     const totalDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-    const totalWeeks = Math.floor(totalDays / 7);
-    const totalMonths = Math.floor(totalDays / 30.4375);
-    const totalYears = Math.floor(totalDays / 365.25);
-
-    if (totalMonths < 2) {
-      const week = totalWeeks;
-      const day = totalDays % 7;
-      return {
-        detail: `Week ${week}, Day ${day}`,
-        short: week > 0 ? `Week ${week}` : `Day ${day}`,
-      };
-    }
-    if (totalYears < 1) {
-      const month = Math.max(1, totalMonths);
-      const weekInMonth = Math.floor((totalDays % 30.4375) / 7);
-      return {
-        detail: `Month ${month}, Week ${weekInMonth}`,
-        short: `Month ${month}`,
-      };
-    }
-    const year = totalYears;
-    const monthInYear = Math.floor((totalDays % 365.25) / 30.4375);
+    const totalMonths = Math.max(0, Math.floor(totalDays / 30.4375));
+    const yearsDecimal = (totalDays / 365.25).toFixed(2);
+    const short = totalDays < 90 ? `Day ${totalDays}` : `Month ${totalMonths}`;
     return {
-      detail: `Year ${year}, Month ${monthInYear}`,
-      short: `Year ${year}`,
+      detail: short,
+      short,
+      yearsDecimal: `${yearsDecimal}y`,
     };
   };
   const babyGuideRows = babies.map((baby) => ({
@@ -1709,6 +1691,7 @@ export default function IndexScreen() {
                   <View key={row.id} style={[styles.babyGuideRow, { top: idx * 54 }]}>
                     <View style={styles.babyGuideLine} />
                     <Text style={styles.babyGuideLeft}>{row.name}</Text>
+                    <Text style={styles.babyGuideCenter}>{row.centerAge.yearsDecimal}</Text>
                     <Text style={styles.babyGuideRight}>{row.nowAge.short}</Text>
                   </View>
                 ))}
@@ -3335,10 +3318,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    top: -10,
+    top: 6,
     textAlign: 'center',
     color: '#e5a5ba',
-    fontSize: 8,
+    fontSize: 11,
     fontWeight: '600',
   },
   babyGuideRight: {
@@ -3346,7 +3329,7 @@ const styles = StyleSheet.create({
     right: 8,
     top: -7,
     color: '#e5a5ba',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
   },
   momentConnector: {

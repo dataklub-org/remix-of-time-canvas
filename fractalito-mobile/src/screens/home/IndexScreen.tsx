@@ -194,10 +194,20 @@ export default function IndexScreen() {
   const isBabyLife = activeTimelineId === BABYLIFE_TIMELINE_ID;
   const myLifeMoments = useMemo(() => {
     if (!isMyLife) return moments;
-    const seen = new Set(moments.map((m) => m.id));
+    const seenIds = new Set(moments.map((m) => m.id));
+    const seenKeys = new Set<string>();
     const merged = [...moments];
+    moments.forEach((m) => {
+      seenKeys.add(`id:${m.id}`);
+    });
     groupMoments.forEach((m) => {
-      if (!seen.has(m.id)) merged.push(m);
+      if (m.originalMomentId && seenIds.has(m.originalMomentId)) return;
+      const key = m.originalMomentId
+        ? `orig:${m.originalMomentId}`
+        : `shared:${m.sharedBy ?? 'unknown'}:${m.timestamp}:${m.endTime ?? ''}:${m.description}`;
+      if (seenKeys.has(key)) return;
+      seenKeys.add(key);
+      merged.push(m);
     });
     return merged;
   }, [isMyLife, moments, groupMoments]);

@@ -131,6 +131,8 @@ function groupMomentToLocal(row: any): Moment {
     createdAt: new Date(row.shared_at).getTime(),
     updatedAt: new Date(row.shared_at).getTime(),
     groupId: row.group_id, // Include group ID for color lookup
+    originalMomentId: row.original_moment_id || undefined,
+    sharedBy: row.shared_by || undefined,
   };
 }
 

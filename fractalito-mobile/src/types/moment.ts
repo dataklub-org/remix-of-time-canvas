@@ -26,6 +26,8 @@ export interface Moment {
   createdAt: number;
   updatedAt: number;
   groupId?: string; // For group moments, the group this moment belongs to
+  originalMomentId?: string; // For shared moments, the original moment id
+  sharedBy?: string; // For shared moments, who shared it
 }
 
 export interface CanvasState {

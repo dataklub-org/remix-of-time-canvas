@@ -1194,9 +1194,9 @@ export default function IndexScreen() {
       }
 
       const mediaTypes =
-        (ImagePicker as any).MediaType?.Images
-          ? [(ImagePicker as any).MediaType.Images]
-          : ImagePicker.MediaTypeOptions.Images;
+        (ImagePicker as any).MediaType?.Images && (ImagePicker as any).MediaType?.Videos
+          ? [(ImagePicker as any).MediaType.Images, (ImagePicker as any).MediaType.Videos]
+          : ImagePicker.MediaTypeOptions.All;
 
       const result = fromCamera
         ? await ImagePicker.launchCameraAsync({ mediaTypes, quality: keepOriginalSize ? 1 : 0.7 })
@@ -1214,12 +1214,18 @@ export default function IndexScreen() {
         }
       }
     } catch (error) {
-      console.error('Error selecting photo:', error);
+      console.error('Error selecting media:', error);
     }
   };
 
   const handleClearPhotos = () => {
     setPhotos([]);
+  };
+
+  const isVideoUri = (uri?: string | null) => {
+    if (!uri) return false;
+    const normalized = uri.split('?')[0].toLowerCase();
+    return ['.mp4', '.mov', '.m4v', '.webm', '.avi', '.mkv'].some((ext) => normalized.endsWith(ext));
   };
 
   const handleOpenNewMoment = () => {
@@ -1927,44 +1933,55 @@ export default function IndexScreen() {
                           {format(moment.timestamp, 'hh:mm a')}
                         </Text>
                       </View>
-                      {!!moment.photo && (
-                        <TouchableOpacity
-                          activeOpacity={0.85}
-                          onPress={() => {
-                            const availablePhotos = moment.photos && moment.photos.length > 0
-                              ? moment.photos
-                              : [moment.photo as string];
-                            openMediaViewer(availablePhotos, 0);
-                          }}
-                          onPressIn={() => {
-                            suppressDragRef.current = true;
-                          }}
-                          onPressOut={() => {
-                            suppressDragRef.current = false;
-                          }}
-                        >
-                          {moment.photos && moment.photos.length > 1 ? (
-                            <View style={styles.momentThumbStack}>
+                      {(() => {
+                        const imagePhotos = moment.photos
+                          ? moment.photos.filter((uri) => !isVideoUri(uri))
+                          : moment.photo && !isVideoUri(moment.photo)
+                            ? [moment.photo]
+                            : [];
+                        if (moment.photo && isVideoUri(moment.photo)) {
+                          return (
+                            <View style={styles.momentVideoThumb}>
+                              <Text style={styles.momentVideoThumbText}>VID</Text>
+                            </View>
+                          );
+                        }
+                        if (imagePhotos.length === 0) return null;
+                        return (
+                          <TouchableOpacity
+                            activeOpacity={0.85}
+                            onPress={() => openMediaViewer(imagePhotos, 0)}
+                            onPressIn={() => {
+                              suppressDragRef.current = true;
+                            }}
+                            onPressOut={() => {
+                              suppressDragRef.current = false;
+                            }}
+                          >
+                            {imagePhotos.length > 1 ? (
+                              <View style={styles.momentThumbStack}>
+                                <Image
+                                  source={{ uri: imagePhotos[imagePhotos.length - 1] }}
+                                  style={styles.momentThumbBack}
+                                  resizeMode="cover"
+                                />
+                                <Image
+                                  source={{ uri: imagePhotos[0] }}
+                                  style={styles.momentThumb}
+                                  resizeMode="cover"
+                                />
+                              </View>
+                            ) : (
                               <Image
-                                source={{ uri: moment.photos[moment.photos.length - 1] }}
-                                style={styles.momentThumbBack}
-                                resizeMode="cover"
-                              />
-                              <Image
-                                source={{ uri: moment.photos[0] }}
+                                source={{ uri: imagePhotos[0] }}
                                 style={styles.momentThumb}
                                 resizeMode="cover"
                               />
-                            </View>
-                          ) : (
-                            <Image
-                              source={{ uri: moment.photo }}
-                              style={styles.momentThumb}
-                              resizeMode="cover"
-                            />
-                          )}
-                        </TouchableOpacity>
-                      )}
+                            )}
+                          </TouchableOpacity>
+                        );
+                      })()}
+                      
                     </View>
                     {moment.memorable && (
                       <View style={styles.momentBadge}>
@@ -2866,7 +2883,7 @@ export default function IndexScreen() {
                   </View>
                 </View>
 
-                <Text style={styles.newMomentLabel}>Photo</Text>
+                <Text style={styles.newMomentLabel}>Media</Text>
                 <View style={styles.newMomentPhotoRow}>
                   <TouchableOpacity style={styles.newMomentPhotoBtn} onPress={() => handlePickPhoto(true)}>
                     <Text style={styles.newMomentPhotoText}>Camera</Text>
@@ -2877,7 +2894,7 @@ export default function IndexScreen() {
                 </View>
                 {photos.length > 0 && (
                   <View style={styles.newMomentPhotoChosenRow}>
-                    <Text style={styles.newMomentPhotoChosen}>Photos selected: {photos.length}</Text>
+                    <Text style={styles.newMomentPhotoChosen}>Media selected: {photos.length}</Text>
                     <TouchableOpacity onPress={handleClearPhotos}>
                       <Text style={styles.newMomentPhotoClear}>Clear</Text>
                     </TouchableOpacity>
@@ -3575,6 +3592,19 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     opacity: 0.6,
     transform: [{ translateX: -4 }, { translateY: 4 }],
+  },
+  momentVideoThumb: {
+    width: 34,
+    height: 34,
+    borderRadius: 6,
+    backgroundColor: '#111827',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  momentVideoThumbText: {
+    fontSize: 10,
+    color: '#ffffff',
+    fontWeight: '700',
   },
   momentBadge: {
     position: 'absolute',

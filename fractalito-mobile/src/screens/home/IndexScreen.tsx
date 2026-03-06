@@ -19,6 +19,7 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Video, ResizeMode } from 'expo-av';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -1693,7 +1694,16 @@ export default function IndexScreen() {
           >
             {mediaViewerPhotos.map((uri, idx) => (
               <View key={`${uri}-${idx}`} style={{ width: viewportWidth, height: viewportHeight }}>
-                <Image source={{ uri }} style={styles.mediaViewerImage} resizeMode="contain" />
+                {isVideoUri(uri) ? (
+                  <Video
+                    source={{ uri }}
+                    style={styles.mediaViewerVideo}
+                    resizeMode={ResizeMode.CONTAIN}
+                    useNativeControls
+                  />
+                ) : (
+                  <Image source={{ uri }} style={styles.mediaViewerImage} resizeMode="contain" />
+                )}
               </View>
             ))}
           </ScrollView>
@@ -1934,23 +1944,38 @@ export default function IndexScreen() {
                         </Text>
                       </View>
                       {(() => {
-                        const imagePhotos = moment.photos
-                          ? moment.photos.filter((uri) => !isVideoUri(uri))
-                          : moment.photo && !isVideoUri(moment.photo)
+                        const mediaItems = moment.photos?.length
+                          ? moment.photos
+                          : moment.photo
                             ? [moment.photo]
                             : [];
-                        if (moment.photo && isVideoUri(moment.photo)) {
-                          return (
-                            <View style={styles.momentVideoThumb}>
-                              <Text style={styles.momentVideoThumbText}>VID</Text>
-                            </View>
-                          );
-                        }
-                        if (imagePhotos.length === 0) return null;
+                        if (mediaItems.length === 0) return null;
+                        const imagePhotos = mediaItems.filter((uri) => !isVideoUri(uri));
+                        const hasVideo = mediaItems.some((uri) => isVideoUri(uri));
+                        const thumb = imagePhotos.length > 1 ? (
+                          <View style={styles.momentThumbStack}>
+                            <Image
+                              source={{ uri: imagePhotos[imagePhotos.length - 1] }}
+                              style={styles.momentThumbBack}
+                              resizeMode="cover"
+                            />
+                            <Image
+                              source={{ uri: imagePhotos[0] }}
+                              style={styles.momentThumb}
+                              resizeMode="cover"
+                            />
+                          </View>
+                        ) : imagePhotos.length === 1 ? (
+                          <Image source={{ uri: imagePhotos[0] }} style={styles.momentThumb} resizeMode="cover" />
+                        ) : (
+                          <View style={styles.momentVideoThumb}>
+                            <Text style={styles.momentVideoThumbText}>VID</Text>
+                          </View>
+                        );
                         return (
                           <TouchableOpacity
                             activeOpacity={0.85}
-                            onPress={() => openMediaViewer(imagePhotos, 0)}
+                            onPress={() => openMediaViewer(mediaItems, 0)}
                             onPressIn={() => {
                               suppressDragRef.current = true;
                             }}
@@ -1958,25 +1983,11 @@ export default function IndexScreen() {
                               suppressDragRef.current = false;
                             }}
                           >
-                            {imagePhotos.length > 1 ? (
-                              <View style={styles.momentThumbStack}>
-                                <Image
-                                  source={{ uri: imagePhotos[imagePhotos.length - 1] }}
-                                  style={styles.momentThumbBack}
-                                  resizeMode="cover"
-                                />
-                                <Image
-                                  source={{ uri: imagePhotos[0] }}
-                                  style={styles.momentThumb}
-                                  resizeMode="cover"
-                                />
+                            {thumb}
+                            {hasVideo && imagePhotos.length > 0 && (
+                              <View style={styles.momentVideoBadge}>
+                                <Text style={styles.momentVideoBadgeText}>VID</Text>
                               </View>
-                            ) : (
-                              <Image
-                                source={{ uri: imagePhotos[0] }}
-                                style={styles.momentThumb}
-                                resizeMode="cover"
-                              />
                             )}
                           </TouchableOpacity>
                         );
@@ -3606,6 +3617,20 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: '700',
   },
+  momentVideoBadge: {
+    position: 'absolute',
+    right: -4,
+    bottom: -4,
+    backgroundColor: '#111827',
+    borderRadius: 8,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  momentVideoBadgeText: {
+    fontSize: 8,
+    color: '#ffffff',
+    fontWeight: '700',
+  },
   momentBadge: {
     position: 'absolute',
     top: -10,
@@ -4611,6 +4636,10 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   mediaViewerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  mediaViewerVideo: {
     width: '100%',
     height: '100%',
   },

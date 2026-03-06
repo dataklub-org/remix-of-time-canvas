@@ -122,6 +122,9 @@ export default function IndexScreen() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [myCircleOpen, setMyCircleOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [mediaViewerOpen, setMediaViewerOpen] = useState(false);
+  const [mediaViewerPhotos, setMediaViewerPhotos] = useState<string[]>([]);
+  const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
   const [addBabyOpen, setAddBabyOpen] = useState(false);
   const [myCircleSearch, setMyCircleSearch] = useState('');
   const [addingUserId, setAddingUserId] = useState<string | null>(null);
@@ -189,6 +192,7 @@ export default function IndexScreen() {
   const draggingMomentIdRef = useRef<string | null>(null);
   const dragCardStartRef = useRef<{ pageY: number; momentY: number } | null>(null);
   const dragMomentCurrentYRef = useRef<Record<string, number>>({});
+  const suppressDragRef = useRef(false);
   const pickerOpenedAtRef = useRef<number>(0);
   const isMyLife = activeTimelineId === DEFAULT_TIMELINE_ID;
   const isOurLife = activeTimelineId === OURLIFE_TIMELINE_ID;
@@ -1035,6 +1039,13 @@ export default function IndexScreen() {
     setNotificationsOpen(false);
   };
 
+  const openMediaViewer = (photos: string[], startIndex: number) => {
+    if (!photos.length) return;
+    setMediaViewerPhotos(photos);
+    setMediaViewerIndex(Math.max(0, Math.min(startIndex, photos.length - 1)));
+    setMediaViewerOpen(true);
+  };
+
   const handleCreateGroupFromName = async () => {
     const name = newGroupName.trim();
     if (!name) return;
@@ -1656,6 +1667,33 @@ export default function IndexScreen() {
         </View>
       </Modal>
 
+      <Modal visible={mediaViewerOpen} transparent animationType="fade" onRequestClose={() => setMediaViewerOpen(false)}>
+        <View style={styles.mediaViewerBackdrop}>
+          <View style={[styles.mediaViewerHeader, { paddingTop: insets.top + 8 }]}>
+            <TouchableOpacity onPress={() => setMediaViewerOpen(false)}>
+              <Text style={styles.mediaViewerClose}>X</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            contentOffset={{ x: viewportWidth * mediaViewerIndex, y: 0 }}
+            onMomentumScrollEnd={(e) => {
+              const index = Math.round(e.nativeEvent.contentOffset.x / viewportWidth);
+              setMediaViewerIndex(index);
+            }}
+            style={styles.mediaViewerScroll}
+          >
+            {mediaViewerPhotos.map((uri, idx) => (
+              <View key={`${uri}-${idx}`} style={{ width: viewportWidth, height: viewportHeight }}>
+                <Image source={{ uri }} style={styles.mediaViewerImage} resizeMode="contain" />
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
+
       {/* Tabs */}
       <View style={styles.tabs}>
         <TouchableOpacity
@@ -1852,8 +1890,8 @@ export default function IndexScreen() {
                         zIndex,
                       },
                     ]}
-                    onStartShouldSetResponder={() => true}
-                    onMoveShouldSetResponder={() => true}
+                    onStartShouldSetResponder={() => !suppressDragRef.current}
+                    onMoveShouldSetResponder={() => !suppressDragRef.current}
                     onResponderTerminationRequest={() => false}
                     onResponderGrant={(e) => {
                       const pageY = e.nativeEvent.pageY ?? e.nativeEvent.touches?.[0]?.pageY;
@@ -1890,11 +1928,42 @@ export default function IndexScreen() {
                         </Text>
                       </View>
                       {!!moment.photo && (
-                        <Image
-                          source={{ uri: moment.photo }}
-                          style={styles.momentThumb}
-                          resizeMode="cover"
-                        />
+                        <TouchableOpacity
+                          activeOpacity={0.85}
+                          onPress={() => {
+                            const availablePhotos = moment.photos && moment.photos.length > 0
+                              ? moment.photos
+                              : [moment.photo as string];
+                            openMediaViewer(availablePhotos, 0);
+                          }}
+                          onPressIn={() => {
+                            suppressDragRef.current = true;
+                          }}
+                          onPressOut={() => {
+                            suppressDragRef.current = false;
+                          }}
+                        >
+                          {moment.photos && moment.photos.length > 1 ? (
+                            <View style={styles.momentThumbStack}>
+                              <Image
+                                source={{ uri: moment.photos[moment.photos.length - 1] }}
+                                style={styles.momentThumbBack}
+                                resizeMode="cover"
+                              />
+                              <Image
+                                source={{ uri: moment.photos[0] }}
+                                style={styles.momentThumb}
+                                resizeMode="cover"
+                              />
+                            </View>
+                          ) : (
+                            <Image
+                              source={{ uri: moment.photo }}
+                              style={styles.momentThumb}
+                              resizeMode="cover"
+                            />
+                          )}
+                        </TouchableOpacity>
                       )}
                     </View>
                     {moment.memorable && (
@@ -3493,6 +3562,20 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 6,
   },
+  momentThumbStack: {
+    width: 38,
+    height: 38,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  momentThumbBack: {
+    position: 'absolute',
+    width: 34,
+    height: 34,
+    borderRadius: 6,
+    opacity: 0.6,
+    transform: [{ translateX: -4 }, { translateY: 4 }],
+  },
   momentBadge: {
     position: 'absolute',
     top: -10,
@@ -4476,6 +4559,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#b42318',
     fontWeight: '600',
+  },
+  mediaViewerBackdrop: {
+    flex: 1,
+    backgroundColor: '#0b0d12',
+  },
+  mediaViewerHeader: {
+    position: 'absolute',
+    top: 0,
+    right: 16,
+    left: 16,
+    zIndex: 10,
+    alignItems: 'flex-end',
+  },
+  mediaViewerClose: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  mediaViewerScroll: {
+    flex: 1,
+  },
+  mediaViewerImage: {
+    width: '100%',
+    height: '100%',
   },
   myCircleHeader: {
     flexDirection: 'row',

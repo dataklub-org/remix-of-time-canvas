@@ -445,7 +445,7 @@ export function useShareMoment(userId: string | null) {
         location: moment.location || null,
         category: moment.category,
         memorable: moment.memorable || false,
-        photo_url: (moment.photos?.[moment.photos.length - 1] ?? moment.photo) || null,
+        photo_url: (moment.photos?.[0] ?? moment.photo) || null,
       };
       if (moment.photos && moment.photos.length > 0) {
         insertPayload.photo_urls = moment.photos;

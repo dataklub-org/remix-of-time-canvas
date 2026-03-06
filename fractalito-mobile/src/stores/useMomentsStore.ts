@@ -119,7 +119,7 @@ function supabaseMomentToLocal(row: any): Moment {
     location: row.location || '',
     category: row.category as Category,
     memorable: row.memorable || false,
-    photo: (parsedPhotoUrls?.[parsedPhotoUrls.length - 1] ?? row.photo_url) || undefined,
+    photo: (parsedPhotoUrls?.[0] ?? row.photo_url) || undefined,
     photos: parsedPhotoUrls ?? (row.photo_url ? [row.photo_url] : undefined),
     createdAt: new Date(row.created_at).getTime(),
     updatedAt: new Date(row.updated_at).getTime(),
@@ -154,7 +154,7 @@ function groupMomentToLocal(row: any): Moment {
     location: row.location || '',
     category: row.category as Category,
     memorable: row.memorable || false,
-    photo: (parsedPhotoUrls?.[parsedPhotoUrls.length - 1] ?? row.photo_url) || undefined,
+    photo: (parsedPhotoUrls?.[0] ?? row.photo_url) || undefined,
     photos: parsedPhotoUrls ?? (row.photo_url ? [row.photo_url] : undefined),
     createdAt: new Date(row.shared_at).getTime(),
     updatedAt: new Date(row.shared_at).getTime(),
@@ -316,11 +316,11 @@ export const useMomentsStore = create<MomentsStore>()(
             memorable: row.memorable || false,
             photo: (() => {
               const raw = row.photo_urls;
-              if (Array.isArray(raw) && raw.length > 0) return raw[raw.length - 1];
+              if (Array.isArray(raw) && raw.length > 0) return raw[0];
               if (typeof raw === 'string') {
                 try {
                   const parsed = JSON.parse(raw);
-                  if (Array.isArray(parsed) && parsed.length > 0) return parsed[parsed.length - 1];
+                  if (Array.isArray(parsed) && parsed.length > 0) return parsed[0];
                 } catch {}
               }
               return row.photo_url || undefined;
@@ -380,7 +380,7 @@ export const useMomentsStore = create<MomentsStore>()(
               location: moment.location || null,
               category: moment.category,
               memorable: moment.memorable || false,
-              photo_url: (moment.photos?.[moment.photos.length - 1] ?? moment.photo) || null,
+                photo_url: (moment.photos?.[0] ?? moment.photo) || null,
               width: moment.width || null,
               height: moment.height || null,
             };
@@ -436,7 +436,7 @@ export const useMomentsStore = create<MomentsStore>()(
             location: moment.location || null,
             category: moment.category,
             memorable: moment.memorable || false,
-            photo_url: (moment.photos?.[moment.photos.length - 1] ?? moment.photo) || null,
+            photo_url: (moment.photos?.[0] ?? moment.photo) || null,
             width: moment.width || null,
             height: moment.height || null,
           };
@@ -482,7 +482,7 @@ export const useMomentsStore = create<MomentsStore>()(
             if (updates.photos !== undefined || updates.photo !== undefined) {
               const nextPhotos = updates.photos ?? (updates.photo ? [updates.photo] : undefined);
               supabaseUpdates.photo_urls = nextPhotos ?? null;
-              supabaseUpdates.photo_url = (nextPhotos?.[nextPhotos.length - 1] ?? updates.photo) || null;
+              supabaseUpdates.photo_url = (nextPhotos?.[0] ?? updates.photo) || null;
             }
             if (updates.width !== undefined) supabaseUpdates.width = updates.width;
             if (updates.height !== undefined) supabaseUpdates.height = updates.height;
@@ -530,7 +530,7 @@ export const useMomentsStore = create<MomentsStore>()(
           if (updates.photos !== undefined || updates.photo !== undefined) {
             const nextPhotos = updates.photos ?? (updates.photo ? [updates.photo] : undefined);
             supabaseUpdates.photo_urls = nextPhotos ?? null;
-            supabaseUpdates.photo_url = (nextPhotos?.[nextPhotos.length - 1] ?? updates.photo) || null;
+            supabaseUpdates.photo_url = (nextPhotos?.[0] ?? updates.photo) || null;
           }
           if (updates.width !== undefined) supabaseUpdates.width = updates.width;
           if (updates.height !== undefined) supabaseUpdates.height = updates.height;

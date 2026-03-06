@@ -792,7 +792,7 @@ export default function IndexScreen() {
     try {
       const initialY = typeof createMomentY === 'number' ? createMomentY : 70;
       const initialWidth = getDefaultMomentWidth(msPerPixel);
-      const primaryPhoto = photos.length > 0 ? photos[photos.length - 1] : null;
+      const primaryPhoto = photos.length > 0 ? photos[0] : null;
       const payload = {
         timestamp: startTs,
         endTime: endTs,
@@ -900,7 +900,7 @@ export default function IndexScreen() {
     setSavingMoment(true);
     try {
       const updater = editingMoment.groupId ? updateGroupMoment : updateMoment;
-      const primaryPhoto = photos.length > 0 ? photos[photos.length - 1] : null;
+      const primaryPhoto = photos.length > 0 ? photos[0] : null;
       await updater(editingMomentId, {
         timestamp: startTs,
         endTime: endTs,

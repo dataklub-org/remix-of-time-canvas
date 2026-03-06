@@ -93,6 +93,19 @@ function toOptionalNumber(value: unknown): number | undefined {
 
 // Helper to convert Supabase moment to local Moment type
 function supabaseMomentToLocal(row: any): Moment {
+  const parsedPhotoUrls = (() => {
+    const raw = row.photo_urls;
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.filter(Boolean) : undefined;
+      } catch {
+        return undefined;
+      }
+    }
+    return undefined;
+  })();
   return {
     id: row.id,
     timelineId: row.timeline_id,
@@ -106,7 +119,8 @@ function supabaseMomentToLocal(row: any): Moment {
     location: row.location || '',
     category: row.category as Category,
     memorable: row.memorable || false,
-    photo: row.photo_url || undefined,
+    photo: (parsedPhotoUrls?.[parsedPhotoUrls.length - 1] ?? row.photo_url) || undefined,
+    photos: parsedPhotoUrls ?? (row.photo_url ? [row.photo_url] : undefined),
     createdAt: new Date(row.created_at).getTime(),
     updatedAt: new Date(row.updated_at).getTime(),
   };
@@ -114,6 +128,19 @@ function supabaseMomentToLocal(row: any): Moment {
 
 // Helper to convert group_moment row to local Moment type
 function groupMomentToLocal(row: any): Moment {
+  const parsedPhotoUrls = (() => {
+    const raw = row.photo_urls;
+    if (Array.isArray(raw)) return raw.filter(Boolean);
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed.filter(Boolean) : undefined;
+      } catch {
+        return undefined;
+      }
+    }
+    return undefined;
+  })();
   return {
     id: row.id,
     timelineId: OURLIFE_TIMELINE_ID, // All group moments belong to OurLife
@@ -127,7 +154,8 @@ function groupMomentToLocal(row: any): Moment {
     location: row.location || '',
     category: row.category as Category,
     memorable: row.memorable || false,
-    photo: row.photo_url || undefined,
+    photo: (parsedPhotoUrls?.[parsedPhotoUrls.length - 1] ?? row.photo_url) || undefined,
+    photos: parsedPhotoUrls ?? (row.photo_url ? [row.photo_url] : undefined),
     createdAt: new Date(row.shared_at).getTime(),
     updatedAt: new Date(row.shared_at).getTime(),
     groupId: row.group_id, // Include group ID for color lookup
@@ -286,7 +314,28 @@ export const useMomentsStore = create<MomentsStore>()(
             location: row.location || '',
             category: row.category as Category,
             memorable: row.memorable || false,
-            photo: row.photo_url || undefined,
+            photo: (() => {
+              const raw = row.photo_urls;
+              if (Array.isArray(raw) && raw.length > 0) return raw[raw.length - 1];
+              if (typeof raw === 'string') {
+                try {
+                  const parsed = JSON.parse(raw);
+                  if (Array.isArray(parsed) && parsed.length > 0) return parsed[parsed.length - 1];
+                } catch {}
+              }
+              return row.photo_url || undefined;
+            })(),
+            photos: (() => {
+              const raw = row.photo_urls;
+              if (Array.isArray(raw)) return raw.filter(Boolean);
+              if (typeof raw === 'string') {
+                try {
+                  const parsed = JSON.parse(raw);
+                  return Array.isArray(parsed) ? parsed.filter(Boolean) : undefined;
+                } catch {}
+              }
+              return row.photo_url ? [row.photo_url] : undefined;
+            })(),
             createdAt: new Date(row.shared_at).getTime(),
             updatedAt: new Date(row.shared_at).getTime(),
             groupId: row.baby_id, // Store baby_id in groupId for filtering
@@ -320,23 +369,28 @@ export const useMomentsStore = create<MomentsStore>()(
         if (isAuthenticated && userId && userTimelineId) {
           // Save to Supabase
           try {
+            const insertPayload: any = {
+              user_id: userId,
+              timeline_id: userTimelineId,
+              start_time: moment.timestamp,
+              end_time: moment.endTime || null,
+              y_position: moment.y,
+              description: moment.description,
+              people: moment.people || null,
+              location: moment.location || null,
+              category: moment.category,
+              memorable: moment.memorable || false,
+              photo_url: (moment.photos?.[moment.photos.length - 1] ?? moment.photo) || null,
+              width: moment.width || null,
+              height: moment.height || null,
+            };
+            if (moment.photos && moment.photos.length > 0) {
+              insertPayload.photo_urls = moment.photos;
+            }
+
             const { data, error } = await supabase
               .from('moments')
-              .insert({
-                user_id: userId,
-                timeline_id: userTimelineId,
-                start_time: moment.timestamp,
-                end_time: moment.endTime || null,
-                y_position: moment.y,
-                description: moment.description,
-                people: moment.people || null,
-                location: moment.location || null,
-                category: moment.category,
-                memorable: moment.memorable || false,
-                photo_url: moment.photo || null,
-                width: moment.width || null,
-                height: moment.height || null,
-              })
+              .insert(insertPayload)
               .select()
               .single();
             
@@ -371,23 +425,28 @@ export const useMomentsStore = create<MomentsStore>()(
         if (!userId) return;
 
         try {
+          const insertPayload: any = {
+            group_id: groupId,
+            shared_by: userId,
+            start_time: moment.timestamp,
+            end_time: moment.endTime || null,
+            y_position: moment.y,
+            description: moment.description,
+            people: moment.people || null,
+            location: moment.location || null,
+            category: moment.category,
+            memorable: moment.memorable || false,
+            photo_url: (moment.photos?.[moment.photos.length - 1] ?? moment.photo) || null,
+            width: moment.width || null,
+            height: moment.height || null,
+          };
+          if (moment.photos && moment.photos.length > 0) {
+            insertPayload.photo_urls = moment.photos;
+          }
+
           const { data, error } = await supabase
             .from('group_moments')
-            .insert({
-              group_id: groupId,
-              shared_by: userId,
-              start_time: moment.timestamp,
-              end_time: moment.endTime || null,
-              y_position: moment.y,
-              description: moment.description,
-              people: moment.people || null,
-              location: moment.location || null,
-              category: moment.category,
-              memorable: moment.memorable || false,
-              photo_url: moment.photo || null,
-              width: moment.width || null,
-              height: moment.height || null,
-            })
+            .insert(insertPayload)
             .select()
             .single();
 
@@ -420,7 +479,11 @@ export const useMomentsStore = create<MomentsStore>()(
             if (updates.location !== undefined) supabaseUpdates.location = updates.location || null;
             if (updates.category !== undefined) supabaseUpdates.category = updates.category;
             if (updates.memorable !== undefined) supabaseUpdates.memorable = updates.memorable;
-            if (updates.photo !== undefined) supabaseUpdates.photo_url = updates.photo || null;
+            if (updates.photos !== undefined || updates.photo !== undefined) {
+              const nextPhotos = updates.photos ?? (updates.photo ? [updates.photo] : undefined);
+              supabaseUpdates.photo_urls = nextPhotos ?? null;
+              supabaseUpdates.photo_url = (nextPhotos?.[nextPhotos.length - 1] ?? updates.photo) || null;
+            }
             if (updates.width !== undefined) supabaseUpdates.width = updates.width;
             if (updates.height !== undefined) supabaseUpdates.height = updates.height;
             
@@ -464,7 +527,11 @@ export const useMomentsStore = create<MomentsStore>()(
           if (updates.location !== undefined) supabaseUpdates.location = updates.location || null;
           if (updates.category !== undefined) supabaseUpdates.category = updates.category;
           if (updates.memorable !== undefined) supabaseUpdates.memorable = updates.memorable;
-          if (updates.photo !== undefined) supabaseUpdates.photo_url = updates.photo || null;
+          if (updates.photos !== undefined || updates.photo !== undefined) {
+            const nextPhotos = updates.photos ?? (updates.photo ? [updates.photo] : undefined);
+            supabaseUpdates.photo_urls = nextPhotos ?? null;
+            supabaseUpdates.photo_url = (nextPhotos?.[nextPhotos.length - 1] ?? updates.photo) || null;
+          }
           if (updates.width !== undefined) supabaseUpdates.width = updates.width;
           if (updates.height !== undefined) supabaseUpdates.height = updates.height;
 

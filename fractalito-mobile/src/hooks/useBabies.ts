@@ -426,29 +426,35 @@ export function useShareMomentToBaby(userId: string | null) {
       category: 'business' | 'personal';
       memorable?: boolean;
       photo?: string;
+      photos?: string[];
     }
   ): Promise<boolean> => {
     if (!userId) return false;
 
     try {
+      const insertPayload: any = {
+        baby_id: babyId,
+        original_moment_id: moment.id || null,
+        shared_by: userId,
+        start_time: moment.timestamp,
+        end_time: moment.endTime || null,
+        y_position: moment.y,
+        width: moment.width || null,
+        height: moment.height || null,
+        description: moment.description,
+        people: moment.people || null,
+        location: moment.location || null,
+        category: moment.category,
+        memorable: moment.memorable || false,
+        photo_url: (moment.photos?.[moment.photos.length - 1] ?? moment.photo) || null,
+      };
+      if (moment.photos && moment.photos.length > 0) {
+        insertPayload.photo_urls = moment.photos;
+      }
+
       const { error } = await supabase
         .from('baby_moments')
-        .insert({
-          baby_id: babyId,
-          original_moment_id: moment.id || null,
-          shared_by: userId,
-          start_time: moment.timestamp,
-          end_time: moment.endTime || null,
-          y_position: moment.y,
-          width: moment.width || null,
-          height: moment.height || null,
-          description: moment.description,
-          people: moment.people || null,
-          location: moment.location || null,
-          category: moment.category,
-          memorable: moment.memorable || false,
-          photo_url: moment.photo || null,
-        });
+        .insert(insertPayload);
 
       if (error) throw error;
 

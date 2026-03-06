@@ -110,6 +110,7 @@ export type Database = {
           original_moment_id: string | null
           people: string | null
           photo_url: string | null
+          photo_urls: Json | null
           shared_at: string
           shared_by: string
           start_time: number
@@ -128,6 +129,7 @@ export type Database = {
           original_moment_id?: string | null
           people?: string | null
           photo_url?: string | null
+          photo_urls?: Json | null
           shared_at?: string
           shared_by: string
           start_time: number
@@ -146,6 +148,7 @@ export type Database = {
           original_moment_id?: string | null
           people?: string | null
           photo_url?: string | null
+          photo_urls?: Json | null
           shared_at?: string
           shared_by?: string
           start_time?: number
@@ -273,6 +276,7 @@ export type Database = {
           original_moment_id: string | null
           people: string | null
           photo_url: string | null
+          photo_urls: Json | null
           shared_at: string
           shared_by: string
           start_time: number
@@ -291,6 +295,7 @@ export type Database = {
           original_moment_id?: string | null
           people?: string | null
           photo_url?: string | null
+          photo_urls?: Json | null
           shared_at?: string
           shared_by: string
           start_time: number
@@ -309,6 +314,7 @@ export type Database = {
           original_moment_id?: string | null
           people?: string | null
           photo_url?: string | null
+          photo_urls?: Json | null
           shared_at?: string
           shared_by?: string
           start_time?: number
@@ -398,6 +404,7 @@ export type Database = {
           memorable: boolean | null
           people: string | null
           photo_url: string | null
+          photo_urls: Json | null
           start_time: number
           timeline_id: string
           updated_at: string
@@ -416,6 +423,7 @@ export type Database = {
           memorable?: boolean | null
           people?: string | null
           photo_url?: string | null
+          photo_urls?: Json | null
           start_time: number
           timeline_id: string
           updated_at?: string
@@ -434,6 +442,7 @@ export type Database = {
           memorable?: boolean | null
           people?: string | null
           photo_url?: string | null
+          photo_urls?: Json | null
           start_time?: number
           timeline_id?: string
           updated_at?: string

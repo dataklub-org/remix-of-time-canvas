@@ -425,29 +425,35 @@ export function useShareMoment(userId: string | null) {
       category: 'business' | 'personal';
       memorable?: boolean;
       photo?: string;
+      photos?: string[];
     }
   ): Promise<boolean> => {
     if (!userId) return false;
 
     try {
+      const insertPayload: any = {
+        group_id: groupId,
+        original_moment_id: moment.id,
+        shared_by: userId,
+        start_time: moment.timestamp,
+        end_time: moment.endTime || null,
+        y_position: moment.y,
+        width: moment.width || null,
+        height: moment.height || null,
+        description: moment.description,
+        people: moment.people || null,
+        location: moment.location || null,
+        category: moment.category,
+        memorable: moment.memorable || false,
+        photo_url: (moment.photos?.[moment.photos.length - 1] ?? moment.photo) || null,
+      };
+      if (moment.photos && moment.photos.length > 0) {
+        insertPayload.photo_urls = moment.photos;
+      }
+
       const { error } = await supabase
         .from('group_moments')
-        .insert({
-          group_id: groupId,
-          original_moment_id: moment.id,
-          shared_by: userId,
-          start_time: moment.timestamp,
-          end_time: moment.endTime || null,
-          y_position: moment.y,
-          width: moment.width || null,
-          height: moment.height || null,
-          description: moment.description,
-          people: moment.people || null,
-          location: moment.location || null,
-          category: moment.category,
-          memorable: moment.memorable || false,
-          photo_url: moment.photo || null,
-        });
+        .insert(insertPayload);
 
       if (error) throw error;
 

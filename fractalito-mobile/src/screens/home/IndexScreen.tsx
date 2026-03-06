@@ -145,7 +145,7 @@ export default function IndexScreen() {
   const [endTimeInput, setEndTimeInput] = useState('');
   const [memorable, setMemorable] = useState(false);
   const [keepOriginalSize, setKeepOriginalSize] = useState(false);
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
   const [endDatePickerOpen, setEndDatePickerOpen] = useState(false);
   const [endTimePickerOpen, setEndTimePickerOpen] = useState(false);
   const [endPickerMonth, setEndPickerMonth] = useState<Date>(() => new Date());
@@ -477,7 +477,7 @@ export default function IndexScreen() {
     setEndTimePickerOpen(false);
     setEndPickerMonth(now);
     setKeepOriginalSize(false);
-    setPhoto(null);
+    setPhotos([]);
     setSelectedShareGroupIds([]);
     setSelectedShareBabyIds([]);
     setCreateMomentY(null);
@@ -508,7 +508,13 @@ export default function IndexScreen() {
     }
     setEndDatePickerOpen(false);
     setEndTimePickerOpen(false);
-    setPhoto(moment.photo || null);
+    if (moment.photos && moment.photos.length > 0) {
+      setPhotos(moment.photos);
+    } else if (moment.photo) {
+      setPhotos([moment.photo]);
+    } else {
+      setPhotos([]);
+    }
   };
 
   const openEditMoment = (moment: (typeof activeMoments)[number]) => {
@@ -786,6 +792,7 @@ export default function IndexScreen() {
     try {
       const initialY = typeof createMomentY === 'number' ? createMomentY : 70;
       const initialWidth = getDefaultMomentWidth(msPerPixel);
+      const primaryPhoto = photos.length > 0 ? photos[photos.length - 1] : null;
       const payload = {
         timestamp: startTs,
         endTime: endTs,
@@ -795,7 +802,8 @@ export default function IndexScreen() {
         location: locationInput.trim(),
         category,
         memorable,
-        photo: photo || undefined,
+        photo: primaryPhoto || undefined,
+        photos: photos.length > 0 ? photos : undefined,
         width: initialWidth,
       };
 
@@ -892,6 +900,7 @@ export default function IndexScreen() {
     setSavingMoment(true);
     try {
       const updater = editingMoment.groupId ? updateGroupMoment : updateMoment;
+      const primaryPhoto = photos.length > 0 ? photos[photos.length - 1] : null;
       await updater(editingMomentId, {
         timestamp: startTs,
         endTime: endTs,
@@ -900,7 +909,8 @@ export default function IndexScreen() {
         location: locationInput.trim(),
         category,
         memorable,
-        photo: photo || undefined,
+        photo: primaryPhoto || undefined,
+        photos: photos.length > 0 ? photos : undefined,
       });
       setCenterTime(startTs);
       setEditingMomentId(null);
@@ -1179,14 +1189,26 @@ export default function IndexScreen() {
 
       const result = fromCamera
         ? await ImagePicker.launchCameraAsync({ mediaTypes, quality: keepOriginalSize ? 1 : 0.7 })
-        : await ImagePicker.launchImageLibraryAsync({ mediaTypes, quality: keepOriginalSize ? 1 : 0.7 });
+        : await ImagePicker.launchImageLibraryAsync({
+            mediaTypes,
+            quality: keepOriginalSize ? 1 : 0.7,
+            allowsMultipleSelection: true,
+            selectionLimit: 10,
+          });
 
-      if (!result.canceled && result.assets?.[0]?.uri) {
-        setPhoto(result.assets[0].uri);
+      if (!result.canceled && result.assets?.length) {
+        const newUris = result.assets.map((asset) => asset.uri).filter(Boolean);
+        if (newUris.length > 0) {
+          setPhotos((prev) => [...prev, ...newUris]);
+        }
       }
     } catch (error) {
       console.error('Error selecting photo:', error);
     }
+  };
+
+  const handleClearPhotos = () => {
+    setPhotos([]);
   };
 
   const handleOpenNewMoment = () => {
@@ -2784,7 +2806,14 @@ export default function IndexScreen() {
                     <Text style={styles.newMomentPhotoText}>Gallery</Text>
                   </TouchableOpacity>
                 </View>
-                {photo && <Text style={styles.newMomentPhotoChosen}>Photo selected</Text>}
+                {photos.length > 0 && (
+                  <View style={styles.newMomentPhotoChosenRow}>
+                    <Text style={styles.newMomentPhotoChosen}>Photos selected: {photos.length}</Text>
+                    <TouchableOpacity onPress={handleClearPhotos}>
+                      <Text style={styles.newMomentPhotoClear}>Clear</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
 
                 <View style={styles.newMomentKeepSize}>
                   <View>
@@ -4233,6 +4262,17 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontSize: 13,
     marginTop: -4,
+  },
+  newMomentPhotoChosenRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: -4,
+  },
+  newMomentPhotoClear: {
+    color: '#2563eb',
+    fontSize: 13,
+    fontWeight: '600',
   },
   newMomentKeepSize: {
     borderWidth: 1,

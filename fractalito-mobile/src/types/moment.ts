@@ -23,6 +23,7 @@ export interface Moment {
   category: Category;
   memorable?: boolean; // Whether this is a Memorable Moment (shown on monthly/yearly view)
   photo?: string; // Photo URL or base64 data
+  photos?: string[]; // Multiple photos (mobile)
   createdAt: number;
   updatedAt: number;
   groupId?: string; // For group moments, the group this moment belongs to

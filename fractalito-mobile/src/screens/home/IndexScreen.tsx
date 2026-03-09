@@ -21,6 +21,7 @@ import {
 import Svg, { Path } from 'react-native-svg';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Video, ResizeMode } from 'expo-av';
+import * as VideoThumbnails from 'expo-video-thumbnails';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -151,6 +152,7 @@ export default function IndexScreen() {
   const [memorable, setMemorable] = useState(false);
   const [keepOriginalSize, setKeepOriginalSize] = useState(false);
   const [photos, setPhotos] = useState<string[]>([]);
+  const [videoThumbs, setVideoThumbs] = useState<Record<string, string>>({});
   const [endDatePickerOpen, setEndDatePickerOpen] = useState(false);
   const [endTimePickerOpen, setEndTimePickerOpen] = useState(false);
   const [endPickerMonth, setEndPickerMonth] = useState<Date>(() => new Date());
@@ -1041,6 +1043,30 @@ export default function IndexScreen() {
     setNotificationsOpen(false);
   };
 
+  useEffect(() => {
+    const loadThumbs = async () => {
+      const urisToLoad = new Set<string>();
+      visibleMoments.forEach((moment) => {
+        const mediaItems = moment.photos?.length
+          ? moment.photos
+          : moment.photo
+            ? [moment.photo]
+            : [];
+        if (mediaItems.length === 0) return;
+        const first = mediaItems[0];
+        if (first && isVideoUri(first) && !videoThumbs[first]) {
+          urisToLoad.add(first);
+        }
+      });
+
+      for (const uri of urisToLoad) {
+        await ensureVideoThumb(uri);
+      }
+    };
+
+    loadThumbs();
+  }, [visibleMoments]);
+
   const openMediaViewer = (photos: string[], startIndex: number) => {
     if (!photos.length) return;
     setMediaViewerPhotos(photos);
@@ -1185,6 +1211,16 @@ export default function IndexScreen() {
     }
   };
 
+  const ensureVideoThumb = async (uri: string) => {
+    if (videoThumbs[uri]) return;
+    try {
+      const { uri: thumbUri } = await VideoThumbnails.getThumbnailAsync(uri, { time: 0 });
+      setVideoThumbs((prev) => (prev[uri] ? prev : { ...prev, [uri]: thumbUri }));
+    } catch {
+      // ignore thumbnail failures
+    }
+  };
+
   const handlePickPhoto = async (fromCamera: boolean) => {
     try {
       const showPermissionAlert = (title: string, message: string) => {
@@ -1239,6 +1275,12 @@ export default function IndexScreen() {
         const newUris = result.assets.map((asset) => asset.uri).filter(Boolean);
         if (newUris.length > 0) {
           setPhotos((prev) => [...prev, ...newUris]);
+          result.assets.forEach((asset) => {
+            const uri = asset.uri;
+            if (uri && isVideoUri(uri)) {
+              ensureVideoThumb(uri);
+            }
+          });
         }
       }
     } catch (error) {
@@ -1985,7 +2027,18 @@ export default function IndexScreen() {
                         if (mediaItems.length === 0) return null;
                         const imagePhotos = mediaItems.filter((uri) => !isVideoUri(uri));
                         const hasVideo = mediaItems.some((uri) => isVideoUri(uri));
-                        const thumb = imagePhotos.length > 1 ? (
+                        const firstMedia = mediaItems[0];
+                        const firstIsVideo = firstMedia ? isVideoUri(firstMedia) : false;
+                        const firstVideoThumb = firstIsVideo && firstMedia ? videoThumbs[firstMedia] : undefined;
+                        const thumb = firstIsVideo ? (
+                          firstVideoThumb ? (
+                            <Image source={{ uri: firstVideoThumb }} style={styles.momentThumb} resizeMode="cover" />
+                          ) : (
+                            <View style={styles.momentVideoThumb}>
+                              <Text style={styles.momentVideoThumbText}>VID</Text>
+                            </View>
+                          )
+                        ) : imagePhotos.length > 1 ? (
                           <View style={styles.momentThumbStack}>
                             <Image
                               source={{ uri: imagePhotos[imagePhotos.length - 1] }}
@@ -2017,7 +2070,7 @@ export default function IndexScreen() {
                             }}
                           >
                             {thumb}
-                            {hasVideo && imagePhotos.length > 0 && (
+                            {hasVideo && (
                               <View style={styles.momentVideoBadge}>
                                 <Text style={styles.momentVideoBadgeText}>VID</Text>
                               </View>

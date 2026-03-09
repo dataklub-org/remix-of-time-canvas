@@ -1214,7 +1214,7 @@ export default function IndexScreen() {
   const ensureVideoThumb = async (uri: string) => {
     if (videoThumbs[uri]) return;
     try {
-      const { uri: thumbUri } = await VideoThumbnails.getThumbnailAsync(uri, { time: 0 });
+      const { uri: thumbUri } = await VideoThumbnails.getThumbnailAsync(uri, { time: 1000 });
       setVideoThumbs((prev) => (prev[uri] ? prev : { ...prev, [uri]: thumbUri }));
     } catch {
       // ignore thumbnail failures
@@ -2027,37 +2027,32 @@ export default function IndexScreen() {
                         if (mediaItems.length === 0) return null;
                         const imagePhotos = mediaItems.filter((uri) => !isVideoUri(uri));
                         const hasVideo = mediaItems.some((uri) => isVideoUri(uri));
-                        const firstMedia = mediaItems[0];
-                        const firstIsVideo = firstMedia ? isVideoUri(firstMedia) : false;
-                        const firstVideoThumb = firstIsVideo && firstMedia ? videoThumbs[firstMedia] : undefined;
-                        const thumb = firstIsVideo ? (
-                          firstVideoThumb ? (
-                            <Image source={{ uri: firstVideoThumb }} style={styles.momentThumb} resizeMode="cover" />
-                          ) : (
-                            <View style={styles.momentVideoThumb}>
-                              <Text style={styles.momentVideoThumbText}>VID</Text>
-                            </View>
-                          )
-                        ) : imagePhotos.length > 1 ? (
+                        const renderThumb = (uri: string) => {
+                          if (isVideoUri(uri)) {
+                            const thumbUri = videoThumbs[uri];
+                            return thumbUri ? (
+                              <Image source={{ uri: thumbUri }} style={styles.momentThumb} resizeMode="cover" />
+                            ) : (
+                              <View style={styles.momentVideoThumb}>
+                                <Text style={styles.momentVideoThumbText}>VID</Text>
+                              </View>
+                            );
+                          }
+                          return <Image source={{ uri }} style={styles.momentThumb} resizeMode="cover" />;
+                        };
+                        const frontUri = mediaItems[0];
+                        const backUri = mediaItems.length > 1
+                          ? (mediaItems[mediaItems.length - 1] === frontUri ? mediaItems[1] : mediaItems[mediaItems.length - 1])
+                          : null;
+                        const thumb = mediaItems.length > 1 && frontUri && backUri ? (
                           <View style={styles.momentThumbStack}>
-                            <Image
-                              source={{ uri: imagePhotos[imagePhotos.length - 1] }}
-                              style={styles.momentThumbBack}
-                              resizeMode="cover"
-                            />
-                            <Image
-                              source={{ uri: imagePhotos[0] }}
-                              style={styles.momentThumb}
-                              resizeMode="cover"
-                            />
+                            <View style={styles.momentThumbBack}>{renderThumb(backUri)}</View>
+                            {renderThumb(frontUri)}
                           </View>
-                        ) : imagePhotos.length === 1 ? (
-                          <Image source={{ uri: imagePhotos[0] }} style={styles.momentThumb} resizeMode="cover" />
-                        ) : (
-                          <View style={styles.momentVideoThumb}>
-                            <Text style={styles.momentVideoThumbText}>VID</Text>
-                          </View>
-                        );
+                        ) : frontUri ? (
+                          renderThumb(frontUri)
+                        ) : null;
+                        if (!thumb) return null;
                         return (
                           <TouchableOpacity
                             activeOpacity={0.85}
@@ -3689,6 +3684,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     opacity: 0.6,
     transform: [{ translateX: -4 }, { translateY: 4 }],
+    overflow: 'hidden',
   },
   momentVideoThumb: {
     width: 34,

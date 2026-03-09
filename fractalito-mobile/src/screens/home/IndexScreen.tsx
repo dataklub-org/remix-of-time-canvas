@@ -16,6 +16,7 @@ import {
   Image,
   Clipboard,
   Share,
+  Linking,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -1186,12 +1187,38 @@ export default function IndexScreen() {
 
   const handlePickPhoto = async (fromCamera: boolean) => {
     try {
+      const showPermissionAlert = (title: string, message: string) => {
+        Alert.alert(title, message, [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Open Settings',
+            onPress: () => {
+              Linking.openSettings().catch((err) => {
+                console.error('Error opening settings:', err);
+              });
+            },
+          },
+        ]);
+      };
+
       if (fromCamera) {
         const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== 'granted') return;
+        if (status !== 'granted') {
+          showPermissionAlert(
+            'Camera permission needed',
+            'Please allow camera access in Settings to capture photos or videos.'
+          );
+          return;
+        }
       } else {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== 'granted') return;
+        if (status !== 'granted') {
+          showPermissionAlert(
+            'Gallery permission needed',
+            'Please allow photo library access in Settings to choose media.'
+          );
+          return;
+        }
       }
 
       const mediaTypes =
@@ -1216,6 +1243,12 @@ export default function IndexScreen() {
       }
     } catch (error) {
       console.error('Error selecting media:', error);
+      Alert.alert(
+        fromCamera ? 'Camera unavailable' : 'Unable to open gallery',
+        fromCamera
+          ? 'Could not open camera. If you are on a simulator, test on a real device.'
+          : 'Could not open your media library.'
+      );
     }
   };
 

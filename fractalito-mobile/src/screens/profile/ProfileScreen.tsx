@@ -363,8 +363,6 @@ export default function ProfileScreen() {
           <Text style={styles.cardDescription}>Manage your account information</Text>
 
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Profile</Text>
-            <Text style={styles.cardDescription}>Manage your account information</Text>
 
             <View style={styles.avatarContainer}>
               <View style={styles.avatar}>

@@ -102,6 +102,7 @@ export default function IndexScreen() {
   const updateMomentY = useMomentsStore((state) => state.updateMomentY);
   const updateGroupMomentY = useMomentsStore((state) => state.updateGroupMomentY);
   const updateBabyMomentY = useMomentsStore((state) => state.updateBabyMomentY);
+  const updateMomentSize = useMomentsStore((state) => state.updateMomentSize);
   const loadBabyMoments = useMomentsStore((state) => state.loadBabyMoments);
   const loadGroupMoments = useMomentsStore((state) => state.loadGroupMoments);
   const setAuthenticated = useMomentsStore((state) => state.setAuthenticated);
@@ -196,6 +197,8 @@ export default function IndexScreen() {
   const draggingMomentIdRef = useRef<string | null>(null);
   const dragCardStartRef = useRef<{ pageY: number; momentY: number } | null>(null);
   const dragMomentCurrentYRef = useRef<Record<string, number>>({});
+  const resizingMomentIdRef = useRef<string | null>(null);
+  const resizeStartRef = useRef<{ width: number; height: number; pageX: number; pageY: number } | null>(null);
   const suppressDragRef = useRef(false);
   const pickerOpenedAtRef = useRef<number>(0);
   const isMyLife = activeTimelineId === DEFAULT_TIMELINE_ID;
@@ -1645,6 +1648,36 @@ export default function IndexScreen() {
     dragCardStartRef.current = null;
   };
 
+  const startMomentResize = (
+    momentId: string,
+    initialWidth: number,
+    initialHeight: number,
+    pageX: number,
+    pageY: number
+  ) => {
+    resizingMomentIdRef.current = momentId;
+    resizeStartRef.current = { width: initialWidth, height: initialHeight, pageX, pageY };
+    suppressDragRef.current = true;
+  };
+
+  const moveMomentResize = (momentId: string, pageX: number, pageY: number) => {
+    if (resizingMomentIdRef.current !== momentId || !resizeStartRef.current) return;
+    const dx = pageX - resizeStartRef.current.pageX;
+    const dy = pageY - resizeStartRef.current.pageY;
+    const minWidth = 160;
+    const maxWidth = Math.max(minWidth, viewportWidth - 16);
+    const minHeight = 56;
+    const nextWidth = Math.max(minWidth, Math.min(maxWidth, resizeStartRef.current.width + dx));
+    const nextHeight = Math.max(minHeight, resizeStartRef.current.height + dy);
+    updateMomentSize(momentId, nextWidth, nextHeight);
+  };
+
+  const endMomentResize = () => {
+    resizingMomentIdRef.current = null;
+    resizeStartRef.current = null;
+    suppressDragRef.current = false;
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
@@ -1919,7 +1952,8 @@ export default function IndexScreen() {
                 : (moment.endTime ? Number(moment.endTime) : undefined);
               const endX = timeToX(endTimeValue ?? moment.timestamp, centerTime, msPerPixel, viewportWidth);
               const baseCardWidth = moment.width ?? viewportWidth * 0.62;
-              const cardWidth = Math.max(190, Math.min(320, baseCardWidth));
+              const maxCardWidth = Math.max(160, viewportWidth - 16);
+              const cardWidth = Math.max(160, Math.min(maxCardWidth, baseCardWidth));
               const cardLeft = Math.max(8, Math.min(viewportWidth - cardWidth - 8, startX + 2));
               const cardRight = cardLeft + cardWidth;
               const accentColor = moment.category === 'personal' ? '#f59e0b' : '#4a7dff';
@@ -2091,6 +2125,33 @@ export default function IndexScreen() {
                             </View>
                           ))}
                         </View>
+                      </View>
+                    )}
+                    {isMyLife && !moment.groupId && (
+                      <View
+                        style={styles.momentResizeHandle}
+                        onStartShouldSetResponder={() => true}
+                        onMoveShouldSetResponder={() => true}
+                        onResponderTerminationRequest={() => false}
+                        onResponderGrant={(e) => {
+                          const pageX = e.nativeEvent.pageX ?? e.nativeEvent.touches?.[0]?.pageX;
+                          const pageY = e.nativeEvent.pageY ?? e.nativeEvent.touches?.[0]?.pageY;
+                          if (typeof pageX === 'number' && typeof pageY === 'number') {
+                            startMomentResize(moment.id, cardWidth, cardHeight, pageX, pageY);
+                          }
+                        }}
+                        onResponderMove={(e) => {
+                          const pageX = e.nativeEvent.pageX ?? e.nativeEvent.touches?.[0]?.pageX;
+                          const pageY = e.nativeEvent.pageY ?? e.nativeEvent.touches?.[0]?.pageY;
+                          if (typeof pageX === 'number' && typeof pageY === 'number') {
+                            moveMomentResize(moment.id, pageX, pageY);
+                          }
+                        }}
+                        onResponderRelease={endMomentResize}
+                        onResponderTerminate={endMomentResize}
+                      >
+                        <View style={styles.momentResizeHandleLine} />
+                        <View style={[styles.momentResizeHandleLine, styles.momentResizeHandleLineShort]} />
                       </View>
                     )}
                   </View>
@@ -3651,6 +3712,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
+  },
+  momentResizeHandle: {
+    position: 'absolute',
+    right: 6,
+    bottom: 6,
+    width: 24,
+    height: 24,
+    alignItems: 'flex-end',
+    justifyContent: 'flex-end',
+  },
+  momentResizeHandleLine: {
+    width: 12,
+    height: 12,
+    borderRightWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: '#c4c9d4',
+  },
+  momentResizeHandleLineShort: {
+    position: 'absolute',
+    right: 2,
+    bottom: 2,
+    width: 8,
+    height: 8,
+    borderRightWidth: 2,
+    borderBottomWidth: 2,
+    borderColor: '#c4c9d4',
   },
   momentTextWrap: {
     flex: 1,

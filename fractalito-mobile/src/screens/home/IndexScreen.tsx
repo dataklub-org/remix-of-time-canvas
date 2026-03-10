@@ -2109,11 +2109,14 @@ export default function IndexScreen() {
                       })()}
                       
                     </View>
-                    {moment.memorable && (
-                      <View style={styles.momentBadge}>
-                        <Text style={styles.momentBadgeText}>M</Text>
-                      </View>
-                    )}
+                    <View
+                      style={[
+                        styles.momentBadge,
+                        { backgroundColor: moment.memorable ? accentColor : '#9ca3af' },
+                      ]}
+                    >
+                      <Text style={styles.momentBadgeText}>M</Text>
+                    </View>
                     {isOurLife && ourLifeGroupNames.length > 0 && (
                       <View style={styles.momentFooter}>
                         <View style={styles.momentChips}>

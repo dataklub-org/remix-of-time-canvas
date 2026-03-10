@@ -2122,7 +2122,7 @@ export default function IndexScreen() {
           </TouchableOpacity>
 
           <View style={styles.rightActions}>
-            <TouchableOpacity style={styles.circleButton}>
+            <TouchableOpacity style={styles.circleButton} onPress={() => handlePickPhoto(true)}>
               <Text style={styles.circleButtonText}>📷</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.circleButton} onPress={() => setCalendarOpen(true)}>

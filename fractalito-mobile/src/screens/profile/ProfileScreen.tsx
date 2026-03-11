@@ -9,6 +9,7 @@ import {
   Alert,
   Clipboard,
   Image,
+  TextInput,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
@@ -38,6 +39,9 @@ export default function ProfileScreen() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [deleteStep, setDeleteStep] = useState<'initial' | 'confirm-moments' | 'confirm-account'>('initial');
   const [isDeleting, setIsDeleting] = useState(false);
+  const [promoCodeInput, setPromoCodeInput] = useState('');
+  const [redeemingPromo, setRedeemingPromo] = useState(false);
+  const [promoStatus, setPromoStatus] = useState<string | null>(null);
 
   // Local profile copy
   const [localUsername, setLocalUsername] = useState<string>(profile?.username || '');
@@ -251,6 +255,36 @@ export default function ProfileScreen() {
     ]);
   };
 
+  const handleRedeemPromoCode = async () => {
+    if (!user?.id) return;
+    const code = promoCodeInput.trim();
+    if (!code) {
+      Alert.alert('Missing Code', 'Enter a promo code to redeem.');
+      return;
+    }
+
+    setRedeemingPromo(true);
+    setPromoStatus(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('redeem-promo-code', {
+        body: { code },
+      });
+
+      if (error) throw error;
+
+      const tierLabel = (data as any)?.tier || (data as any)?.newTier || null;
+      setPromoStatus(tierLabel ? `Promo applied. Tier: ${tierLabel}` : 'Promo applied.');
+      setPromoCodeInput('');
+      toast({ title: 'Promo code applied' });
+    } catch (error: any) {
+      const message = error?.message || 'Failed to redeem promo code';
+      setPromoStatus(message);
+      toast({ title: 'Promo code failed', variant: 'destructive' });
+    } finally {
+      setRedeemingPromo(false);
+    }
+  };
+
   const handleDeleteAllData = () => {
     Alert.alert(
       'Delete All Data',
@@ -446,6 +480,36 @@ export default function ProfileScreen() {
               ))}
             </View>
           )}
+        </View>
+
+        {/* Promo Code Card */}
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Promo Code</Text>
+          <Text style={styles.cardDescription}>Redeem a code to upgrade your storage tier</Text>
+
+          <View style={styles.promoRow}>
+            <TextInput
+              style={styles.promoInput}
+              placeholder="Enter promo code"
+              placeholderTextColor="#9aa0a6"
+              value={promoCodeInput}
+              onChangeText={setPromoCodeInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+            />
+            <TouchableOpacity
+              style={styles.promoButton}
+              onPress={handleRedeemPromoCode}
+              disabled={redeemingPromo}
+            >
+              {redeemingPromo ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Text style={styles.promoButtonText}>Redeem</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+          {promoStatus && <Text style={styles.promoStatus}>{promoStatus}</Text>}
         </View>
 
         {/* Sign Out */}
@@ -679,5 +743,40 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  promoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  promoInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: '#111',
+    backgroundColor: '#f9fafb',
+  },
+  promoButton: {
+    backgroundColor: '#111827',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 90,
+  },
+  promoButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  promoStatus: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#374151',
   },
 });

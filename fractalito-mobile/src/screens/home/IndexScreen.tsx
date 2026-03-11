@@ -82,7 +82,17 @@ export default function IndexScreen() {
     removeConnection,
     clearSearchResults,
   } = useConnections(user?.id || null);
-  const { groups, createGroup, addMemberToGroup, getGroupMembers, deleteGroup, updateGroupColor } = useGroups(user?.id || null);
+  const {
+    groups,
+    pendingInvitations,
+    createGroup,
+    addMemberToGroup,
+    getGroupMembers,
+    deleteGroup,
+    acceptInvitation,
+    declineInvitation,
+    updateGroupColor,
+  } = useGroups(user?.id || null);
   const {
     notifications,
     unreadCount,
@@ -180,6 +190,7 @@ export default function IndexScreen() {
   const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
   const [loadingGroupMembers, setLoadingGroupMembers] = useState(false);
   const [colorPickerGroupId, setColorPickerGroupId] = useState<string | null>(null);
+  const [invitingGroupId, setInvitingGroupId] = useState<string | null>(null);
   const [inviteCodes, setInviteCodes] = useState<Record<string, { id: string; code: string; createdAt: string } | null>>({});
   const [loadingInviteGroupId, setLoadingInviteGroupId] = useState<string | null>(null);
   const [generatingInviteGroupId, setGeneratingInviteGroupId] = useState<string | null>(null);
@@ -2442,6 +2453,35 @@ export default function IndexScreen() {
                 </TouchableOpacity>
               )}
             </View>
+            {pendingInvitations.length > 0 && (
+              <View style={styles.myCirclePendingWrap}>
+                <Text style={styles.myCirclePendingLabel}>Pending Invitations ({pendingInvitations.length})</Text>
+                {pendingInvitations.map((invitation) => (
+                  <View key={invitation.id} style={styles.myCirclePendingCard}>
+                    <View style={styles.myCirclePendingInfo}>
+                      <Text style={styles.myCirclePendingTitle}>{invitation.groupName}</Text>
+                      {!!invitation.inviterUsername && (
+                        <Text style={styles.myCirclePendingMeta}>Invited by @{invitation.inviterUsername}</Text>
+                      )}
+                    </View>
+                    <View style={styles.myCirclePendingActions}>
+                      <TouchableOpacity
+                        style={styles.myCirclePendingAccept}
+                        onPress={() => acceptInvitation(invitation.id, invitation.groupId)}
+                      >
+                        <Text style={styles.myCirclePendingAcceptText}>Accept</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.myCirclePendingDecline}
+                        onPress={() => declineInvitation(invitation.id)}
+                      >
+                        <Text style={styles.myCirclePendingDeclineText}>Decline</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )}
             {creatingGroup && (
               <View style={styles.myCircleCreateGroupCard}>
                 <TextInput
@@ -2619,6 +2659,34 @@ export default function IndexScreen() {
                             )}
                           </View>
                         )}
+                        <View style={styles.myCircleInviteDirect}>
+                          <Text style={styles.myCircleInviteLabel}>Invite from your circle:</Text>
+                          <View style={styles.myCircleInviteChips}>
+                            {connections
+                              .filter(
+                                (conn) => !groupMembers.some((member) => member.userId === conn.connectedUserId)
+                              )
+                              .map((conn) => (
+                                <TouchableOpacity
+                                  key={`${group.id}-${conn.connectedUserId}`}
+                                  style={styles.myCircleInviteChip}
+                                  onPress={async () => {
+                                    setInvitingGroupId(group.id);
+                                    await addMemberToGroup(group.id, conn.connectedUserId);
+                                    setInvitingGroupId(null);
+                                  }}
+                                  disabled={invitingGroupId === group.id}
+                                >
+                                  <Text style={styles.myCircleInviteChipText}>@{conn.username}</Text>
+                                </TouchableOpacity>
+                              ))}
+                            {connections.filter(
+                              (conn) => !groupMembers.some((member) => member.userId === conn.connectedUserId)
+                            ).length === 0 && (
+                              <Text style={styles.myCircleInviteEmpty}>No one else to invite.</Text>
+                            )}
+                          </View>
+                        </View>
                         <View style={styles.myCircleInviteSection}>
                           <Text style={styles.myCircleInviteLabel}>Invite others to join:</Text>
                           {loadingInviteGroupId === group.id ? (
@@ -5347,6 +5415,32 @@ const styles = StyleSheet.create({
   myCircleInviteSection: {
     gap: 8,
   },
+  myCircleInviteDirect: {
+    marginTop: 10,
+    gap: 8,
+  },
+  myCircleInviteChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  myCircleInviteChip: {
+    borderWidth: 1,
+    borderColor: '#d3d8e1',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#f7f8fa',
+  },
+  myCircleInviteChipText: {
+    fontSize: 12,
+    color: '#303846',
+    fontWeight: '600',
+  },
+  myCircleInviteEmpty: {
+    fontSize: 12,
+    color: '#6c778b',
+  },
   myCircleInviteLabel: {
     fontSize: 14,
     color: '#6c778b',
@@ -5391,6 +5485,66 @@ const styles = StyleSheet.create({
   myCircleInviteShareText: {
     fontSize: 14,
     color: '#303846',
+    fontWeight: '600',
+  },
+  myCirclePendingWrap: {
+    marginTop: 8,
+    gap: 8,
+  },
+  myCirclePendingLabel: {
+    fontSize: 13,
+    color: '#6c778b',
+    fontWeight: '500',
+  },
+  myCirclePendingCard: {
+    borderWidth: 1,
+    borderColor: '#e2e7ee',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: '#f7f9ff',
+    gap: 8,
+  },
+  myCirclePendingInfo: {
+    gap: 2,
+  },
+  myCirclePendingTitle: {
+    fontSize: 15,
+    color: '#1f2937',
+    fontWeight: '700',
+  },
+  myCirclePendingMeta: {
+    fontSize: 12,
+    color: '#6c778b',
+  },
+  myCirclePendingActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  myCirclePendingAccept: {
+    flex: 1,
+    backgroundColor: '#111827',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  myCirclePendingAcceptText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  myCirclePendingDecline: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#f2c4c4',
+    backgroundColor: '#fff5f5',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  myCirclePendingDeclineText: {
+    color: '#b42318',
+    fontSize: 12,
     fontWeight: '600',
   },
   deleteMomentButton: {

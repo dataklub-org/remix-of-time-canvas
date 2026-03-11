@@ -864,6 +864,121 @@ export default function IndexScreen() {
     }
   };
 
+  const saveMomentSilently = async (): Promise<number | null> => {
+    if (!isMyLife && !isOurLife && !isBabyLife) return null;
+    const desc = descriptionInput.trim();
+    if (!desc) return null;
+
+    const startTs = parseDateTime(startDateInput, startTimeInput);
+    if (!startTs) return null;
+
+    let endTs: number | undefined;
+    const hasEndDate = !!endDateInput.trim();
+    const hasEndTime = !!endTimeInput.trim();
+    if (hasEndDate && hasEndTime) {
+      const parsedEnd = parseDateTime(endDateInput, endTimeInput);
+      if (parsedEnd && parsedEnd >= startTs) {
+        endTs = parsedEnd;
+      }
+    }
+
+    setSavingMoment(true);
+    try {
+      const initialY = typeof createMomentY === 'number' ? createMomentY : 70;
+      const initialWidth = getDefaultMomentWidth(msPerPixel);
+      const primaryPhoto = photos.length > 0 ? photos[0] : null;
+      const payload = {
+        timestamp: startTs,
+        endTime: endTs,
+        y: initialY,
+        description: desc,
+        people: people.join(', '),
+        location: locationInput.trim(),
+        category,
+        memorable,
+        photo: primaryPhoto || undefined,
+        photos: photos.length > 0 ? photos : undefined,
+        width: initialWidth,
+      };
+
+      if (isBabyLife) {
+        if (!selectedBabyId) return null;
+        const ok = await shareMomentToBaby(selectedBabyId, payload);
+        if (!ok) return null;
+        await loadBabyMoments();
+      } else if (isOurLife) {
+        if (groups.length === 0) {
+          await addMoment(payload);
+        } else {
+          if (selectedShareGroupIds.length === 0) return null;
+          await Promise.all(selectedShareGroupIds.map((groupId) => addGroupMoment(groupId, payload)));
+          if (selectedShareGroupIds.length === 1) {
+            setSelectedOurLifeGroupId(selectedShareGroupIds[0]);
+          } else {
+            setSelectedOurLifeGroupId(null);
+          }
+        }
+      } else {
+        await addMoment(payload);
+        if (selectedShareGroupIds.length > 0) {
+          await Promise.all(selectedShareGroupIds.map((groupId) => addGroupMoment(groupId, payload)));
+        }
+        if (selectedShareBabyIds.length > 0) {
+          await Promise.all(selectedShareBabyIds.map((babyId) => shareMomentToBaby(babyId, payload)));
+          await loadBabyMoments();
+        }
+      }
+      return startTs;
+    } catch (error) {
+      console.error('Error autosaving moment:', error);
+      return null;
+    } finally {
+      setSavingMoment(false);
+    }
+  };
+
+  const saveEditedMomentSilently = async (): Promise<number | null> => {
+    if (!isMyLife) return null;
+    if (!editingMomentId || !editingMoment) return null;
+    const desc = descriptionInput.trim();
+    if (!desc) return null;
+    const startTs = parseDateTime(startDateInput, startTimeInput);
+    if (!startTs) return null;
+
+    let endTs: number | undefined;
+    const hasEndDate = !!endDateInput.trim();
+    const hasEndTime = !!endTimeInput.trim();
+    if (hasEndDate && hasEndTime) {
+      const parsedEnd = parseDateTime(endDateInput, endTimeInput);
+      if (parsedEnd && parsedEnd >= startTs) {
+        endTs = parsedEnd;
+      }
+    }
+
+    setSavingMoment(true);
+    try {
+      const updater = editingMoment.groupId ? updateGroupMoment : updateMoment;
+      const primaryPhoto = photos.length > 0 ? photos[0] : null;
+      await updater(editingMomentId, {
+        timestamp: startTs,
+        endTime: endTs,
+        description: desc,
+        people: people.join(', '),
+        location: locationInput.trim(),
+        category,
+        memorable,
+        photo: primaryPhoto || undefined,
+        photos: photos.length > 0 ? photos : undefined,
+      });
+      return startTs;
+    } catch (error) {
+      console.error('Error autosaving edited moment:', error);
+      return null;
+    } finally {
+      setSavingMoment(false);
+    }
+  };
+
   const handleCreateMoment = async () => {
     const createdTs = await saveMoment();
     if (createdTs !== null) {
@@ -934,14 +1049,18 @@ export default function IndexScreen() {
 
   const handleAutosaveAndClose = async () => {
     if (isEditingMoment) {
+      const savedTs = await saveEditedMomentSilently();
+      if (savedTs !== null) {
+        setCenterTime(savedTs);
+      }
       setEditingMomentId(null);
       resetNewMomentForm();
       setNewMomentOpen(false);
       return;
     }
-    if (descriptionInput.trim()) {
-      const ok = await saveMoment();
-      if (!ok) return;
+    const savedTs = await saveMomentSilently();
+    if (savedTs !== null) {
+      setCenterTime(savedTs);
     }
     resetNewMomentForm();
     setNewMomentOpen(false);
@@ -2792,8 +2911,8 @@ export default function IndexScreen() {
       </Modal>
 
       {/* New Moment modal */}
-      <Modal visible={newMomentOpen} transparent animationType="fade" onRequestClose={handleDiscardMoment}>
-        <Pressable style={styles.newMomentOverlay} onPress={handleDiscardMoment}>
+      <Modal visible={newMomentOpen} transparent animationType="fade" onRequestClose={handleAutosaveAndClose}>
+        <Pressable style={styles.newMomentOverlay} onPress={handleAutosaveAndClose}>
           <View />
         </Pressable>
         <View style={styles.newMomentOverlayCard}>

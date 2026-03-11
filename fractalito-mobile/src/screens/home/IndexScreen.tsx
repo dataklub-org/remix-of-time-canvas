@@ -505,6 +505,8 @@ export default function IndexScreen() {
     return uploaded;
   };
 
+  const ALLOW_SAVE_WITHOUT_UPLOAD = true;
+
   const maxVerticalScroll = Math.max(200, viewportHeight / 2);
 
   const handlePanStart = (e: any) => {
@@ -913,6 +915,7 @@ export default function IndexScreen() {
 
     const preparedPhotos = await (async () => {
       if (!photos.length) return [];
+      if (ALLOW_SAVE_WITHOUT_UPLOAD) return photos;
       if (!isAuthenticated) return photos;
       const local = photos.filter(isLocalPhotoUri);
       const remote = photos.filter((uri) => !isLocalPhotoUri(uri));
@@ -924,30 +927,49 @@ export default function IndexScreen() {
         }
         return [...remote, ...uploaded];
       } catch {
-        return null;
+        return photos;
       }
     })();
 
     if (preparedPhotos === null) return null;
 
+    const initialY = typeof createMomentY === 'number' ? createMomentY : 70;
+    const initialWidth = getDefaultMomentWidth(msPerPixel);
+    const primaryPhoto = preparedPhotos.length > 0 ? preparedPhotos[0] : null;
+    const payload = {
+      timestamp: startTs,
+      endTime: endTs,
+      y: initialY,
+      description: desc,
+      people: people.join(', '),
+      location: locationInput.trim(),
+      category,
+      memorable,
+      photo: primaryPhoto || undefined,
+      photos: preparedPhotos.length > 0 ? preparedPhotos : undefined,
+      width: initialWidth,
+    };
+
+    let optimisticId: string | null = null;
+    if ((isMyLife || (isOurLife && groups.length === 0)) && isAuthenticated) {
+      optimisticId = `temp_${nanoid(6)}`;
+      const now = Date.now();
+      useMomentsStore.setState((state) => ({
+        moments: [
+          ...state.moments,
+          {
+            id: optimisticId!,
+            timelineId: userTimelineId || DEFAULT_TIMELINE_ID,
+            createdAt: now,
+            updatedAt: now,
+            ...payload,
+          },
+        ],
+      }));
+    }
+
     setSavingMoment(true);
     try {
-      const initialY = typeof createMomentY === 'number' ? createMomentY : 70;
-      const initialWidth = getDefaultMomentWidth(msPerPixel);
-      const primaryPhoto = preparedPhotos.length > 0 ? preparedPhotos[0] : null;
-      const payload = {
-        timestamp: startTs,
-        endTime: endTs,
-        y: initialY,
-        description: desc,
-        people: people.join(', '),
-        location: locationInput.trim(),
-        category,
-        memorable,
-        photo: primaryPhoto || undefined,
-        photos: preparedPhotos.length > 0 ? preparedPhotos : undefined,
-        width: initialWidth,
-      };
 
       if (isBabyLife) {
         if (!selectedBabyId) {
@@ -985,8 +1007,18 @@ export default function IndexScreen() {
           await loadBabyMoments();
         }
       }
+      if (optimisticId) {
+        useMomentsStore.setState((state) => ({
+          moments: state.moments.filter((m) => m.id !== optimisticId),
+        }));
+      }
       return startTs;
     } catch (error) {
+      if (optimisticId) {
+        useMomentsStore.setState((state) => ({
+          moments: state.moments.filter((m) => m.id !== optimisticId),
+        }));
+      }
       console.error('Error creating moment:', error);
       Alert.alert('Error', 'Failed to create moment');
       return null;
@@ -1015,6 +1047,7 @@ export default function IndexScreen() {
 
     const preparedPhotos = await (async () => {
       if (!photos.length) return [];
+      if (ALLOW_SAVE_WITHOUT_UPLOAD) return photos;
       if (!isAuthenticated) return photos;
       const local = photos.filter(isLocalPhotoUri);
       const remote = photos.filter((uri) => !isLocalPhotoUri(uri));
@@ -1026,8 +1059,8 @@ export default function IndexScreen() {
         }
         return [...remote, ...uploaded];
       } catch (error) {
-        Alert.alert('Upload Failed', 'Could not upload photos. Please try again.');
-        return null;
+        Alert.alert('Upload Failed', 'Could not upload photos. Saving without upload.');
+        return photos;
       }
     })();
 
@@ -1108,6 +1141,7 @@ export default function IndexScreen() {
 
     const preparedPhotos = await (async () => {
       if (!photos.length) return [];
+      if (ALLOW_SAVE_WITHOUT_UPLOAD) return photos;
       if (!isAuthenticated) return photos;
       const local = photos.filter(isLocalPhotoUri);
       const remote = photos.filter((uri) => !isLocalPhotoUri(uri));
@@ -1117,7 +1151,7 @@ export default function IndexScreen() {
         if (uploaded.length !== local.length) return null;
         return [...remote, ...uploaded];
       } catch {
-        return null;
+        return photos;
       }
     })();
 
@@ -1148,12 +1182,13 @@ export default function IndexScreen() {
   };
 
   const handleCreateMoment = async () => {
-    const createdTs = await saveMoment();
+    const savePromise = saveMoment();
+    setEditingMomentId(null);
+    resetNewMomentForm();
+    setNewMomentOpen(false);
+    const createdTs = await savePromise;
     if (createdTs !== null) {
       setCenterTime(createdTs);
-      setEditingMomentId(null);
-      resetNewMomentForm();
-      setNewMomentOpen(false);
     }
   };
 
@@ -1204,8 +1239,8 @@ export default function IndexScreen() {
         }
         return [...remote, ...uploaded];
       } catch {
-        Alert.alert('Upload Failed', 'Could not upload photos. Please try again.');
-        return null;
+        Alert.alert('Upload Failed', 'Could not upload photos. Saving without upload.');
+        return photos;
       }
     })();
 

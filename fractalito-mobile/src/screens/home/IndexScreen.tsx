@@ -404,6 +404,107 @@ export default function IndexScreen() {
     }
   };
 
+  const isLocalPhotoUri = (uri: string) =>
+    uri.startsWith('file:') || uri.startsWith('content:') || uri.startsWith('ph:');
+
+  const getMimeTypeForUri = (uri: string) => {
+    const normalized = uri.split('?')[0].toLowerCase();
+    if (normalized.endsWith('.png')) return 'image/png';
+    if (normalized.endsWith('.webp')) return 'image/webp';
+    if (normalized.endsWith('.heic') || normalized.endsWith('.heif')) return 'image/heic';
+    return 'image/jpeg';
+  };
+
+  const extractUploadUrls = (payload: any): string[] => {
+    if (!payload) return [];
+    const direct =
+      payload.photo_urls ||
+      payload.photoUrls ||
+      payload.urls ||
+      payload.data?.photo_urls ||
+      payload.data?.photoUrls ||
+      payload.data?.urls;
+
+    if (Array.isArray(direct)) {
+      return direct.filter((u) => typeof u === 'string');
+    }
+
+    const full =
+      payload.full_url ||
+      payload.fullUrl ||
+      payload.url ||
+      payload.data?.full_url ||
+      payload.data?.fullUrl ||
+      payload.data?.url;
+    const medium = payload.medium_url || payload.mediumUrl || payload.data?.medium_url || payload.data?.mediumUrl;
+    const thumb = payload.thumb_url || payload.thumbUrl || payload.data?.thumb_url || payload.data?.thumbUrl;
+    return [full, medium, thumb].filter((u) => typeof u === 'string') as string[];
+  };
+
+  const uploadPhotoToR2 = async (
+    uri: string,
+    momentId: string,
+    photoId: string,
+    photoIndex: number
+  ): Promise<string[]> => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token;
+    if (!accessToken) throw new Error('Not authenticated');
+
+    const form = new FormData();
+    form.append('momentId', momentId);
+    form.append('photoId', photoId);
+    form.append('photoIndex', String(photoIndex));
+
+    const ext = (uri.split('?')[0].split('.').pop() || 'jpg').toLowerCase();
+    const mime = getMimeTypeForUri(uri);
+    const baseName = nanoid(8);
+
+    const file: any = {
+      uri,
+      name: `${baseName}.${ext}`,
+      type: mime,
+    };
+
+    // Send the same source for thumb/medium/full if no client-side resize is available.
+    form.append('thumb', file);
+    form.append('medium', file);
+    form.append('full', file);
+
+    const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+    if (!supabaseUrl) throw new Error('Missing Supabase URL');
+
+    const response = await fetch(`${supabaseUrl}/functions/v1/upload-photo`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+      body: form,
+    });
+
+    const json = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const message = json?.error || json?.message || 'Upload failed';
+      throw new Error(message);
+    }
+
+    return extractUploadUrls(json);
+  };
+
+  const uploadMomentPhotos = async (uris: string[]) => {
+    if (!uris.length) return [];
+    const momentId = nanoid(12);
+    const uploaded: string[] = [];
+    for (const [index, uri] of uris.entries()) {
+      const urls = await uploadPhotoToR2(uri, momentId, nanoid(8), index);
+      if (urls.length > 0) {
+        // Prefer the first returned URL as the display URL.
+        uploaded.push(urls[0]);
+      }
+    }
+    return uploaded;
+  };
+
   const maxVerticalScroll = Math.max(200, viewportHeight / 2);
 
   const handlePanStart = (e: any) => {
@@ -810,11 +911,30 @@ export default function IndexScreen() {
       endTs = parsedEnd;
     }
 
+    const preparedPhotos = await (async () => {
+      if (!photos.length) return [];
+      if (!isAuthenticated) return photos;
+      const local = photos.filter(isLocalPhotoUri);
+      const remote = photos.filter((uri) => !isLocalPhotoUri(uri));
+      if (local.length === 0) return photos;
+      try {
+        const uploaded = await uploadMomentPhotos(local);
+        if (uploaded.length !== local.length) {
+          throw new Error('Photo upload incomplete');
+        }
+        return [...remote, ...uploaded];
+      } catch {
+        return null;
+      }
+    })();
+
+    if (preparedPhotos === null) return null;
+
     setSavingMoment(true);
     try {
       const initialY = typeof createMomentY === 'number' ? createMomentY : 70;
       const initialWidth = getDefaultMomentWidth(msPerPixel);
-      const primaryPhoto = photos.length > 0 ? photos[0] : null;
+      const primaryPhoto = preparedPhotos.length > 0 ? preparedPhotos[0] : null;
       const payload = {
         timestamp: startTs,
         endTime: endTs,
@@ -825,7 +945,7 @@ export default function IndexScreen() {
         category,
         memorable,
         photo: primaryPhoto || undefined,
-        photos: photos.length > 0 ? photos : undefined,
+        photos: preparedPhotos.length > 0 ? preparedPhotos : undefined,
         width: initialWidth,
       };
 
@@ -893,11 +1013,31 @@ export default function IndexScreen() {
       }
     }
 
+    const preparedPhotos = await (async () => {
+      if (!photos.length) return [];
+      if (!isAuthenticated) return photos;
+      const local = photos.filter(isLocalPhotoUri);
+      const remote = photos.filter((uri) => !isLocalPhotoUri(uri));
+      if (local.length === 0) return photos;
+      try {
+        const uploaded = await uploadMomentPhotos(local);
+        if (uploaded.length !== local.length) {
+          throw new Error('Photo upload incomplete');
+        }
+        return [...remote, ...uploaded];
+      } catch (error) {
+        Alert.alert('Upload Failed', 'Could not upload photos. Please try again.');
+        return null;
+      }
+    })();
+
+    if (preparedPhotos === null) return null;
+
     setSavingMoment(true);
     try {
       const initialY = typeof createMomentY === 'number' ? createMomentY : 70;
       const initialWidth = getDefaultMomentWidth(msPerPixel);
-      const primaryPhoto = photos.length > 0 ? photos[0] : null;
+      const primaryPhoto = preparedPhotos.length > 0 ? preparedPhotos[0] : null;
       const payload = {
         timestamp: startTs,
         endTime: endTs,
@@ -908,7 +1048,7 @@ export default function IndexScreen() {
         category,
         memorable,
         photo: primaryPhoto || undefined,
-        photos: photos.length > 0 ? photos : undefined,
+        photos: preparedPhotos.length > 0 ? preparedPhotos : undefined,
         width: initialWidth,
       };
 
@@ -966,10 +1106,27 @@ export default function IndexScreen() {
       }
     }
 
+    const preparedPhotos = await (async () => {
+      if (!photos.length) return [];
+      if (!isAuthenticated) return photos;
+      const local = photos.filter(isLocalPhotoUri);
+      const remote = photos.filter((uri) => !isLocalPhotoUri(uri));
+      if (local.length === 0) return photos;
+      try {
+        const uploaded = await uploadMomentPhotos(local);
+        if (uploaded.length !== local.length) return null;
+        return [...remote, ...uploaded];
+      } catch {
+        return null;
+      }
+    })();
+
+    if (preparedPhotos === null) return null;
+
     setSavingMoment(true);
     try {
       const updater = editingMoment.groupId ? updateGroupMoment : updateMoment;
-      const primaryPhoto = photos.length > 0 ? photos[0] : null;
+      const primaryPhoto = preparedPhotos.length > 0 ? preparedPhotos[0] : null;
       await updater(editingMomentId, {
         timestamp: startTs,
         endTime: endTs,
@@ -979,7 +1136,7 @@ export default function IndexScreen() {
         category,
         memorable,
         photo: primaryPhoto || undefined,
-        photos: photos.length > 0 ? photos : undefined,
+        photos: preparedPhotos.length > 0 ? preparedPhotos : undefined,
       });
       return startTs;
     } catch (error) {
@@ -1034,10 +1191,30 @@ export default function IndexScreen() {
       endTs = parsedEnd;
     }
 
+    const preparedPhotos = await (async () => {
+      if (!photos.length) return [];
+      if (!isAuthenticated) return photos;
+      const local = photos.filter(isLocalPhotoUri);
+      const remote = photos.filter((uri) => !isLocalPhotoUri(uri));
+      if (local.length === 0) return photos;
+      try {
+        const uploaded = await uploadMomentPhotos(local);
+        if (uploaded.length !== local.length) {
+          throw new Error('Photo upload incomplete');
+        }
+        return [...remote, ...uploaded];
+      } catch {
+        Alert.alert('Upload Failed', 'Could not upload photos. Please try again.');
+        return null;
+      }
+    })();
+
+    if (preparedPhotos === null) return;
+
     setSavingMoment(true);
     try {
       const updater = editingMoment.groupId ? updateGroupMoment : updateMoment;
-      const primaryPhoto = photos.length > 0 ? photos[0] : null;
+      const primaryPhoto = preparedPhotos.length > 0 ? preparedPhotos[0] : null;
       await updater(editingMomentId, {
         timestamp: startTs,
         endTime: endTs,
@@ -1047,7 +1224,7 @@ export default function IndexScreen() {
         category,
         memorable,
         photo: primaryPhoto || undefined,
-        photos: photos.length > 0 ? photos : undefined,
+        photos: preparedPhotos.length > 0 ? preparedPhotos : undefined,
       });
       setCenterTime(startTs);
       setEditingMomentId(null);

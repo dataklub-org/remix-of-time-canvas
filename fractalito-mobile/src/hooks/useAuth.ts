@@ -101,12 +101,17 @@ export function useAuth() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          username: username.toLowerCase(),
+        },
+      },
     });
     
     if (error) return { error };
     
     // Create profile with username
-    if (data.user) {
+    if (data.user && data.session) {
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({
@@ -114,7 +119,7 @@ export function useAuth() {
           username: username.toLowerCase(),
         });
       
-      if (profileError) {
+      if (profileError && profileError.code !== '23505') {
         console.error('Error creating profile:', profileError);
         return { error: { message: 'Failed to create profile' } };
       }

@@ -15,7 +15,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { devLog } from '../../utils/logger';
 
 export default function AuthScreen() {
-  const { signUp, signIn, signInWithGoogle, checkUsernameAvailable } = useAuth();
+  const { signUp, signIn, signInWithGoogle, checkUsernameAvailable, isAuthenticated } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,6 +32,21 @@ export default function AuthScreen() {
   const [otpCode, setOtpCode] = useState('');
   const [verifyingOtp, setVerifyingOtp] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Auto-dismiss auth errors after 5s
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => setError(null), 5000);
+    return () => clearTimeout(timer);
+  }, [error]);
+
+  // Clear any lingering error once the user is authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      setError(null);
+      setSuccessMessage(null);
+    }
+  }, [isAuthenticated]);
 
   // Resend cooldown timer
   useEffect(() => {
@@ -115,7 +130,7 @@ export default function AuthScreen() {
         devLog('📝 Attempting sign up for:', email);
         const { error } = await signUp(email, password, username);
         if (error) {
-          console.error('❌ Sign up error:', error.message);
+          devLog('Sign up error:', error.message);
           setError(error.message);
         } else {
           devLog('✅ Sign up successful! Check email.');
@@ -130,15 +145,17 @@ export default function AuthScreen() {
         devLog('🔑 Attempting sign in for:', email);
         const { error } = await signIn(email, password);
         if (error) {
-          console.error('❌ Sign in error:', error.message);
+          devLog('Sign in error:', error.message);
           setError(error.message || 'Invalid email or password');
         } else {
           devLog('✅ Sign in successful!');
+          setError(null);
+          setSuccessMessage(null);
         }
         // On success, navigation will be handled by auth state change
       }
     } catch (error: any) {
-      console.error('❌ Unexpected error:', error);
+      devLog('Unexpected error:', error);
       setError(error.message || 'An error occurred');
     } finally {
       setSubmitting(false);
@@ -290,7 +307,10 @@ export default function AuthScreen() {
                     usernameAvailable && styles.inputSuccess,
                   ]}
                   value={username}
-                  onChangeText={setUsername}
+                onChangeText={(value) => {
+                  setUsername(value);
+                  if (error) setError(null);
+                }}
                   placeholder="Choose a username"
                   autoCapitalize="none"
                   autoCorrect={false}
@@ -316,7 +336,10 @@ export default function AuthScreen() {
             <TextInput
               style={styles.input}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(value) => {
+                setEmail(value);
+                if (error) setError(null);
+              }}
               placeholder="you@example.com"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -329,7 +352,10 @@ export default function AuthScreen() {
             <TextInput
               style={styles.input}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(value) => {
+                setPassword(value);
+                if (error) setError(null);
+              }}
               placeholder="••••••••"
               secureTextEntry
               autoCapitalize="none"
@@ -342,7 +368,10 @@ export default function AuthScreen() {
               <TextInput
                 style={styles.input}
                 value={confirmPassword}
-                onChangeText={setConfirmPassword}
+                onChangeText={(value) => {
+                  setConfirmPassword(value);
+                  if (error) setError(null);
+                }}
                 placeholder="••••••••"
                 secureTextEntry
                 autoCapitalize="none"

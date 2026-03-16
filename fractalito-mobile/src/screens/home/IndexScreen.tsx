@@ -441,6 +441,19 @@ export default function IndexScreen() {
     return [full, medium, thumb].filter((u) => typeof u === 'string') as string[];
   };
 
+  const formatUploadError = (error: unknown) => {
+    if (error instanceof Error && error.message) {
+      const msg = error.message.trim();
+      if (!msg) return 'Could not upload photos. Please try again.';
+      const lower = msg.toLowerCase();
+      if (lower.includes('daily photo limit')) return msg;
+      if (lower.includes('storage limit')) return msg;
+      if (lower.includes('not authenticated')) return 'Please sign in to upload photos.';
+      return msg;
+    }
+    return 'Could not upload photos. Please try again.';
+  };
+
   const uploadPhotoToR2 = async (
     uri: string,
     momentId: string,
@@ -926,7 +939,8 @@ export default function IndexScreen() {
           throw new Error('Photo upload incomplete');
         }
         return [...remote, ...uploaded];
-      } catch {
+      } catch (error) {
+        Alert.alert('Upload Failed', formatUploadError(error));
         return photos;
       }
     })();
@@ -1059,7 +1073,7 @@ export default function IndexScreen() {
         }
         return [...remote, ...uploaded];
       } catch (error) {
-        Alert.alert('Upload Failed', 'Could not upload photos. Saving without upload.');
+        Alert.alert('Upload Failed', formatUploadError(error));
         return photos;
       }
     })();
@@ -1238,8 +1252,8 @@ export default function IndexScreen() {
           throw new Error('Photo upload incomplete');
         }
         return [...remote, ...uploaded];
-      } catch {
-        Alert.alert('Upload Failed', 'Could not upload photos. Saving without upload.');
+      } catch (error) {
+        Alert.alert('Upload Failed', formatUploadError(error));
         return photos;
       }
     })();

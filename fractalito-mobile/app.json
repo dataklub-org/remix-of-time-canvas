@@ -23,7 +23,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.dataklub.mylife",
+      "package": "com.dataklub.fractalito",
       "versionCode": 1
     },
     "web": {

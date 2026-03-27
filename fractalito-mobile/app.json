@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "MyLife",
-    "slug": "mylife",
-    "scheme": "mylife",
+    "name": "Fractalito",
+    "slug": "fractalito",
+    "scheme": "fractalito",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -31,8 +31,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "81665704-6cff-453c-800c-67522c5d9de4"
+        "projectId": "b5448587-4d85-4b13-9856-83768405685d"
       }
-    }
+    },
+    "owner": "pavelgjufteski"
   }
 }
